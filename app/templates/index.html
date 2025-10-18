@@ -52,22 +52,31 @@
                   <h5 class="mb-0">Son Aktiviteler</h5>
                   <a class="btn btn-link btn-sm" href="#">Tümünü Gör</a>
                 </div>
+                {% set area_badges = {
+                  'envanter': {'label': 'Envanter', 'variant': 'primary'},
+                  'talep': {'label': 'Talep', 'variant': 'success'},
+                  'urun': {'label': 'Ürün', 'variant': 'info'},
+                  'kullanici': {'label': 'Kullanıcı', 'variant': 'secondary'}
+                } %}
                 <ul class="list-unstyled mb-0">
-                  <li class="d-flex align-items-center py-2 border-bottom">
-                    <span class="badge rounded-pill bg-primary me-3">Envanter</span>
-                    <span>Yeni bir dizüstü bilgisayar envantere eklendi.</span>
-                    <small class="text-muted ms-auto">10 dk önce</small>
-                  </li>
-                  <li class="d-flex align-items-center py-2 border-bottom">
-                    <span class="badge rounded-pill bg-success me-3">Talep</span>
-                    <span>Ofis koltukları için talep onaylandı.</span>
-                    <small class="text-muted ms-auto">1 saat önce</small>
-                  </li>
-                  <li class="d-flex align-items-center py-2">
-                    <span class="badge rounded-pill bg-warning text-dark me-3">Uyarı</span>
-                    <span>3 lisansın süresi 5 gün içinde doluyor.</span>
-                    <small class="text-muted ms-auto">Bugün</small>
-                  </li>
+                  {% if recent_activity %}
+                    {% for log in recent_activity %}
+                    {% set badge = area_badges.get(log.area, {'label': log.area|capitalize, 'variant': 'dark'}) %}
+                    <li class="d-flex align-items-center py-2{% if not loop.last %} border-bottom{% endif %}">
+                      <span class="badge rounded-pill bg-{{ badge.variant }}{% if badge.variant in ['warning', 'light'] %} text-dark{% endif %} me-3">{{ badge.label }}</span>
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">{{ log.action }}</div>
+                        {% if log.description %}<div class="text-muted small">{{ log.description }}</div>{% endif %}
+                      </div>
+                      <div class="text-end ms-3 small text-muted">
+                        <div>{{ log.created_display }}</div>
+                        <div>{{ log.actor }}</div>
+                      </div>
+                    </li>
+                    {% endfor %}
+                  {% else %}
+                    <li class="py-3 text-muted fst-italic">Henüz kayıtlı bir aktivite bulunmuyor.</li>
+                  {% endif %}
                 </ul>
               </div>
             </div>

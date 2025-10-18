@@ -110,7 +110,7 @@
                 <span>Admin Paneli</span>
               </div>
             </a>
-            <a class="nav-link" href="#">
+            <a class="nav-link {{ 'active' if active_page == 'activity_logs' else '' }}" href="{{ url_for('activity_logs') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
                   <i class="bi bi-journal-text"></i>

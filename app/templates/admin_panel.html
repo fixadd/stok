@@ -172,10 +172,15 @@
       </div>
     </form>
 
-    <div class="alert alert-soft mt-4 mb-0 d-none" id="productSuccess">
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-check-circle text-success fs-5"></i>
-        <span>Ürün taslağı başarıyla oluşturuldu. Entegrasyon tamamlandığında stoklara aktarılacak.</span>
+    <div class="alert alert-soft mt-4 mb-0 d-none" id="productFeedback"></div>
+
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 fw-semibold mb-0">Kaydedilmiş Ürün Taslakları</h3>
+          <span class="badge rounded-pill bg-primary-subtle text-primary" id="productCatalogCount">0 kayıt</span>
+        </div>
+        <div class="list-group" id="productCatalogList"></div>
       </div>
     </div>
   </section>
@@ -252,6 +257,7 @@
 <script>
   const productOptionData = {{ product_options | tojson }};
   const brandModelData = {{ brand_models | tojson }};
+  const productCatalogEntries = {{ catalog_entries | tojson }};
 
   document.addEventListener("DOMContentLoaded", () => {
     const sectionButtons = document.querySelectorAll(".admin-toggle .status-pill");
@@ -763,12 +769,167 @@
     }
 
     const productForm = document.getElementById("productForm");
-    const productSuccess = document.getElementById("productSuccess");
-    if (productForm && productSuccess) {
-      productForm.addEventListener("submit", (event) => {
+    const productFeedback = document.getElementById("productFeedback");
+    const productCatalogList = document.getElementById("productCatalogList");
+    const productCatalogCount = document.getElementById("productCatalogCount");
+    const usageAreaSelectEl = document.getElementById("usageAreaSelect");
+    const licenseNameSelectEl = document.getElementById("licenseNameSelect");
+    const infoCategorySelectEl = document.getElementById("infoCategorySelect");
+    const factorySelectEl = document.getElementById("factorySelect");
+    const hardwareTypeSelectEl = document.getElementById("hardwareTypeSelect");
+    let catalogEntries = Array.isArray(productCatalogEntries) ? [...productCatalogEntries] : [];
+
+    function clearProductFeedback() {
+      if (!productFeedback) {
+        return;
+      }
+      productFeedback.className = "alert alert-soft mt-4 mb-0 d-none";
+      productFeedback.textContent = "";
+    }
+
+    function showProductFeedback(message, variant = "success") {
+      if (!productFeedback) {
+        return;
+      }
+      productFeedback.textContent = message;
+      productFeedback.className = `alert alert-soft alert-${variant} mt-4 mb-0`;
+      productFeedback.classList.remove("d-none");
+    }
+
+    function renderCatalogEntries() {
+      if (!productCatalogList) {
+        return;
+      }
+      productCatalogList.innerHTML = "";
+      if (!catalogEntries.length) {
+        const emptyItem = document.createElement("div");
+        emptyItem.className = "list-group-item text-muted fst-italic";
+        emptyItem.textContent = "Henüz ürün taslağı kaydedilmedi.";
+        productCatalogList.append(emptyItem);
+      } else {
+        catalogEntries.forEach((entry) => {
+          const item = document.createElement("div");
+          item.className = "list-group-item d-flex justify-content-between align-items-center gap-3";
+          const primaryLabel = [entry.brand, entry.model].filter(Boolean).join(" ") || "—";
+          const metaParts = [entry.hardware_type, entry.factory, entry.usage_area].filter(Boolean).join(" • ");
+          const infoParts = [entry.license_name, entry.info_category].filter(Boolean).join(" • ");
+          item.innerHTML = `
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${primaryLabel}</div>
+              <div class="text-muted small">${metaParts || "—"}</div>
+              <div class="text-muted small">${infoParts ? `${infoParts} • ` : ""}${entry.created_display}</div>
+            </div>
+            <button class="btn btn-outline-danger btn-sm" type="button" data-entry-id="${entry.id}">
+              <i class="bi bi-trash"></i>
+            </button>
+          `;
+          productCatalogList.append(item);
+        });
+      }
+      if (productCatalogCount) {
+        productCatalogCount.textContent = `${catalogEntries.length} kayıt`;
+      }
+    }
+
+    renderCatalogEntries();
+
+    if (productForm) {
+      productForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        productSuccess.classList.remove("d-none");
-        productSuccess.classList.add("show");
+        clearProductFeedback();
+        const payload = {
+          usage_area_id: usageAreaSelectEl ? usageAreaSelectEl.value : "",
+          license_name_id: licenseNameSelectEl ? licenseNameSelectEl.value : "",
+          info_category_id: infoCategorySelectEl ? infoCategorySelectEl.value : "",
+          factory_id: factorySelectEl ? factorySelectEl.value : "",
+          hardware_type_id: hardwareTypeSelectEl ? hardwareTypeSelectEl.value : "",
+          brand_id: brandSelect ? brandSelect.value : "",
+          model_id: modelSelect ? modelSelect.value : "",
+        };
+
+        const missing = Object.entries(payload).some(([, value]) => !value);
+        if (missing) {
+          showProductFeedback("Lütfen tüm alanları seçin.", "danger");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/catalog/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          let result = {};
+          try {
+            result = await response.json();
+          } catch (error) {
+            result = {};
+          }
+          if (!response.ok) {
+            showProductFeedback(result.error || "Ürün taslağı kaydedilemedi.", "danger");
+            return;
+          }
+
+          catalogEntries = [result.entry, ...catalogEntries];
+          renderCatalogEntries();
+
+          productForm.reset();
+          [
+            usageAreaSelectEl,
+            licenseNameSelectEl,
+            infoCategorySelectEl,
+            factorySelectEl,
+            hardwareTypeSelectEl,
+          ].forEach((select) => {
+            if (select && select.options.length) {
+              select.value = select.options[0].value;
+            }
+          });
+          if (brandSelect && brandSelect.options.length) {
+            brandSelect.value = brandSelect.options[0].value;
+            brandSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+          showProductFeedback(result.message || "Ürün taslağı başarıyla kaydedildi.", "success");
+        } catch (error) {
+          showProductFeedback("Sunucuya ulaşılamadı.", "danger");
+        }
+      });
+    }
+
+    if (productCatalogList) {
+      productCatalogList.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-entry-id]");
+        if (!button) {
+          return;
+        }
+        const entryId = Number(button.dataset.entryId);
+        if (!entryId) {
+          return;
+        }
+
+        clearProductFeedback();
+        button.disabled = true;
+        try {
+          const response = await fetch(`/api/catalog/products/${entryId}`, { method: "DELETE" });
+          if (!response.ok) {
+            let payload = {};
+            try {
+              payload = await response.json();
+            } catch (error) {
+              payload = {};
+            }
+            showProductFeedback(payload.error || "Taslak silinemedi.", "danger");
+            button.disabled = false;
+            return;
+          }
+
+          catalogEntries = catalogEntries.filter((entry) => entry.id !== entryId);
+          renderCatalogEntries();
+          showProductFeedback("Taslak silindi.", "success");
+        } catch (error) {
+          showProductFeedback("Sunucuya ulaşılamadı.", "danger");
+          button.disabled = false;
+        }
       });
     }
 

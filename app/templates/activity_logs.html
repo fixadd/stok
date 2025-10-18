@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block title %}İşlem Kayıtları{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <div class="content-card shadow-sm">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">İşlem Kayıtları</h1>
+        <p class="text-muted mb-0">Talep, envanter, ürün ve kullanıcı işlemlerinin tam geçmişini görüntüleyin.</p>
+      </div>
+      <div class="search-container mb-0">
+        <label class="form-label" for="activitySearch">Kayıtlarda ara</label>
+        <div class="input-group search-input">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input class="form-control" id="activitySearch" type="search" placeholder="Alan, işlem veya kullanıcıya göre ara">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" id="activityTable">
+        <thead>
+          <tr>
+            <th scope="col">Alan</th>
+            <th scope="col">İşlem</th>
+            <th scope="col">Açıklama</th>
+            <th scope="col">İşlemi Yapan</th>
+            <th scope="col" class="text-end">Zaman</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if logs %}
+            {% for log in logs %}
+            <tr data-search="{{ (log.area ~ ' ' ~ log.action ~ ' ' ~ (log.description or '') ~ ' ' ~ log.actor ~ ' ' ~ log.created_display)|lower }}">
+              <td>
+                <span class="badge rounded-pill bg-light text-dark text-capitalize">{{ log.area }}</span>
+              </td>
+              <td class="fw-semibold">{{ log.action }}</td>
+              <td class="text-muted">{{ log.description or '—' }}</td>
+              <td>{{ log.actor }}</td>
+              <td class="text-end text-muted small">{{ log.created_display }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td class="text-center text-muted fst-italic" colspan="5">Henüz görüntülenecek kayıt bulunmuyor.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('activitySearch');
+    const rows = Array.from(document.querySelectorAll('#activityTable tbody tr'));
+
+    function filterRows() {
+      const query = (searchInput?.value ?? '').trim().toLowerCase();
+      rows.forEach((row) => {
+        const haystack = row.dataset.search || '';
+        row.classList.toggle('d-none', Boolean(query) && !haystack.includes(query));
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', filterRows);
+    }
+  });
+</script>
+{% endblock %}
