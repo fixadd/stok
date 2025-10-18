@@ -1,0 +1,593 @@
+{% extends "layout.html" %}
+
+{% block title %}Talep Takip · Stok Yönetim Paneli{% endblock %}
+
+{% block main %}
+        <div class="d-flex flex-column h-100">
+          <header class="mb-4">
+            <h1 class="display-6 fw-bold mb-2">Talep Takip</h1>
+            <p class="text-muted mb-0">Taleplerinizi durumlarına göre izleyin, yeni talepler açın ve stok süreçlerini tek noktadan yönetin.</p>
+          </header>
+
+          <section class="content-card shadow-sm mb-4">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+              <div class="status-toggle d-inline-flex align-items-center" role="tablist">
+                {% for group in request_groups %}
+                <button
+                  type="button"
+                  class="status-pill{% if loop.first %} active{% endif %}"
+                  data-status-filter="{{ group.key }}"
+                  aria-pressed="{{ 'true' if loop.first else 'false' }}"
+                >{{ group.label }}</button>
+                {% endfor %}
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Excel
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-upload me-2"></i>İçe Aktar</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-download me-2"></i>Dışa Aktar</a></li>
+                  </ul>
+                </div>
+                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newRequestModal">
+                  <i class="bi bi-plus-circle me-2"></i>Talep Aç
+                </button>
+              </div>
+            </div>
+
+            <div class="search-container mt-4">
+              <label class="form-label text-muted" for="talep-search">Sayfa Genelinde Ara</label>
+              <div class="input-group search-input">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="talep-search" placeholder="Sipariş no, ekip veya ürün arayın">
+              </div>
+            </div>
+          </section>
+
+          <section class="content-card shadow-sm flex-grow-1 d-flex flex-column">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+              <div>
+                <h5 class="mb-1" data-active-title>{{ request_groups[0].label }} Talepleri</h5>
+                <p class="text-muted mb-0 small" data-active-description>{{ request_groups[0].description }}</p>
+              </div>
+              <span class="badge rounded-pill bg-primary-subtle text-primary" data-visible-count>{{ request_groups[0].orders|length }} Sipariş</span>
+            </div>
+
+            <div class="alert alert-success d-none" role="alert" data-feedback></div>
+
+            <div class="request-groups flex-grow-1">
+              {% for group in request_groups %}
+              <div
+                class="request-group{% if not loop.first %} d-none{% endif %}"
+                data-status="{{ group.key }}"
+                data-title="{{ group.label }} Talepleri"
+                data-description="{{ group.description }}"
+                data-empty-message="{{ group.empty_message }}"
+              >
+                <div class="group-intro alert-soft mb-4">
+                  <i class="bi bi-info-circle me-2"></i>{{ group.description }}
+                </div>
+
+                {% if group.orders %}
+                  {% for order in group.orders %}
+                  <article class="order-card request-order" data-search-index="{{ order.search_index }}">
+                    <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                      <div>
+                        <span class="order-label text-uppercase small text-muted">Sipariş No</span>
+                        <h4 class="order-number mb-0">{{ order.order_no }}</h4>
+                      </div>
+                      <div class="order-meta d-flex flex-wrap align-items-center gap-2">
+                        <span class="meta-chip"><i class="bi bi-person"></i>{{ order.requested_by }}</span>
+                        <span class="meta-chip"><i class="bi bi-diagram-3"></i>{{ order.department }}</span>
+                        <span class="meta-chip"><i class="bi bi-calendar-event"></i>{{ order.opened_display }}</span>
+                        <span class="meta-chip"><i class="bi bi-box-seam"></i>{{ order.item_count }} kalem · {{ order.total_quantity }} adet</span>
+                      </div>
+                    </div>
+
+                    <div class="table-responsive mt-4">
+                      <table class="table align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th scope="col">Donanım Tipi</th>
+                            <th scope="col">Marka</th>
+                            <th scope="col">Model</th>
+                            <th scope="col" class="text-center">Miktar</th>
+                            <th scope="col">Tarih</th>
+                            <th scope="col">Açıklama</th>
+                            <th scope="col" class="text-end">İşlemler</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for item in order.lines %}
+                          <tr>
+                            <td class="fw-semibold">{{ item.hardware_type }}</td>
+                            <td>{{ item.brand }}</td>
+                            <td>{{ item.model }}</td>
+                            <td class="text-center">
+                              <span class="quantity-badge">
+                                <i class="bi bi-stack"></i>{{ item.quantity }}
+                              </span>
+                            </td>
+                            <td><span class="text-muted small">{{ item.opened_display }}</span></td>
+                            <td>{{ item.note }}</td>
+                            <td class="text-end">
+                              <div class="btn-group">
+                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  İşlem
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                  <li>
+                                    <button
+                                      class="dropdown-item"
+                                      type="button"
+                                      data-action="stok"
+                                      data-order-no="{{ order.order_no }}"
+                                      data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-max-quantity="{{ item.quantity }}"
+                                      data-requester="{{ order.requested_by }}"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#requestActionModal"
+                                    >
+                                      <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
+                                    </button>
+                                  </li>
+                                  <li>
+                                    <button
+                                      class="dropdown-item text-danger"
+                                      type="button"
+                                      data-action="cancel"
+                                      data-order-no="{{ order.order_no }}"
+                                      data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-max-quantity="{{ item.quantity }}"
+                                      data-requester="{{ order.requested_by }}"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#requestActionModal"
+                                    >
+                                      <i class="bi bi-x-circle me-2"></i>İptal Et
+                                    </button>
+                                  </li>
+                                </ul>
+                              </div>
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+                  {% endfor %}
+                  <div class="empty-state d-none text-center py-5">
+                    <div class="empty-state__icon mb-3"><i class="bi bi-search"></i></div>
+                    <p class="text-muted mb-0" data-empty-text>{{ group.empty_message }}</p>
+                  </div>
+                {% else %}
+                  <div class="empty-state text-center py-5">
+                    <div class="empty-state__icon mb-3"><i class="bi bi-clipboard-x"></i></div>
+                    <p class="text-muted mb-0">{{ group.empty_message }}</p>
+                  </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+
+        <div class="modal fade" id="newRequestModal" tabindex="-1" aria-labelledby="newRequestLabel" aria-hidden="true">
+          <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+              <div class="modal-header border-0 pb-0">
+                <div>
+                  <h5 class="modal-title" id="newRequestLabel">Yeni Talep Aç</h5>
+                  <p class="text-muted mb-0 small">Sipariş numarası belirleyin, talepleri satır satır ekleyin.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+              </div>
+              <div class="modal-body">
+                <form id="new-request-form">
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                      <label class="form-label">Sipariş No</label>
+                      <input type="text" class="form-control" name="order_no" placeholder="SIP-2024-020" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Talep Sahibi</label>
+                      <input type="text" class="form-control" name="requested_by" placeholder="Ad Soyad" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Departman</label>
+                      <input type="text" class="form-control" name="department" placeholder="Departman" required>
+                    </div>
+                  </div>
+
+                  <div class="request-rows" data-rows-container>
+                    <div class="request-row" data-request-row>
+                      <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                          <label class="form-label">Donanım Tipi</label>
+                          <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Örn. Laptop" required>
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Miktar</label>
+                          <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Marka</label>
+                          <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell" required>
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Model</label>
+                          <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı" required>
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Açıklama</label>
+                          <input class="form-control" name="note[]" placeholder="Not ekleyin">
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                          <button class="btn btn-outline-danger d-none" type="button" data-remove-row>
+                            <i class="bi bi-dash-circle me-1"></i>Satırı Sil
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex justify-content-between align-items-center mt-4">
+                    <button class="btn btn-outline-secondary" type="button" data-add-row>
+                      <i class="bi bi-plus-lg me-1"></i>Satır Ekle
+                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                      <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+                      <button class="btn btn-primary" type="submit">Talep Aç</button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <template id="request-row-template">
+          <div class="request-row" data-request-row>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label">Donanım Tipi</label>
+                <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Örn. Laptop" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Miktar</label>
+                <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Marka</label>
+                <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Model</label>
+                <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Açıklama</label>
+                <input class="form-control" name="note[]" placeholder="Not ekleyin">
+              </div>
+              <div class="col-12 d-flex justify-content-end">
+                <button class="btn btn-outline-danger" type="button" data-remove-row>
+                  <i class="bi bi-dash-circle me-1"></i>Satırı Sil
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <datalist id="hardware-types">
+          {% for option in hardware_catalog.types %}
+          <option value="{{ option }}"></option>
+          {% endfor %}
+        </datalist>
+        <datalist id="hardware-brands">
+          {% for option in hardware_catalog.brands %}
+          <option value="{{ option }}"></option>
+          {% endfor %}
+        </datalist>
+        <datalist id="hardware-models">
+          {% for option in hardware_catalog.models %}
+          <option value="{{ option }}"></option>
+          {% endfor %}
+        </datalist>
+
+        <div class="modal fade" id="requestActionModal" tabindex="-1" aria-labelledby="requestActionLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="requestActionLabel">Talep İşlemi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-3" data-action-message>Seçili talep satırı için işlem yapın.</p>
+                <div class="alert alert-light border d-none" role="alert" data-single-info>
+                  <i class="bi bi-exclamation-circle me-2"></i>Bu satır 1 adet içeriyor, işlem tüm adetler için uygulanacak.
+                </div>
+                <div class="mb-3" data-quantity-group>
+                  <label class="form-label" for="action-quantity">İşlem Yapılacak Miktar</label>
+                  <input type="number" class="form-control" id="action-quantity" min="1" value="1">
+                  <div class="form-text" data-quantity-hint></div>
+                </div>
+                <div class="form-floating">
+                  <textarea class="form-control" placeholder="Not ekleyin" id="action-note" style="height: 120px"></textarea>
+                  <label for="action-note">Not / Açıklama</label>
+                </div>
+              </div>
+              <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-primary" data-confirm-action>İşlemi Kaydet</button>
+              </div>
+            </div>
+          </div>
+        </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const statusButtons = Array.from(document.querySelectorAll('[data-status-filter]'));
+    const requestGroups = Array.from(document.querySelectorAll('.request-group'));
+    const searchInput = document.getElementById('talep-search');
+    const activeTitle = document.querySelector('[data-active-title]');
+    const activeDescription = document.querySelector('[data-active-description]');
+    const visibleCount = document.querySelector('[data-visible-count]');
+    const feedback = document.querySelector('[data-feedback]');
+    let feedbackTimer;
+
+    let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
+
+    function showFeedback(message, type = 'success') {
+      if (!feedback) {
+        return;
+      }
+      feedback.classList.remove('d-none', 'alert-success', 'alert-info', 'alert-danger', 'alert-warning');
+      feedback.classList.add(`alert-${type}`);
+      feedback.textContent = message;
+      feedback.classList.remove('d-none');
+      clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(() => {
+        feedback.classList.add('d-none');
+      }, 5000);
+    }
+
+    function getGroup(status) {
+      return requestGroups.find((group) => group.dataset.status === status);
+    }
+
+    function updateGroupVisibility(status) {
+      activeStatus = status;
+      requestGroups.forEach((group) => {
+        const isActive = group.dataset.status === status;
+        group.classList.toggle('d-none', !isActive);
+        if (isActive) {
+          const emptyMessage = group.dataset.emptyMessage;
+          const emptyText = group.querySelector('[data-empty-text]');
+          if (emptyText) {
+            emptyText.textContent = emptyMessage;
+          }
+        }
+      });
+      statusButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.statusFilter === status);
+        btn.setAttribute('aria-pressed', btn.dataset.statusFilter === status ? 'true' : 'false');
+      });
+      applySearch();
+    }
+
+    function applySearch() {
+      const group = getGroup(activeStatus);
+      if (!group) {
+        return;
+      }
+      const query = (searchInput?.value ?? '').trim().toLowerCase();
+      const orders = Array.from(group.querySelectorAll('.request-order'));
+      let visibleOrders = 0;
+      orders.forEach((order) => {
+        const match = !query || order.dataset.searchIndex?.includes(query);
+        order.classList.toggle('d-none', !match);
+        if (match) {
+          visibleOrders += 1;
+        }
+      });
+      const emptyState = group.querySelector('.empty-state');
+      if (emptyState) {
+        emptyState.classList.toggle('d-none', visibleOrders !== 0);
+      }
+      if (visibleCount) {
+        visibleCount.textContent = `${visibleOrders} Sipariş`;
+      }
+      if (activeTitle) {
+        activeTitle.textContent = group.dataset.title;
+      }
+      if (activeDescription) {
+        activeDescription.textContent = group.dataset.description;
+      }
+    }
+
+    statusButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        updateGroupVisibility(btn.dataset.statusFilter);
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        applySearch();
+      });
+    }
+
+    updateGroupVisibility(activeStatus);
+
+    const rowTemplate = document.getElementById('request-row-template');
+    const rowsContainer = document.querySelector('[data-rows-container]');
+    const addRowButton = document.querySelector('[data-add-row]');
+    const newRequestModal = document.getElementById('newRequestModal');
+    const newRequestForm = document.getElementById('new-request-form');
+
+    function updateRowControls() {
+      if (!rowsContainer) {
+        return;
+      }
+      const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+      rows.forEach((row) => {
+        const removeButton = row.querySelector('[data-remove-row]');
+        if (!removeButton) {
+          return;
+        }
+        const allowRemove = rows.length > 1;
+        removeButton.classList.toggle('d-none', !allowRemove);
+        removeButton.disabled = !allowRemove;
+      });
+    }
+
+    updateRowControls();
+
+    if (addRowButton && rowTemplate && rowsContainer) {
+      addRowButton.addEventListener('click', () => {
+        const clone = rowTemplate.content.cloneNode(true);
+        rowsContainer.appendChild(clone);
+        updateRowControls();
+      });
+    }
+
+    if (rowsContainer) {
+      rowsContainer.addEventListener('click', (event) => {
+        const removeTrigger = event.target.closest('[data-remove-row]');
+        if (!removeTrigger) {
+          return;
+        }
+        const row = removeTrigger.closest('[data-request-row]');
+        if (!row) {
+          return;
+        }
+        const rows = rowsContainer.querySelectorAll('[data-request-row]');
+        if (rows.length > 1) {
+          row.remove();
+          updateRowControls();
+        }
+      });
+    }
+
+    if (newRequestForm) {
+      newRequestForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        showFeedback('Yeni talep taslak olarak kaydedildi. İşlemler menüsünden süreç yönetilebilir.');
+        const modalInstance = bootstrap.Modal.getInstance(newRequestModal);
+        if (modalInstance) {
+          modalInstance.hide();
+        }
+      });
+    }
+
+    if (newRequestModal) {
+      newRequestModal.addEventListener('hidden.bs.modal', () => {
+        if (newRequestForm) {
+          newRequestForm.reset();
+        }
+        if (rowsContainer) {
+          const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+          rows.slice(1).forEach((row) => row.remove());
+          updateRowControls();
+        }
+      });
+    }
+
+    const actionModal = document.getElementById('requestActionModal');
+    const actionQuantityGroup = actionModal?.querySelector('[data-quantity-group]');
+    const actionQuantityInput = actionModal?.querySelector('#action-quantity');
+    const actionHint = actionModal?.querySelector('[data-quantity-hint]');
+    const singleInfo = actionModal?.querySelector('[data-single-info]');
+    const actionMessage = actionModal?.querySelector('[data-action-message]');
+    const confirmActionButton = actionModal?.querySelector('[data-confirm-action]');
+    let pendingAction;
+
+    if (actionModal) {
+      actionModal.addEventListener('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget;
+        if (!trigger) {
+          return;
+        }
+        const actionType = trigger.getAttribute('data-action');
+        const orderNo = trigger.getAttribute('data-order-no');
+        const itemLabel = trigger.getAttribute('data-item-label');
+        const maxQuantity = Number.parseInt(trigger.getAttribute('data-max-quantity') ?? '1', 10) || 1;
+
+        pendingAction = {
+          actionType,
+          orderNo,
+          itemLabel,
+          maxQuantity,
+        };
+
+        const modalTitle = actionModal.querySelector('.modal-title');
+        const verb = actionType === 'stok' ? 'Stok Girişi' : 'Talep İptali';
+        if (modalTitle) {
+          modalTitle.textContent = `${verb} · ${orderNo}`;
+        }
+        if (actionMessage) {
+          actionMessage.innerHTML = `\n            <strong>${itemLabel}</strong> satırı için işlem yapıyorsunuz.\n          `;
+        }
+        if (actionQuantityInput) {
+          actionQuantityInput.value = Math.min(maxQuantity, Math.max(1, maxQuantity));
+          actionQuantityInput.setAttribute('max', String(maxQuantity));
+        }
+        if (actionHint) {
+          actionHint.textContent = `En fazla ${maxQuantity} adet için işlem yapabilirsiniz.`;
+        }
+        const requiresQuantity = maxQuantity > 1;
+        if (actionQuantityGroup) {
+          actionQuantityGroup.classList.toggle('d-none', !requiresQuantity);
+        }
+        if (singleInfo) {
+          singleInfo.classList.toggle('d-none', requiresQuantity);
+        }
+        if (confirmActionButton) {
+          confirmActionButton.textContent = actionType === 'stok' ? 'Stok İşlemini Kaydet' : 'Talebi İptal Et';
+          confirmActionButton.classList.toggle('btn-danger', actionType !== 'stok');
+          confirmActionButton.classList.toggle('btn-primary', actionType === 'stok');
+        }
+      });
+
+      actionModal.addEventListener('hidden.bs.modal', () => {
+        pendingAction = undefined;
+        if (actionQuantityInput) {
+          actionQuantityInput.value = '1';
+        }
+        if (actionHint) {
+          actionHint.textContent = '';
+        }
+        if (singleInfo) {
+          singleInfo.classList.add('d-none');
+        }
+      });
+    }
+
+    if (confirmActionButton) {
+      confirmActionButton.addEventListener('click', () => {
+        if (!pendingAction) {
+          return;
+        }
+        let quantity = 1;
+        if (pendingAction.maxQuantity > 1 && actionQuantityInput) {
+          const parsed = Number.parseInt(actionQuantityInput.value, 10);
+          if (Number.isFinite(parsed) && parsed >= 1) {
+            quantity = Math.min(parsed, pendingAction.maxQuantity);
+          }
+          actionQuantityInput.value = String(quantity);
+        }
+        const actionVerb = pendingAction.actionType === 'stok' ? 'Stok girişi' : 'İptal işlemi';
+        showFeedback(`${pendingAction.orderNo} numaralı sipariş için ${actionVerb} (${quantity} adet) kaydedildi.`);
+        const modalInstance = bootstrap.Modal.getInstance(actionModal);
+        if (modalInstance) {
+          modalInstance.hide();
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}
