@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stok-web:latest
+    ports:
+      - "5001:5001"
+    environment:
+      FLASK_APP: app
+      FLASK_RUN_HOST: 0.0.0.0
+      FLASK_RUN_PORT: 5001
+    volumes:
+      - ./app:/app/app:ro
+    restart: unless-stopped
