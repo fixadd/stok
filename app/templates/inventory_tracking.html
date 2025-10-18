@@ -214,7 +214,7 @@
 
 <div class="modal fade inventory-modal" id="inventoryCreateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
+    <form class="modal-content" id="inventoryCreateForm">
       <div class="modal-header">
         <div>
           <h5 class="modal-title mb-1">Envanter Ekle</h5>
@@ -223,18 +223,18 @@
         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
       <div class="modal-body">
-        <form class="row g-4">
+        <div class="row g-4">
           <div class="col-md-6">
             <label class="form-label" for="inventoryNo">Envanter No</label>
-            <input class="form-control" id="inventoryNo" type="text" placeholder="ENV-000500">
+            <input class="form-control" id="inventoryNo" name="inventory_no" type="text" placeholder="ENV-000500" required>
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryComputerName">Bilgisayar Adı</label>
-            <input class="form-control" id="inventoryComputerName" type="text" placeholder="PC-OFIS-10">
+            <input class="form-control" id="inventoryComputerName" name="computer_name" type="text" placeholder="PC-OFIS-10">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryFactory">Fabrika</label>
-            <select class="form-select" id="inventoryFactory">
+            <select class="form-select" id="inventoryFactory" name="factory_id" required>
               <option value="" selected disabled>Seçiniz…</option>
               {% for factory in factories %}
               <option value="{{ factory.id }}">{{ factory.name }}</option>
@@ -243,7 +243,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryDepartment">Departman</label>
-            <select class="form-select" id="inventoryDepartment">
+            <select class="form-select" id="inventoryDepartment" name="department" required>
               <option value="" selected disabled>Seçiniz…</option>
               {% for department in departments %}
               <option value="{{ department }}">{{ department }}</option>
@@ -252,7 +252,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryType">Donanım Tipi</label>
-            <select class="form-select" id="inventoryType">
+            <select class="form-select" id="inventoryType" name="hardware_type_id" required>
               <option value="" selected disabled>Seçiniz…</option>
               {% for hardware_type in hardware_types %}
               <option value="{{ hardware_type.id }}">{{ hardware_type.name }}</option>
@@ -261,8 +261,8 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryResponsible">Sorumlu Personel</label>
-            <select class="form-select" id="inventoryResponsible">
-              <option value="" selected disabled>Seçiniz…</option>
+            <select class="form-select" id="inventoryResponsible" name="responsible_user_id">
+              <option value="" selected>Seçiniz…</option>
               {% for user in users %}
               <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
               {% endfor %}
@@ -270,7 +270,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryBrand">Marka</label>
-            <select class="form-select" id="inventoryBrand">
+            <select class="form-select" id="inventoryBrand" name="brand_id" required>
               {% for brand in brand_models %}
               <option value="{{ brand.id }}">{{ brand.name }}</option>
               {% endfor %}
@@ -278,45 +278,45 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryModel">Model</label>
-            <select class="form-select" id="inventoryModel" disabled>
+            <select class="form-select" id="inventoryModel" name="model_id" disabled required>
               <option value="" selected>Önce marka seçiniz</option>
             </select>
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventorySerial">Seri No</label>
-            <input class="form-control" id="inventorySerial" type="text" placeholder="SN123456789">
+            <input class="form-control" id="inventorySerial" name="serial_no" type="text" placeholder="SN123456789">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryIfs">IFS No</label>
-            <input class="form-control" id="inventoryIfs" type="text" placeholder="IFS-00001">
+            <input class="form-control" id="inventoryIfs" name="ifs_no" type="text" placeholder="IFS-00001">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryRelatedMachine">Bağlı Makina No</label>
-            <input class="form-control" id="inventoryRelatedMachine" type="text" placeholder="WS-001">
+            <input class="form-control" id="inventoryRelatedMachine" name="related_machine_no" type="text" placeholder="WS-001">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryMachine">Makina No</label>
-            <input class="form-control" id="inventoryMachine" type="text" placeholder="MN-001">
+            <input class="form-control" id="inventoryMachine" name="machine_no" type="text" placeholder="MN-001">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="inventoryStatus">Durum</label>
-            <select class="form-select" id="inventoryStatus">
+            <select class="form-select" id="inventoryStatus" name="status" required>
               {% for status_choice in status_choices %}
-              <option value="{{ status_choice.value }}">{{ status_choice.label }}</option>
+              <option value="{{ status_choice.value }}"{% if loop.first %} selected{% endif %}>{{ status_choice.label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-12">
             <label class="form-label" for="inventoryNote">Açıklama / Notlar</label>
-            <textarea class="form-control" id="inventoryNote" rows="3" placeholder="Teslimat, garanti veya kullanım notları"></textarea>
+            <textarea class="form-control" id="inventoryNote" name="note" rows="3" placeholder="Teslimat, garanti veya kullanım notları"></textarea>
           </div>
-        </form>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
-        <button class="btn btn-primary" type="button">Kaydet</button>
+        <button class="btn btn-primary" type="submit">Kaydet</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
@@ -620,50 +620,8 @@
     faultyCounter.textContent = faultyTotal;
   }
 
-  function rebuildSearchIndex(detail) {
-    const tokens = [
-      detail.inventory_no,
-      detail.computer_name,
-      detail.factory,
-      detail.department,
-      detail.hardware_type,
-      detail.responsible,
-      detail.brand,
-      detail.model,
-      detail.serial_no,
-      detail.ifs_no,
-    ];
-    detail.search_index = tokens.filter(Boolean).join(" ").toLowerCase();
-  }
-
   function getRowElement(itemId) {
     return inventoryTableBody ? inventoryTableBody.querySelector(`tr[data-item-id="${itemId}"]`) : null;
-  }
-
-  function formatDateTime(date) {
-    try {
-      return new Intl.DateTimeFormat("tr-TR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
-    } catch (error) {
-      return date.toISOString();
-    }
-  }
-
-  function addHistoryEntry(detail, eventType, note = "", performedBy = "Sistem") {
-    const history = Array.isArray(detail.history) ? detail.history : [];
-    const entry = {
-      id: `tmp-${Date.now()}`,
-      event_type: eventType,
-      performed_by: performedBy,
-      performed_at: formatDateTime(new Date()),
-      note,
-    };
-    detail.history = [entry, ...history];
   }
 
   function syncDetailDrawer(itemId) {
@@ -672,6 +630,127 @@
     }
     if (detailContainer.dataset.itemId === String(itemId) && detailContainer.classList.contains("show")) {
       renderInventoryDetail(itemId);
+    }
+  }
+
+  function safeText(value) {
+    return value && String(value).trim() ? String(value) : "—";
+  }
+
+  function buildInventoryRow(detail) {
+    const row = document.createElement("tr");
+    const statusKey = (detail.status || "aktif").toLowerCase();
+    row.className = `inventory-row${statusKey === "arizali" ? " is-faulty" : ""}`;
+    row.dataset.itemId = String(detail.id);
+    row.dataset.search = detail.search_index || "";
+    row.dataset.status = statusKey;
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold" data-field="inventory_no">${safeText(detail.inventory_no)}</div>
+        <div class="text-muted small" data-field="hardware_type">${safeText(detail.hardware_type)}</div>
+      </td>
+      <td>
+        <div class="fw-semibold" data-field="factory">${safeText(detail.factory)}</div>
+        <div class="text-muted small" data-field="department">${safeText(detail.department)}</div>
+      </td>
+      <td>
+        <div class="fw-semibold" data-field="responsible">${safeText(detail.responsible)}</div>
+        <div class="text-muted small" data-field="computer_name">${safeText(detail.computer_name)}</div>
+      </td>
+      <td>
+        <div class="fw-semibold" data-field="brand">${safeText(detail.brand)}</div>
+        <div class="text-muted small" data-field="model">${safeText(detail.model)}</div>
+      </td>
+      <td>
+        <span class="inventory-status-badge ${statusClasses[statusKey] || "status-aktif"}" data-field="status">${statusLabels[statusKey] || safeText(statusKey)}</span>
+      </td>
+      <td class="text-end">
+        <div class="d-inline-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm icon-button inventory-detail-trigger" type="button" data-item-id="${detail.id}" data-bs-toggle="offcanvas" data-bs-target="#inventoryDetailDrawer" aria-controls="inventoryDetailDrawer">
+            <i class="bi bi-eye"></i>
+          </button>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Seçiniz…
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><a class="dropdown-item inventory-action" data-action="mark-faulty" data-item-id="${detail.id}" href="#">Arızalı İşaretle</a></li>
+              <li><a class="dropdown-item inventory-action" data-action="assign" data-item-id="${detail.id}" href="#">Atama Yap</a></li>
+              <li><a class="dropdown-item inventory-action" data-action="edit" data-item-id="${detail.id}" href="#">Düzenle</a></li>
+              <li><a class="dropdown-item inventory-action" data-action="stock" data-item-id="${detail.id}" href="#">Stok Girişi</a></li>
+              <li><a class="dropdown-item text-danger inventory-action" data-action="scrap" data-item-id="${detail.id}" href="#">Hurdaya Ayır</a></li>
+            </ul>
+          </div>
+        </div>
+      </td>
+    `;
+    return row;
+  }
+
+  function ensureRow(detail) {
+    if (!detail || !inventoryTableBody) {
+      return null;
+    }
+    let row = getRowElement(detail.id);
+    if (!row) {
+      row = buildInventoryRow(detail);
+      inventoryTableBody.prepend(row);
+      refreshInventoryRows();
+    }
+    return row;
+  }
+
+  function applyInventoryDetail(detail) {
+    if (!detail) {
+      return;
+    }
+    const statusKey = (detail.status || "aktif").toLowerCase();
+    detail.status = statusKey;
+    if (!detail.search_index) {
+      const tokens = [
+        detail.inventory_no,
+        detail.computer_name,
+        detail.factory,
+        detail.department,
+        detail.hardware_type,
+        detail.responsible,
+        detail.brand,
+        detail.model,
+        detail.serial_no,
+        detail.ifs_no,
+      ];
+      detail.search_index = tokens.filter(Boolean).join(" ").toLowerCase();
+    }
+    inventoryMap.set(detail.id, detail);
+    updateRowFromDetail(detail);
+  }
+
+  async function sendInventoryRequest(url, { method = "POST", body = null } = {}) {
+    const options = { method, headers: { "Content-Type": "application/json" } };
+    if (body && method !== "GET") {
+      options.body = JSON.stringify(body);
+    }
+    try {
+      const response = await fetch(url, options);
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || "İşlem tamamlanamadı.");
+      }
+      if (payload.item) {
+        applyInventoryDetail(payload.item);
+        updateFaultyCounter();
+        filterInventory();
+        syncDetailDrawer(payload.item.id);
+      }
+      return payload;
+    } catch (error) {
+      showActionAlert(error.message || "Sunucuya ulaşılamadı.", "danger");
+      throw error;
     }
   }
 
@@ -691,12 +770,10 @@
   }
 
   function updateRowFromDetail(detail) {
-    const row = getRowElement(detail.id);
+    const row = ensureRow(detail);
     if (!row) {
       return;
     }
-
-    const safeText = (value) => (value && String(value).trim() ? value : "—");
     const fieldMap = {
       inventory_no: detail.inventory_no,
       hardware_type: detail.hardware_type,
@@ -726,8 +803,6 @@
       statusBadge.className = `inventory-status-badge ${statusClasses[statusKey] || "status-aktif"}`;
       statusBadge.setAttribute("data-field", "status");
     }
-
-    syncDetailDrawer(detail.id);
   }
 
   function filterInventory() {
@@ -871,15 +946,48 @@
     renderHistory(detail.history || []);
   }
 
-  document.querySelectorAll(".inventory-detail-trigger").forEach((button) => {
-    button.addEventListener("click", () => {
-      const { itemId } = button.dataset;
-      if (!itemId) {
+  if (inventoryTableBody) {
+    inventoryTableBody.addEventListener("click", (event) => {
+      const detailButton = event.target.closest(".inventory-detail-trigger");
+      if (detailButton) {
+        const { itemId } = detailButton.dataset;
+        if (itemId) {
+          renderInventoryDetail(itemId);
+        }
         return;
       }
-      renderInventoryDetail(itemId);
+
+      const actionLink = event.target.closest(".inventory-action");
+      if (actionLink) {
+        event.preventDefault();
+        const { itemId, action: actionType } = actionLink.dataset;
+        if (!itemId || !actionType) {
+          return;
+        }
+        activeInventoryId = Number(itemId);
+
+        switch (actionType) {
+          case "mark-faulty":
+            openFaultModal();
+            break;
+          case "assign":
+            openAssignModal();
+            break;
+          case "edit":
+            openEditModal();
+            break;
+          case "stock":
+            openStockModal();
+            break;
+          case "scrap":
+            openScrapModal();
+            break;
+          default:
+            break;
+        }
+      }
     });
-  });
+  }
 
   if (detailContainer && bootstrapLib) {
     detailContainer.addEventListener("hidden.bs.offcanvas", () => {
@@ -957,13 +1065,87 @@
     return "";
   }
 
+  const createModalEl = document.getElementById("inventoryCreateModal");
+  const createForm = document.getElementById("inventoryCreateForm");
+  const createInventoryNo = document.getElementById("inventoryNo");
+  const createComputerName = document.getElementById("inventoryComputerName");
+  const createFactorySelect = document.getElementById("inventoryFactory");
+  const createDepartmentSelect = document.getElementById("inventoryDepartment");
+  const createTypeSelect = document.getElementById("inventoryType");
+  const createResponsibleSelect = document.getElementById("inventoryResponsible");
   const createBrandSelect = document.getElementById("inventoryBrand");
   const createModelSelect = document.getElementById("inventoryModel");
+  const createSerialInput = document.getElementById("inventorySerial");
+  const createIfsInput = document.getElementById("inventoryIfs");
+  const createRelatedInput = document.getElementById("inventoryRelatedMachine");
+  const createMachineInput = document.getElementById("inventoryMachine");
+  const createStatusSelect = document.getElementById("inventoryStatus");
+  const createNoteInput = document.getElementById("inventoryNote");
   if (createBrandSelect) {
     createBrandSelect.addEventListener("change", () => {
       populateModelOptionsFor(createBrandSelect, createModelSelect);
     });
     populateModelOptionsFor(createBrandSelect, createModelSelect);
+  }
+
+  if (createForm) {
+    createForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = {
+        inventory_no: createInventoryNo ? createInventoryNo.value.trim() : "",
+        computer_name: createComputerName ? createComputerName.value.trim() : "",
+        factory_id: createFactorySelect && createFactorySelect.value ? Number(createFactorySelect.value) : null,
+        department: createDepartmentSelect ? createDepartmentSelect.value.trim() : "",
+        hardware_type_id: createTypeSelect && createTypeSelect.value ? Number(createTypeSelect.value) : null,
+        responsible_user_id: createResponsibleSelect && createResponsibleSelect.value ? Number(createResponsibleSelect.value) : null,
+        brand_id: createBrandSelect && createBrandSelect.value ? Number(createBrandSelect.value) : null,
+        model_id: createModelSelect && createModelSelect.value ? Number(createModelSelect.value) : null,
+        serial_no: createSerialInput ? createSerialInput.value.trim() : "",
+        ifs_no: createIfsInput ? createIfsInput.value.trim() : "",
+        related_machine_no: createRelatedInput ? createRelatedInput.value.trim() : "",
+        machine_no: createMachineInput ? createMachineInput.value.trim() : "",
+        status: createStatusSelect ? createStatusSelect.value : "aktif",
+        note: createNoteInput ? createNoteInput.value.trim() : "",
+      };
+
+      if (!payload.inventory_no) {
+        showActionAlert("Envanter numarası zorunludur.", "danger");
+        return;
+      }
+      if (!payload.factory_id) {
+        showActionAlert("Lütfen bir fabrika seçin.", "danger");
+        return;
+      }
+      if (!payload.department) {
+        showActionAlert("Lütfen departman seçin.", "danger");
+        return;
+      }
+      if (!payload.hardware_type_id) {
+        showActionAlert("Lütfen donanım tipini seçin.", "danger");
+        return;
+      }
+      if (!payload.brand_id || !payload.model_id) {
+        showActionAlert("Lütfen marka ve model seçin.", "danger");
+        return;
+      }
+
+      try {
+        await sendInventoryRequest("/api/inventory", {
+          method: "POST",
+          body: payload,
+        });
+        if (createModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(createModalEl)?.hide();
+        }
+        createForm.reset();
+        if (createBrandSelect) {
+          populateModelOptionsFor(createBrandSelect, createModelSelect);
+        }
+        showActionAlert("Yeni envanter kaydı oluşturuldu.", "success");
+      } catch (error) {
+        // hata mesajı gösterildi
+      }
+    });
   }
 
   const faultModalEl = document.getElementById("inventoryFaultModal");
@@ -982,10 +1164,10 @@
       faultInventoryNoInput.value = detail.inventory_no || "";
     }
     if (faultReasonInput) {
-      faultReasonInput.value = detail.fault_reason || "";
+      faultReasonInput.value = "";
     }
     if (faultLocationInput) {
-      faultLocationInput.value = detail.fault_location || "";
+      faultLocationInput.value = "";
     }
     if (faultModalEl && bootstrapLib) {
       bootstrapLib.Modal.getOrCreateInstance(faultModalEl).show();
@@ -993,35 +1175,28 @@
   }
 
   if (faultForm) {
-    faultForm.addEventListener("submit", (event) => {
+    faultForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const detail = inventoryMap.get(activeInventoryId);
       if (!detail) {
         return;
       }
-      detail.status = "arizali";
-      detail.fault_reason = faultReasonInput ? faultReasonInput.value.trim() : "";
-      detail.fault_location = faultLocationInput ? faultLocationInput.value.trim() : "";
-
-      const noteParts = [];
-      if (detail.fault_reason) {
-        noteParts.push(`Arıza Nedeni: ${detail.fault_reason}`);
+      const payload = {
+        reason: faultReasonInput ? faultReasonInput.value.trim() : "",
+        location: faultLocationInput ? faultLocationInput.value.trim() : "",
+      };
+      try {
+        await sendInventoryRequest(`/api/inventory/${detail.id}/mark-faulty`, {
+          method: "POST",
+          body: payload,
+        });
+        if (faultModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(faultModalEl)?.hide();
+        }
+        showActionAlert("Envanter arızalı olarak işaretlendi.", "warning");
+      } catch (error) {
+        // hata mesajı sendInventoryRequest tarafından gösterildi
       }
-      if (detail.fault_location) {
-        noteParts.push(`Gönderildiği Yer: ${detail.fault_location}`);
-      }
-      addHistoryEntry(detail, "Arızalı olarak işaretlendi", noteParts.join(" • "));
-
-      rebuildSearchIndex(detail);
-      updateRowFromDetail(detail);
-      updateFaultyCounter();
-      filterInventory();
-      syncDetailDrawer(detail.id);
-
-      if (faultModalEl && bootstrapLib) {
-        bootstrapLib.Modal.getInstance(faultModalEl)?.hide();
-      }
-      showActionAlert("Envanter arızalı olarak işaretlendi.", "warning");
     });
   }
 
@@ -1054,7 +1229,7 @@
   }
 
   if (assignForm) {
-    assignForm.addEventListener("submit", (event) => {
+    assignForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const detail = inventoryMap.get(activeInventoryId);
       if (!detail) {
@@ -1062,39 +1237,36 @@
       }
 
       const factoryValue = assignFactorySelect ? assignFactorySelect.value : "";
-      detail.factory_id = factoryValue ? Number(factoryValue) : null;
-      detail.factory = factoryValue ? (factoriesMap.get(factoryValue)?.name || detail.factory) : "";
-
-      const departmentValue = assignDepartmentSelect ? assignDepartmentSelect.value : "";
-      detail.department = departmentValue || "";
-
+      const departmentValue = assignDepartmentSelect ? assignDepartmentSelect.value.trim() : "";
       const responsibleValue = assignUserSelect ? assignUserSelect.value : "";
-      detail.responsible_user_id = responsibleValue ? Number(responsibleValue) : null;
-      const responsibleUser = responsibleValue ? usersMap.get(responsibleValue) : null;
-      detail.responsible = responsibleUser ? responsibleUser.name : "Henüz atanmamış";
+      const payload = {
+        factory_id: factoryValue ? Number(factoryValue) : null,
+        department: departmentValue,
+        responsible_user_id: responsibleValue ? Number(responsibleValue) : null,
+        related_machine_no: assignRelatedInput ? assignRelatedInput.value.trim() : "",
+      };
 
-      if (!detail.department && responsibleUser && responsibleUser.department) {
-        detail.department = responsibleUser.department;
+      if (!payload.factory_id) {
+        showActionAlert("Lütfen bir fabrika seçin.", "danger");
+        return;
+      }
+      if (!payload.department) {
+        showActionAlert("Lütfen departman seçin.", "danger");
+        return;
       }
 
-      if (assignRelatedInput) {
-        detail.related_machine_no = assignRelatedInput.value.trim();
+      try {
+        await sendInventoryRequest(`/api/inventory/${detail.id}/assign`, {
+          method: "POST",
+          body: payload,
+        });
+        if (assignModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(assignModalEl)?.hide();
+        }
+        showActionAlert("Envanter ataması güncellendi.", "success");
+      } catch (error) {
+        // hata mesajı gösterildi
       }
-
-      addHistoryEntry(detail, "Atama güncellendi", [
-        detail.factory ? `Fabrika: ${detail.factory}` : "",
-        detail.department ? `Departman: ${detail.department}` : "",
-        detail.responsible && detail.responsible !== "Henüz atanmamış" ? `Sorumlu: ${detail.responsible}` : "",
-      ].filter(Boolean).join(" • "));
-
-      rebuildSearchIndex(detail);
-      updateRowFromDetail(detail);
-      filterInventory();
-
-      if (assignModalEl && bootstrapLib) {
-        bootstrapLib.Modal.getInstance(assignModalEl)?.hide();
-      }
-      showActionAlert("Envanter ataması güncellendi.", "success");
     });
   }
 
@@ -1169,7 +1341,7 @@
   }
 
   if (editForm) {
-    editForm.addEventListener("submit", (event) => {
+    editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const detail = inventoryMap.get(activeInventoryId);
       if (!detail) {
@@ -1177,56 +1349,60 @@
       }
 
       const previousStatus = detail.status;
+      const payload = {
+        inventory_no: editInventoryNo ? editInventoryNo.value.trim() : detail.inventory_no,
+        computer_name: editComputerName ? editComputerName.value.trim() : "",
+        factory_id: editFactorySelect && editFactorySelect.value ? Number(editFactorySelect.value) : null,
+        department: editDepartmentSelect ? editDepartmentSelect.value.trim() : "",
+        hardware_type_id: editTypeSelect && editTypeSelect.value ? Number(editTypeSelect.value) : null,
+        responsible_user_id: editResponsibleSelect && editResponsibleSelect.value ? Number(editResponsibleSelect.value) : null,
+        brand_id: editBrandSelect && editBrandSelect.value ? Number(editBrandSelect.value) : null,
+        model_id: editModelSelect && editModelSelect.value ? Number(editModelSelect.value) : null,
+        serial_no: editSerialInput ? editSerialInput.value.trim() : "",
+        ifs_no: editIfsInput ? editIfsInput.value.trim() : "",
+        related_machine_no: editRelatedMachineInput ? editRelatedMachineInput.value.trim() : "",
+        machine_no: editMachineInput ? editMachineInput.value.trim() : "",
+        status: editStatusSelect ? editStatusSelect.value : previousStatus,
+        note: editNoteInput ? editNoteInput.value.trim() : "",
+      };
 
-      detail.computer_name = editComputerName ? editComputerName.value.trim() : "";
-
-      const factoryValue = editFactorySelect ? editFactorySelect.value : "";
-      detail.factory_id = factoryValue ? Number(factoryValue) : null;
-      detail.factory = factoryValue ? (factoriesMap.get(factoryValue)?.name || detail.factory) : "";
-
-      const departmentValue = editDepartmentSelect ? editDepartmentSelect.value : "";
-      detail.department = departmentValue || "";
-
-      const typeValue = editTypeSelect ? editTypeSelect.value : "";
-      detail.hardware_type_id = typeValue ? Number(typeValue) : null;
-      detail.hardware_type = typeValue ? (hardwareTypeMap.get(typeValue)?.name || detail.hardware_type) : "";
-
-      const responsibleValue = editResponsibleSelect ? editResponsibleSelect.value : "";
-      detail.responsible_user_id = responsibleValue ? Number(responsibleValue) : null;
-      detail.responsible = responsibleValue ? (usersMap.get(responsibleValue)?.name || detail.responsible) : "Henüz atanmamış";
-
-      const brandValue = editBrandSelect ? editBrandSelect.value : "";
-      detail.brand_id = brandValue ? Number(brandValue) : null;
-      const brand = brandValue ? brandMap.get(brandValue) : null;
-      detail.brand = brand ? brand.name : "";
-
-      const modelValue = editModelSelect ? editModelSelect.value : "";
-      detail.model_id = modelValue ? Number(modelValue) : null;
-      detail.model = modelValue ? findModelName(modelValue) : "";
-
-      detail.serial_no = editSerialInput ? editSerialInput.value.trim() : "";
-      detail.ifs_no = editIfsInput ? editIfsInput.value.trim() : "";
-      detail.related_machine_no = editRelatedMachineInput ? editRelatedMachineInput.value.trim() : "";
-      detail.machine_no = editMachineInput ? editMachineInput.value.trim() : "";
-
-      detail.status = editStatusSelect ? (editStatusSelect.value || "aktif") : detail.status;
-      detail.note = editNoteInput ? editNoteInput.value.trim() : "";
-
-      addHistoryEntry(detail, "Envanter bilgileri güncellendi");
-
-      rebuildSearchIndex(detail);
-      updateRowFromDetail(detail);
-      updateFaultyCounter();
-      filterInventory();
-
-      if (editModalEl && bootstrapLib) {
-        bootstrapLib.Modal.getInstance(editModalEl)?.hide();
+      if (!payload.inventory_no) {
+        showActionAlert("Envanter numarası zorunludur.", "danger");
+        return;
+      }
+      if (!payload.factory_id) {
+        showActionAlert("Lütfen bir fabrika seçin.", "danger");
+        return;
+      }
+      if (!payload.department) {
+        showActionAlert("Lütfen departman seçin.", "danger");
+        return;
+      }
+      if (!payload.hardware_type_id) {
+        showActionAlert("Lütfen donanım tipini seçin.", "danger");
+        return;
+      }
+      if (!payload.brand_id || !payload.model_id) {
+        showActionAlert("Lütfen marka ve model seçin.", "danger");
+        return;
       }
 
-      if (previousStatus !== detail.status) {
-        showActionAlert("Envanter durumu güncellendi.", "info");
-      } else {
-        showActionAlert("Envanter bilgileri kaydedildi.", "success");
+      try {
+        const response = await sendInventoryRequest(`/api/inventory/${detail.id}`, {
+          method: "PATCH",
+          body: payload,
+        });
+        if (editModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(editModalEl)?.hide();
+        }
+        const updatedStatus = response?.item?.status || payload.status || previousStatus;
+        if (previousStatus !== updatedStatus) {
+          showActionAlert("Envanter durumu güncellendi.", "info");
+        } else {
+          showActionAlert("Envanter bilgileri kaydedildi.", "success");
+        }
+      } catch (error) {
+        // hata mesajı gösterildi
       }
     });
   }
@@ -1235,15 +1411,6 @@
   const stockForm = document.getElementById("inventoryStockForm");
   const stockInventoryLabel = document.getElementById("stockInventoryLabel");
   const stockNoteInput = document.getElementById("stockNote");
-
-  function hideDetailIfMatching(itemId) {
-    if (!detailContainer || !bootstrapLib) {
-      return;
-    }
-    if (detailContainer.dataset.itemId === String(itemId)) {
-      bootstrapLib.Offcanvas.getInstance(detailContainer)?.hide();
-    }
-  }
 
   function openStockModal() {
     const detail = inventoryMap.get(activeInventoryId);
@@ -1264,27 +1431,27 @@
   }
 
   if (stockForm) {
-    stockForm.addEventListener("submit", (event) => {
+    stockForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const detail = inventoryMap.get(activeInventoryId);
       if (!detail) {
         return;
       }
-
-      const row = getRowElement(detail.id);
-      if (row) {
-        row.remove();
+      const payload = {
+        note: stockNoteInput ? stockNoteInput.value.trim() : "",
+      };
+      try {
+        await sendInventoryRequest(`/api/inventory/${detail.id}/stock`, {
+          method: "POST",
+          body: payload,
+        });
+        if (stockModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(stockModalEl)?.hide();
+        }
+        showActionAlert("Envanter stok girişine taşındı.", "info");
+      } catch (error) {
+        // hata mesajı gösterildi
       }
-      inventoryMap.delete(detail.id);
-      refreshInventoryRows();
-      updateFaultyCounter();
-      filterInventory();
-      hideDetailIfMatching(detail.id);
-
-      if (stockModalEl && bootstrapLib) {
-        bootstrapLib.Modal.getInstance(stockModalEl)?.hide();
-      }
-      showActionAlert("Envanter stok girişine taşındı.", "info");
     });
   }
 
@@ -1299,7 +1466,7 @@
       return;
     }
     if (scrapNoteInput) {
-      scrapNoteInput.value = detail.scrap_note || "";
+      scrapNoteInput.value = detail.note || "";
     }
     if (scrapModalEl && bootstrapLib) {
       bootstrapLib.Modal.getOrCreateInstance(scrapModalEl).show();
@@ -1307,64 +1474,29 @@
   }
 
   if (scrapForm) {
-    scrapForm.addEventListener("submit", (event) => {
+    scrapForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const detail = inventoryMap.get(activeInventoryId);
       if (!detail) {
         return;
       }
-
-      if (scrapNoteInput) {
-        detail.scrap_note = scrapNoteInput.value.trim();
+      const payload = {
+        note: scrapNoteInput ? scrapNoteInput.value.trim() : "",
+      };
+      try {
+        await sendInventoryRequest(`/api/inventory/${detail.id}/scrap`, {
+          method: "POST",
+          body: payload,
+        });
+        if (scrapModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(scrapModalEl)?.hide();
+        }
+        showActionAlert("Envanter hurdaya ayrıldı.", "danger");
+      } catch (error) {
+        // hata mesajı gösterildi
       }
-
-      const row = getRowElement(detail.id);
-      if (row) {
-        row.remove();
-      }
-      inventoryMap.delete(detail.id);
-      refreshInventoryRows();
-      updateFaultyCounter();
-      filterInventory();
-      hideDetailIfMatching(detail.id);
-
-      if (scrapModalEl && bootstrapLib) {
-        bootstrapLib.Modal.getInstance(scrapModalEl)?.hide();
-      }
-      showActionAlert("Envanter hurdaya ayrıldı.", "danger");
     });
   }
-
-  document.querySelectorAll(".inventory-action").forEach((action) => {
-    action.addEventListener("click", (event) => {
-      event.preventDefault();
-      const { itemId, action: actionType } = action.dataset;
-      if (!itemId || !actionType) {
-        return;
-      }
-      activeInventoryId = Number(itemId);
-
-      switch (actionType) {
-        case "mark-faulty":
-          openFaultModal();
-          break;
-        case "assign":
-          openAssignModal();
-          break;
-        case "edit":
-          openEditModal();
-          break;
-        case "stock":
-          openStockModal();
-          break;
-        case "scrap":
-          openScrapModal();
-          break;
-        default:
-          break;
-      }
-    });
-  });
 
   refreshInventoryRows();
   updateFaultyCounter();

@@ -72,7 +72,7 @@
 
                 {% if group.orders %}
                   {% for order in group.orders %}
-                  <article class="order-card request-order" data-search-index="{{ order.search_index }}">
+                  <article class="order-card request-order" data-order-id="{{ order.id }}" data-search-index="{{ order.search_index }}">
                     <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
                       <div>
                         <span class="order-label text-uppercase small text-muted">Sipariş No</span>
@@ -123,6 +123,7 @@
                                       class="dropdown-item"
                                       type="button"
                                       data-action="stok"
+                                      data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
                                       data-max-quantity="{{ item.quantity }}"
@@ -138,6 +139,7 @@
                                       class="dropdown-item text-danger"
                                       type="button"
                                       data-action="cancel"
+                                      data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
                                       data-max-quantity="{{ item.quantity }}"
@@ -341,6 +343,13 @@
 
     let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
 
+    function escapeHtml(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
     function showFeedback(message, type = 'success') {
       if (!feedback) {
         return;
@@ -357,6 +366,136 @@
 
     function getGroup(status) {
       return requestGroups.find((group) => group.dataset.status === status);
+    }
+
+    function findOrderCard(orderId) {
+      return document.querySelector(`.request-order[data-order-id="${orderId}"]`);
+    }
+
+    function toggleGroupEmptyState(group) {
+      if (!group) {
+        return;
+      }
+      const emptyState = group.querySelector('.empty-state');
+      if (!emptyState) {
+        return;
+      }
+      const hasOrders = group.querySelectorAll('.request-order').length > 0;
+      emptyState.classList.toggle('d-none', hasOrders);
+    }
+
+    function createOrderCard(order) {
+      const article = document.createElement('article');
+      article.className = 'order-card request-order';
+      article.dataset.orderId = String(order.id);
+      article.dataset.searchIndex = order.search_index || '';
+
+      const metaHtml = `
+        <span class="meta-chip"><i class="bi bi-person"></i>${escapeHtml(order.requested_by)}</span>
+        <span class="meta-chip"><i class="bi bi-diagram-3"></i>${escapeHtml(order.department)}</span>
+        <span class="meta-chip"><i class="bi bi-calendar-event"></i>${escapeHtml(order.opened_display)}</span>
+        <span class="meta-chip"><i class="bi bi-box-seam"></i>${escapeHtml(order.item_count)} kalem · ${escapeHtml(order.total_quantity)} adet</span>
+      `;
+
+      const linesHtml = (order.lines || [])
+        .map((line) => {
+          const itemLabel = `${escapeHtml(line.hardware_type)} · ${escapeHtml(line.brand)} ${escapeHtml(line.model)}`;
+          const note = line.note ? escapeHtml(line.note) : '—';
+          return `
+            <tr>
+              <td class="fw-semibold">${escapeHtml(line.hardware_type)}</td>
+              <td>${escapeHtml(line.brand)}</td>
+              <td>${escapeHtml(line.model)}</td>
+              <td class="text-center">
+                <span class="quantity-badge">
+                  <i class="bi bi-stack"></i>${escapeHtml(line.quantity)}
+                </span>
+              </td>
+              <td><span class="text-muted small">${escapeHtml(line.opened_display)}</span></td>
+              <td>${note}</td>
+              <td class="text-end">
+                <div class="btn-group">
+                  <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    İşlem
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                        <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                        <i class="bi bi-x-circle me-2"></i>İptal Et
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      article.innerHTML = `
+        <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+          <div>
+            <span class="order-label text-uppercase small text-muted">Sipariş No</span>
+            <h4 class="order-number mb-0">${escapeHtml(order.order_no)}</h4>
+          </div>
+          <div class="order-meta d-flex flex-wrap align-items-center gap-2">
+            ${metaHtml}
+          </div>
+        </div>
+
+        <div class="table-responsive mt-4">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Donanım Tipi</th>
+                <th scope="col">Marka</th>
+                <th scope="col">Model</th>
+                <th scope="col" class="text-center">Miktar</th>
+                <th scope="col">Tarih</th>
+                <th scope="col">Açıklama</th>
+                <th scope="col" class="text-end">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linesHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      return article;
+    }
+
+    function insertOrderIntoGroup(order) {
+      const group = getGroup(order.group_key || 'acik');
+      if (!group) {
+        return;
+      }
+      const card = createOrderCard(order);
+      const emptyState = group.querySelector('.empty-state');
+      if (emptyState) {
+        group.insertBefore(card, emptyState);
+      } else {
+        group.append(card);
+      }
+      toggleGroupEmptyState(group);
+    }
+
+    function removeOrderFromGroup(orderId) {
+      const card = findOrderCard(orderId);
+      if (!card) {
+        return;
+      }
+      const group = card.closest('.request-group');
+      card.remove();
+      if (group) {
+        toggleGroupEmptyState(group);
+      }
     }
 
     function updateGroupVisibility(status) {
@@ -474,12 +613,82 @@
     }
 
     if (newRequestForm) {
-      newRequestForm.addEventListener('submit', (event) => {
+      newRequestForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        showFeedback('Yeni talep taslak olarak kaydedildi. İşlemler menüsünden süreç yönetilebilir.');
-        const modalInstance = bootstrap.Modal.getInstance(newRequestModal);
-        if (modalInstance) {
-          modalInstance.hide();
+        if (!rowsContainer) {
+          return;
+        }
+
+        const formData = new FormData(newRequestForm);
+        const orderNo = (formData.get('order_no') || '').toString().trim();
+        const requestedBy = (formData.get('requested_by') || '').toString().trim();
+        const department = (formData.get('department') || '').toString().trim();
+
+        const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+        const lines = [];
+        for (const [index, row] of rows.entries()) {
+          const hardwareInput = row.querySelector('input[name="hardware_type[]"]');
+          const quantityInput = row.querySelector('input[name="quantity[]"]');
+          const brandInput = row.querySelector('input[name="brand[]"]');
+          const modelInput = row.querySelector('input[name="model[]"]');
+          const noteInput = row.querySelector('input[name="note[]"]');
+
+          const hardware = hardwareInput?.value.trim() || '';
+          const brand = brandInput?.value.trim() || '';
+          const model = modelInput?.value.trim() || '';
+          const quantity = Number.parseInt(quantityInput?.value ?? '0', 10);
+          const note = noteInput?.value.trim();
+
+          if (!hardware || !brand || !model || !Number.isFinite(quantity) || quantity <= 0) {
+            showFeedback(`${index + 1}. satır için tüm alanları doldurun ve geçerli bir miktar girin.`, 'danger');
+            hardwareInput?.focus();
+            return;
+          }
+
+          lines.push({
+            hardware_type: hardware,
+            brand,
+            model,
+            quantity,
+            note,
+          });
+        }
+
+        if (!orderNo || !requestedBy || !department) {
+          showFeedback('Sipariş numarası, talep sahibi ve departman alanları zorunludur.', 'danger');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_no: orderNo, requested_by: requestedBy, department, lines }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showFeedback(payload.error || 'Talep kaydedilemedi.', 'danger');
+            return;
+          }
+
+          if (payload.order) {
+            insertOrderIntoGroup(payload.order);
+            updateGroupVisibility(activeStatus);
+          }
+
+          showFeedback(payload.message || 'Talep kaydedildi.', 'success');
+
+          const modalInstance = bootstrap.Modal.getInstance(newRequestModal);
+          if (modalInstance) {
+            modalInstance.hide();
+          }
+        } catch (error) {
+          showFeedback('Sunucuya ulaşılamadı.', 'danger');
         }
       });
     }
@@ -503,6 +712,7 @@
     const actionHint = actionModal?.querySelector('[data-quantity-hint]');
     const singleInfo = actionModal?.querySelector('[data-single-info]');
     const actionMessage = actionModal?.querySelector('[data-action-message]');
+    const actionNoteInput = actionModal?.querySelector('#action-note');
     const confirmActionButton = actionModal?.querySelector('[data-confirm-action]');
     let pendingAction;
 
@@ -513,11 +723,13 @@
           return;
         }
         const actionType = trigger.getAttribute('data-action');
+        const orderId = Number.parseInt(trigger.getAttribute('data-order-id') ?? '0', 10) || 0;
         const orderNo = trigger.getAttribute('data-order-no');
         const itemLabel = trigger.getAttribute('data-item-label');
         const maxQuantity = Number.parseInt(trigger.getAttribute('data-max-quantity') ?? '1', 10) || 1;
 
         pendingAction = {
+          orderId,
           actionType,
           orderNo,
           itemLabel,
@@ -546,10 +758,14 @@
         if (singleInfo) {
           singleInfo.classList.toggle('d-none', requiresQuantity);
         }
+        if (actionNoteInput) {
+          actionNoteInput.value = '';
+        }
         if (confirmActionButton) {
           confirmActionButton.textContent = actionType === 'stok' ? 'Stok İşlemini Kaydet' : 'Talebi İptal Et';
           confirmActionButton.classList.toggle('btn-danger', actionType !== 'stok');
           confirmActionButton.classList.toggle('btn-primary', actionType === 'stok');
+          confirmActionButton.disabled = false;
         }
       });
 
@@ -564,12 +780,18 @@
         if (singleInfo) {
           singleInfo.classList.add('d-none');
         }
+        if (actionNoteInput) {
+          actionNoteInput.value = '';
+        }
+        if (confirmActionButton) {
+          confirmActionButton.disabled = false;
+        }
       });
     }
 
     if (confirmActionButton) {
-      confirmActionButton.addEventListener('click', () => {
-        if (!pendingAction) {
+      confirmActionButton.addEventListener('click', async () => {
+        if (!pendingAction || !pendingAction.orderId) {
           return;
         }
         let quantity = 1;
@@ -580,11 +802,45 @@
           }
           actionQuantityInput.value = String(quantity);
         }
-        const actionVerb = pendingAction.actionType === 'stok' ? 'Stok girişi' : 'İptal işlemi';
-        showFeedback(`${pendingAction.orderNo} numaralı sipariş için ${actionVerb} (${quantity} adet) kaydedildi.`);
-        const modalInstance = bootstrap.Modal.getInstance(actionModal);
-        if (modalInstance) {
-          modalInstance.hide();
+        const noteValue = actionNoteInput ? actionNoteInput.value.trim() : '';
+
+        confirmActionButton.disabled = true;
+        try {
+          const response = await fetch(`/api/requests/${pendingAction.orderId}/actions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: pendingAction.actionType,
+              quantity,
+              note: noteValue,
+            }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showFeedback(payload.error || 'İşlem kaydedilemedi.', 'danger');
+            confirmActionButton.disabled = false;
+            return;
+          }
+
+          removeOrderFromGroup(String(pendingAction.orderId));
+          if (payload.order) {
+            insertOrderIntoGroup(payload.order);
+          }
+          updateGroupVisibility(activeStatus);
+          showFeedback(payload.message || 'Talep güncellendi.', 'success');
+
+          const modalInstance = bootstrap.Modal.getInstance(actionModal);
+          if (modalInstance) {
+            modalInstance.hide();
+          }
+        } catch (error) {
+          showFeedback('Sunucuya ulaşılamadı.', 'danger');
+          confirmActionButton.disabled = false;
         }
       });
     }
