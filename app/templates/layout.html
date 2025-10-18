@@ -26,7 +26,7 @@
         <div class="sidebar-section mb-4">
           <p class="section-title text-uppercase text-muted">Envanter</p>
           <nav class="nav flex-column">
-            <a class="nav-link" href="#">
+            <a class="nav-link {{ 'active' if active_page == 'inventory_tracking' else '' }}" href="{{ url_for('inventory_tracking') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
                   <i class="bi bi-box-seam"></i>

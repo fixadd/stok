@@ -1,0 +1,1373 @@
+{% extends "layout.html" %}
+
+{% block title %}Envanter Takip{% endblock %}
+
+{% set status_labels = {
+  "aktif": "Aktif",
+  "beklemede": "Beklemede",
+  "arizali": "Arızalı",
+  "hurda": "Hurdaya Ayrıldı"
+} %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <div class="content-card shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Envanter Takip</h1>
+        <p class="text-muted mb-0">Envanter kayıtlarını anlık olarak görüntüleyin, detaylara erişin ve durumlarını yönetin.</p>
+      </div>
+      <div class="inventory-toolbar d-flex align-items-center gap-2">
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#inventoryCreateModal">
+          <i class="bi bi-plus-lg"></i>
+          Ekle
+        </button>
+        <button class="btn btn-warning inventory-faulty-button d-flex align-items-center gap-2" type="button">
+          <i class="bi bi-exclamation-triangle"></i>
+          Arızalı Durum
+          <span class="inventory-faulty-counter">{{ inventory_faulty_count }}</span>
+        </button>
+        <div class="btn-group">
+          <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+            Excel
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-box-arrow-up"></i>
+                Dışa Aktar
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-box-arrow-in-down"></i>
+                İçe Aktar
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card shadow-sm">
+    <div class="inventory-search mb-4">
+      <label class="form-label" for="inventorySearch">Envanterde ara</label>
+      <div class="input-group search-input">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input class="form-control" id="inventorySearch" type="search" placeholder="Envanter no, sorumlu, marka veya modele göre ara">
+      </div>
+    </div>
+
+    <div class="alert inventory-action-alert d-none" id="inventoryActionAlert" role="alert"></div>
+
+    <div class="table-responsive">
+      <table class="table align-middle inventory-table" id="inventoryTable">
+        <thead>
+          <tr>
+            <th scope="col">Envanter</th>
+            <th scope="col">Lokasyon</th>
+            <th scope="col">Sorumlu</th>
+            <th scope="col">Marka / Model</th>
+            <th scope="col">Durum</th>
+            <th scope="col" class="text-end">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inventory_items %}
+          <tr class="inventory-row{% if item.status == 'arizali' %} is-faulty{% endif %}" data-item-id="{{ item.id }}" data-search="{{ item.search_index }}" data-status="{{ item.status }}">
+            <td>
+              <div class="fw-semibold" data-field="inventory_no">{{ item.inventory_no }}</div>
+              <div class="text-muted small" data-field="hardware_type">{{ item.hardware_type or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="factory">{{ item.factory or '—' }}</div>
+              <div class="text-muted small" data-field="department">{{ item.department or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="responsible">{{ item.responsible or '—' }}</div>
+              <div class="text-muted small" data-field="computer_name">{{ item.computer_name or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="brand">{{ item.brand or '—' }}</div>
+              <div class="text-muted small" data-field="model">{{ item.model or '—' }}</div>
+            </td>
+            <td>
+              <span class="inventory-status-badge status-{{ item.status }}" data-field="status">{{ status_labels.get(item.status, item.status|capitalize) }}</span>
+            </td>
+            <td class="text-end">
+              <div class="d-inline-flex align-items-center gap-2">
+                <button class="btn btn-outline-secondary btn-sm icon-button inventory-detail-trigger" type="button" data-item-id="{{ item.id }}" data-bs-toggle="offcanvas" data-bs-target="#inventoryDetailDrawer" aria-controls="inventoryDetailDrawer">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Seçiniz…
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li><a class="dropdown-item inventory-action" data-action="mark-faulty" data-item-id="{{ item.id }}" href="#">Arızalı İşaretle</a></li>
+                    <li><a class="dropdown-item inventory-action" data-action="assign" data-item-id="{{ item.id }}" href="#">Atama Yap</a></li>
+                    <li><a class="dropdown-item inventory-action" data-action="edit" data-item-id="{{ item.id }}" href="#">Düzenle</a></li>
+                    <li><a class="dropdown-item inventory-action" data-action="stock" data-item-id="{{ item.id }}" href="#">Stok Girişi</a></li>
+                    <li><a class="dropdown-item text-danger inventory-action" data-action="scrap" data-item-id="{{ item.id }}" href="#">Hurdaya Ayır</a></li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-soft mt-3 d-none" id="inventoryEmptyState">
+      Aradığınız kriterlere uygun bir envanter kaydı bulunamadı.
+    </div>
+  </div>
+</div>
+
+<div class="offcanvas offcanvas-end inventory-detail-offcanvas" tabindex="-1" id="inventoryDetailDrawer" aria-labelledby="inventoryDetailDrawerLabel">
+  <div class="offcanvas-header">
+    <div>
+      <h5 class="offcanvas-title mb-1" id="inventoryDetailDrawerLabel">Envanter Detayı</h5>
+      <p class="text-muted mb-0 small">Seçilen kayda ait temel bilgiler ve işlem geçmişi.</p>
+    </div>
+    <button class="btn-close" type="button" data-bs-dismiss="offcanvas" aria-label="Kapat"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column gap-4">
+    <div class="inventory-detail-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <p class="text-muted small mb-1">Envanter No</p>
+          <h5 class="mb-0" data-detail-field="inventory_no">—</h5>
+        </div>
+        <span class="inventory-status-badge status-aktif" id="inventoryDetailStatus">Aktif</span>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Bilgisayar Adı</span>
+          <span class="detail-value" data-detail-field="computer_name">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Fabrika</span>
+          <span class="detail-value" data-detail-field="factory">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Departman</span>
+          <span class="detail-value" data-detail-field="department">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Donanım Tipi</span>
+          <span class="detail-value" data-detail-field="hardware_type">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Marka</span>
+          <span class="detail-value" data-detail-field="brand">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Model</span>
+          <span class="detail-value" data-detail-field="model">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Sorumlu</span>
+          <span class="detail-value" data-detail-field="responsible">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Seri No</span>
+          <span class="detail-value" data-detail-field="serial_no">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">IFS No</span>
+          <span class="detail-value" data-detail-field="ifs_no">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Bağlı Makina No</span>
+          <span class="detail-value" data-detail-field="related_machine_no">—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Makina No</span>
+          <span class="detail-value" data-detail-field="machine_no">—</span>
+        </div>
+        <div class="detail-item detail-item-note">
+          <span class="detail-label">Not</span>
+          <span class="detail-value" data-detail-field="note">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="inventory-detail-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">Bağlı Lisanslar</h6>
+        <span class="badge rounded-pill bg-light text-muted" id="inventoryLicenseCount">0 kayıt</span>
+      </div>
+      <ul class="list-group inventory-license-list" id="inventoryLicenseList"></ul>
+    </div>
+
+    <div class="inventory-detail-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">İşlem Geçmişi</h6>
+      </div>
+      <div class="inventory-history" id="inventoryHistory"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Envanter Ekle</h5>
+          <p class="text-muted small mb-0">Ürün kataloğundan gelen seçeneklerle yeni envanter kaydı oluşturun.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-4">
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryNo">Envanter No</label>
+            <input class="form-control" id="inventoryNo" type="text" placeholder="ENV-000500">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryComputerName">Bilgisayar Adı</label>
+            <input class="form-control" id="inventoryComputerName" type="text" placeholder="PC-OFIS-10">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryFactory">Fabrika</label>
+            <select class="form-select" id="inventoryFactory">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryDepartment">Departman</label>
+            <select class="form-select" id="inventoryDepartment">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for department in departments %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryType">Donanım Tipi</label>
+            <select class="form-select" id="inventoryType">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for hardware_type in hardware_types %}
+              <option value="{{ hardware_type.id }}">{{ hardware_type.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryResponsible">Sorumlu Personel</label>
+            <select class="form-select" id="inventoryResponsible">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryBrand">Marka</label>
+            <select class="form-select" id="inventoryBrand">
+              {% for brand in brand_models %}
+              <option value="{{ brand.id }}">{{ brand.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryModel">Model</label>
+            <select class="form-select" id="inventoryModel" disabled>
+              <option value="" selected>Önce marka seçiniz</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventorySerial">Seri No</label>
+            <input class="form-control" id="inventorySerial" type="text" placeholder="SN123456789">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryIfs">IFS No</label>
+            <input class="form-control" id="inventoryIfs" type="text" placeholder="IFS-00001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryRelatedMachine">Bağlı Makina No</label>
+            <input class="form-control" id="inventoryRelatedMachine" type="text" placeholder="WS-001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryMachine">Makina No</label>
+            <input class="form-control" id="inventoryMachine" type="text" placeholder="MN-001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryStatus">Durum</label>
+            <select class="form-select" id="inventoryStatus">
+              {% for status_choice in status_choices %}
+              <option value="{{ status_choice.value }}">{{ status_choice.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="inventoryNote">Açıklama / Notlar</label>
+            <textarea class="form-control" id="inventoryNote" rows="3" placeholder="Teslimat, garanti veya kullanım notları"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="button">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryFaultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="inventoryFaultForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Arızalı İşaretle</h5>
+          <p class="text-muted small mb-0">Seçilen envanter için arıza kaydı oluşturarak durumu güncelleyin.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="faultInventoryNo">Arızalı Cihaz No</label>
+          <input class="form-control" id="faultInventoryNo" name="inventory_no" type="text" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="faultReason">Arıza Nedeni</label>
+          <textarea class="form-control" id="faultReason" name="reason" rows="3" placeholder="Arıza detayını girin"></textarea>
+        </div>
+        <div class="mb-0">
+          <label class="form-label" for="faultLocation">Gönderildiği Yer</label>
+          <input class="form-control" id="faultLocation" name="location" type="text" placeholder="Servis veya depo bilgisi">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-warning" type="submit">Arızalı Yap</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryAssignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content" id="inventoryAssignForm">
+      <div class="modal-header">
+        <div>
+          <p class="text-uppercase text-muted small mb-1 fw-semibold">Envanter Yönetimi</p>
+          <h5 class="modal-title mb-0">Envanter Atama</h5>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="assignInventoryNo">Envanter No</label>
+            <input class="form-control" id="assignInventoryNo" name="inventory_no" type="text" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignFactory">Fabrika</label>
+            <select class="form-select" id="assignFactory" name="factory_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignDepartment">Departman</label>
+            <select class="form-select" id="assignDepartment" name="department">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for department in departments %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignUser">Sorumlu Personel</label>
+            <select class="form-select" id="assignUser" name="responsible_user_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="assignRelated">Bağlı Olduğu Envanter (Opsiyonel)</label>
+            <input class="form-control" id="assignRelated" name="related_machine_no" type="text" placeholder="Envanter numarası veya açıklama">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+        <button class="btn btn-primary" type="submit">Atamayı Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content" id="inventoryEditForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Envanter Bilgilerini Düzenle</h5>
+          <p class="text-muted small mb-0">Var olan envanter kaydını güncelleyin. Envanter numarası sabit kalır.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditNo">Envanter No</label>
+            <input class="form-control" id="inventoryEditNo" name="inventory_no" type="text" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditComputerName">Bilgisayar Adı</label>
+            <input class="form-control" id="inventoryEditComputerName" name="computer_name" type="text" placeholder="PC-OFIS-10">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditFactory">Fabrika</label>
+            <select class="form-select" id="inventoryEditFactory" name="factory_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditDepartment">Departman</label>
+            <select class="form-select" id="inventoryEditDepartment" name="department">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for department in departments %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditType">Donanım Tipi</label>
+            <select class="form-select" id="inventoryEditType" name="hardware_type_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for hardware_type in hardware_types %}
+              <option value="{{ hardware_type.id }}">{{ hardware_type.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditResponsible">Sorumlu Personel</label>
+            <select class="form-select" id="inventoryEditResponsible" name="responsible_user_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditBrand">Marka</label>
+            <select class="form-select" id="inventoryEditBrand" name="brand_id">
+              {% for brand in brand_models %}
+              <option value="{{ brand.id }}">{{ brand.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditModel">Model</label>
+            <select class="form-select" id="inventoryEditModel" name="model_id" disabled>
+              <option value="" selected>Önce marka seçiniz</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditSerial">Seri No</label>
+            <input class="form-control" id="inventoryEditSerial" name="serial_no" type="text" placeholder="SN123456789">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditIfs">IFS No</label>
+            <input class="form-control" id="inventoryEditIfs" name="ifs_no" type="text" placeholder="IFS-00001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditRelatedMachine">Bağlı Makina No</label>
+            <input class="form-control" id="inventoryEditRelatedMachine" name="related_machine_no" type="text" placeholder="WS-001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditMachine">Makina No</label>
+            <input class="form-control" id="inventoryEditMachine" name="machine_no" type="text" placeholder="MN-001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryEditStatus">Durum</label>
+            <select class="form-select" id="inventoryEditStatus" name="status">
+              {% for status_choice in status_choices %}
+              <option value="{{ status_choice.value }}">{{ status_choice.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="inventoryEditNote">Açıklama / Notlar</label>
+            <textarea class="form-control" id="inventoryEditNote" name="note" rows="3" placeholder="Teslimat, garanti veya kullanım notları"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="submit">Değişiklikleri Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="inventoryStockForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Stok Girişi</h5>
+          <p class="text-muted small mb-0">Seçilen envanter stok takip ekranına taşınacaktır.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Bu envanteri stok girişine almak istediğinize emin misiniz?</p>
+        <div class="alert alert-soft" id="stockInventoryLabel"></div>
+        <div class="mb-0">
+          <label class="form-label" for="stockNote">Not (opsiyonel)</label>
+          <textarea class="form-control" id="stockNote" name="note" rows="2" placeholder="İşlem hakkında kısa not"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-success" type="submit">Stok Girişini Onayla</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade inventory-modal" id="inventoryScrapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="inventoryScrapForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Hurdaya Ayır</h5>
+          <p class="text-muted small mb-0">Ürünü hurda listesine taşıyacak ve bu ekrandan kaldıracak.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Bu envanter hurdaya ayrılacak. Onaylıyor musunuz?</p>
+        <div class="mb-0">
+          <label class="form-label" for="scrapNote">Açıklama (opsiyonel)</label>
+          <textarea class="form-control" id="scrapNote" name="note" rows="3" placeholder="Hurdaya ayırma nedeni veya not"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-danger" type="submit">Hurdaya Ayır</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  const inventoryItems = {{ inventory_items | tojson }};
+  const brandModels = {{ brand_models | tojson }};
+  const factories = {{ factories | tojson }};
+  const hardwareTypes = {{ hardware_types | tojson }};
+  const users = {{ users | tojson }};
+  const statusChoices = {{ status_choices | tojson }};
+  const statusLabels = { aktif: "Aktif", beklemede: "Beklemede", arizali: "Arızalı", hurda: "Hurdaya Ayrıldı" };
+  const statusClasses = { aktif: "status-aktif", beklemede: "status-beklemede", arizali: "status-arizali", hurda: "status-hurda" };
+
+  const bootstrapLib = window.bootstrap;
+
+  const inventoryTableBody = document.querySelector("#inventoryTable tbody");
+  const inventorySearchInput = document.getElementById("inventorySearch");
+  const inventoryEmptyState = document.getElementById("inventoryEmptyState");
+  const faultyToggleButton = document.querySelector(".inventory-faulty-button");
+  const faultyCounter = document.querySelector(".inventory-faulty-counter");
+  const actionAlert = document.getElementById("inventoryActionAlert");
+
+  let inventoryRows = inventoryTableBody ? Array.from(inventoryTableBody.querySelectorAll("tr")) : [];
+  let activeInventoryId = null;
+  let showOnlyFaulty = false;
+  let actionAlertTimeout;
+
+  const inventoryMap = new Map(inventoryItems.map((item) => [item.id, item]));
+  const factoriesMap = new Map(factories.map((factory) => [String(factory.id), factory]));
+  const hardwareTypeMap = new Map(hardwareTypes.map((type) => [String(type.id), type]));
+  const usersMap = new Map(users.map((user) => [String(user.id), user]));
+  const brandMap = new Map(brandModels.map((brand) => [String(brand.id), brand]));
+
+  const detailContainer = document.querySelector("#inventoryDetailDrawer");
+  const detailFields = detailContainer ? detailContainer.querySelectorAll("[data-detail-field]") : [];
+  const detailStatus = document.getElementById("inventoryDetailStatus");
+  const licenseList = document.getElementById("inventoryLicenseList");
+  const licenseCount = document.getElementById("inventoryLicenseCount");
+  const historyContainer = document.getElementById("inventoryHistory");
+
+  function refreshInventoryRows() {
+    inventoryRows = inventoryTableBody ? Array.from(inventoryTableBody.querySelectorAll("tr")) : [];
+  }
+
+  function updateFaultyCounter() {
+    if (!faultyCounter) {
+      return;
+    }
+    const faultyTotal = Array.from(inventoryMap.values()).filter((item) => item.status === "arizali").length;
+    faultyCounter.textContent = faultyTotal;
+  }
+
+  function rebuildSearchIndex(detail) {
+    const tokens = [
+      detail.inventory_no,
+      detail.computer_name,
+      detail.factory,
+      detail.department,
+      detail.hardware_type,
+      detail.responsible,
+      detail.brand,
+      detail.model,
+      detail.serial_no,
+      detail.ifs_no,
+    ];
+    detail.search_index = tokens.filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function getRowElement(itemId) {
+    return inventoryTableBody ? inventoryTableBody.querySelector(`tr[data-item-id="${itemId}"]`) : null;
+  }
+
+  function formatDateTime(date) {
+    try {
+      return new Intl.DateTimeFormat("tr-TR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    } catch (error) {
+      return date.toISOString();
+    }
+  }
+
+  function addHistoryEntry(detail, eventType, note = "", performedBy = "Sistem") {
+    const history = Array.isArray(detail.history) ? detail.history : [];
+    const entry = {
+      id: `tmp-${Date.now()}`,
+      event_type: eventType,
+      performed_by: performedBy,
+      performed_at: formatDateTime(new Date()),
+      note,
+    };
+    detail.history = [entry, ...history];
+  }
+
+  function syncDetailDrawer(itemId) {
+    if (!detailContainer) {
+      return;
+    }
+    if (detailContainer.dataset.itemId === String(itemId) && detailContainer.classList.contains("show")) {
+      renderInventoryDetail(itemId);
+    }
+  }
+
+  function showActionAlert(message, variant = "success") {
+    if (!actionAlert) {
+      return;
+    }
+    actionAlert.textContent = message;
+    actionAlert.className = `alert inventory-action-alert alert-${variant}`;
+    actionAlert.classList.remove("d-none");
+    if (actionAlertTimeout) {
+      clearTimeout(actionAlertTimeout);
+    }
+    actionAlertTimeout = window.setTimeout(() => {
+      actionAlert.classList.add("d-none");
+    }, 4000);
+  }
+
+  function updateRowFromDetail(detail) {
+    const row = getRowElement(detail.id);
+    if (!row) {
+      return;
+    }
+
+    const safeText = (value) => (value && String(value).trim() ? value : "—");
+    const fieldMap = {
+      inventory_no: detail.inventory_no,
+      hardware_type: detail.hardware_type,
+      factory: detail.factory,
+      department: detail.department,
+      responsible: detail.responsible,
+      computer_name: detail.computer_name,
+      brand: detail.brand,
+      model: detail.model,
+    };
+
+    Object.entries(fieldMap).forEach(([key, value]) => {
+      const target = row.querySelector(`[data-field="${key}"]`);
+      if (target) {
+        target.textContent = safeText(value);
+      }
+    });
+
+    row.dataset.search = detail.search_index || "";
+    row.dataset.status = detail.status || "aktif";
+    row.classList.toggle("is-faulty", row.dataset.status === "arizali");
+
+    const statusBadge = row.querySelector('[data-field="status"]');
+    if (statusBadge) {
+      const statusKey = (detail.status || "aktif").toLowerCase();
+      statusBadge.textContent = statusLabels[statusKey] || statusKey;
+      statusBadge.className = `inventory-status-badge ${statusClasses[statusKey] || "status-aktif"}`;
+      statusBadge.setAttribute("data-field", "status");
+    }
+
+    syncDetailDrawer(detail.id);
+  }
+
+  function filterInventory() {
+    const term = inventorySearchInput ? inventorySearchInput.value.trim().toLowerCase() : "";
+    let visibleCount = 0;
+
+    inventoryRows.forEach((row) => {
+      const haystack = row.dataset.search || "";
+      const matchesSearch = !term || haystack.includes(term);
+      const matchesFaulty = !showOnlyFaulty || row.dataset.status === "arizali";
+      const isVisible = matchesSearch && matchesFaulty;
+      row.classList.toggle("d-none", !isVisible);
+      if (isVisible) {
+        visibleCount += 1;
+      }
+    });
+
+    if (inventoryEmptyState) {
+      inventoryEmptyState.classList.toggle("d-none", visibleCount !== 0);
+    }
+  }
+
+  if (inventorySearchInput) {
+    inventorySearchInput.addEventListener("input", () => {
+      filterInventory();
+    });
+  }
+
+  if (faultyToggleButton) {
+    faultyToggleButton.addEventListener("click", () => {
+      showOnlyFaulty = !showOnlyFaulty;
+      faultyToggleButton.classList.toggle("active", showOnlyFaulty);
+      faultyToggleButton.setAttribute("aria-pressed", showOnlyFaulty ? "true" : "false");
+      filterInventory();
+    });
+  }
+
+  function renderLicenseList(licenses = []) {
+    if (!licenseList) {
+      return;
+    }
+    licenseList.innerHTML = "";
+    if (!licenses.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.className = "list-group-item text-muted fst-italic";
+      emptyItem.textContent = "Bu envantere bağlı lisans bulunmuyor.";
+      licenseList.append(emptyItem);
+      if (licenseCount) {
+        licenseCount.textContent = "0 kayıt";
+      }
+      return;
+    }
+
+    licenses.forEach((license) => {
+      const li = document.createElement("li");
+      li.className = "list-group-item d-flex justify-content-between align-items-center";
+      const badge = document.createElement("span");
+      badge.className = "badge rounded-pill inventory-license-badge";
+      badge.textContent = license.status ? license.status.charAt(0).toUpperCase() + license.status.slice(1) : "Aktif";
+      badge.dataset.status = (license.status || "aktif").toLowerCase();
+      li.textContent = license.name;
+      li.append(badge);
+      licenseList.append(li);
+    });
+
+    if (licenseCount) {
+      licenseCount.textContent = `${licenses.length} kayıt`;
+    }
+  }
+
+  function renderHistory(history = []) {
+    if (!historyContainer) {
+      return;
+    }
+    historyContainer.innerHTML = "";
+    if (!history.length) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "text-muted fst-italic";
+      emptyState.textContent = "Bu envanter için kayıtlı işlem bulunmuyor.";
+      historyContainer.append(emptyState);
+      return;
+    }
+
+    history.forEach((entry) => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+
+      const bullet = document.createElement("span");
+      bullet.className = "history-bullet";
+      item.append(bullet);
+
+      const body = document.createElement("div");
+      body.className = "history-body";
+
+      const header = document.createElement("div");
+      header.className = "history-header";
+      header.innerHTML = `<strong>${entry.event_type}</strong><span>${entry.performed_at}</span>`;
+
+      const meta = document.createElement("div");
+      meta.className = "history-meta text-muted";
+      meta.textContent = entry.performed_by || "";
+
+      body.append(header, meta);
+
+      if (entry.note) {
+        const note = document.createElement("p");
+        note.className = "history-note mb-0";
+        note.textContent = entry.note;
+        body.append(note);
+      }
+
+      item.append(body);
+      historyContainer.append(item);
+    });
+  }
+
+  function renderInventoryDetail(itemId) {
+    const detail = inventoryMap.get(Number(itemId));
+    if (!detail || !detailContainer) {
+      return;
+    }
+
+    detailContainer.dataset.itemId = String(detail.id);
+
+    detailFields.forEach((field) => {
+      const key = field.dataset.detailField;
+      if (!key) {
+        return;
+      }
+      const value = detail[key];
+      field.textContent = value && String(value).trim() ? value : "—";
+    });
+
+    if (detailStatus) {
+      const status = (detail.status || "aktif").toLowerCase();
+      detailStatus.textContent = statusLabels[status] || status;
+      detailStatus.className = `inventory-status-badge ${statusClasses[status] || "status-aktif"}`;
+    }
+
+    renderLicenseList(detail.licenses || []);
+    renderHistory(detail.history || []);
+  }
+
+  document.querySelectorAll(".inventory-detail-trigger").forEach((button) => {
+    button.addEventListener("click", () => {
+      const { itemId } = button.dataset;
+      if (!itemId) {
+        return;
+      }
+      renderInventoryDetail(itemId);
+    });
+  });
+
+  if (detailContainer && bootstrapLib) {
+    detailContainer.addEventListener("hidden.bs.offcanvas", () => {
+      detailContainer.dataset.itemId = "";
+    });
+  }
+
+  function setSelectValue(select, value, label) {
+    if (!select) {
+      return;
+    }
+    const stringValue = value === null || value === undefined ? "" : String(value);
+    if (!stringValue) {
+      select.value = "";
+      if (select.selectedIndex === -1) {
+        select.selectedIndex = 0;
+      }
+      return;
+    }
+    select.value = stringValue;
+    if (select.value !== stringValue) {
+      const option = new Option(label || stringValue, stringValue, true, true);
+      select.add(option);
+    }
+  }
+
+  function populateModelOptionsFor(brandSelect, modelSelect, selectedModelId = "") {
+    if (!brandSelect || !modelSelect) {
+      return;
+    }
+
+    const brandId = brandSelect.value;
+    const selectedBrand = brandMap.get(String(brandId));
+
+    modelSelect.innerHTML = "";
+
+    if (!selectedBrand || !Array.isArray(selectedBrand.models) || !selectedBrand.models.length) {
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Önce marka seçiniz";
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      modelSelect.append(placeholder);
+      modelSelect.disabled = true;
+      return;
+    }
+
+    selectedBrand.models.forEach((model) => {
+      const option = document.createElement("option");
+      option.value = String(model.id);
+      option.textContent = model.name;
+      if (selectedModelId && String(selectedModelId) === String(model.id)) {
+        option.selected = true;
+      }
+      modelSelect.append(option);
+    });
+
+    modelSelect.disabled = false;
+    if (selectedModelId) {
+      modelSelect.value = String(selectedModelId);
+    }
+  }
+
+  function findModelName(modelId) {
+    if (!modelId) {
+      return "";
+    }
+    const lookupId = String(modelId);
+    for (const brand of brandModels) {
+      const match = Array.isArray(brand.models) ? brand.models.find((model) => String(model.id) === lookupId) : null;
+      if (match) {
+        return match.name;
+      }
+    }
+    return "";
+  }
+
+  const createBrandSelect = document.getElementById("inventoryBrand");
+  const createModelSelect = document.getElementById("inventoryModel");
+  if (createBrandSelect) {
+    createBrandSelect.addEventListener("change", () => {
+      populateModelOptionsFor(createBrandSelect, createModelSelect);
+    });
+    populateModelOptionsFor(createBrandSelect, createModelSelect);
+  }
+
+  const faultModalEl = document.getElementById("inventoryFaultModal");
+  const faultForm = document.getElementById("inventoryFaultForm");
+  const faultInventoryNoInput = document.getElementById("faultInventoryNo");
+  const faultReasonInput = document.getElementById("faultReason");
+  const faultLocationInput = document.getElementById("faultLocation");
+
+  function openFaultModal() {
+    const detail = inventoryMap.get(activeInventoryId);
+    if (!detail) {
+      showActionAlert("Seçili envanter bulunamadı.", "danger");
+      return;
+    }
+    if (faultInventoryNoInput) {
+      faultInventoryNoInput.value = detail.inventory_no || "";
+    }
+    if (faultReasonInput) {
+      faultReasonInput.value = detail.fault_reason || "";
+    }
+    if (faultLocationInput) {
+      faultLocationInput.value = detail.fault_location || "";
+    }
+    if (faultModalEl && bootstrapLib) {
+      bootstrapLib.Modal.getOrCreateInstance(faultModalEl).show();
+    }
+  }
+
+  if (faultForm) {
+    faultForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const detail = inventoryMap.get(activeInventoryId);
+      if (!detail) {
+        return;
+      }
+      detail.status = "arizali";
+      detail.fault_reason = faultReasonInput ? faultReasonInput.value.trim() : "";
+      detail.fault_location = faultLocationInput ? faultLocationInput.value.trim() : "";
+
+      const noteParts = [];
+      if (detail.fault_reason) {
+        noteParts.push(`Arıza Nedeni: ${detail.fault_reason}`);
+      }
+      if (detail.fault_location) {
+        noteParts.push(`Gönderildiği Yer: ${detail.fault_location}`);
+      }
+      addHistoryEntry(detail, "Arızalı olarak işaretlendi", noteParts.join(" • "));
+
+      rebuildSearchIndex(detail);
+      updateRowFromDetail(detail);
+      updateFaultyCounter();
+      filterInventory();
+      syncDetailDrawer(detail.id);
+
+      if (faultModalEl && bootstrapLib) {
+        bootstrapLib.Modal.getInstance(faultModalEl)?.hide();
+      }
+      showActionAlert("Envanter arızalı olarak işaretlendi.", "warning");
+    });
+  }
+
+  const assignModalEl = document.getElementById("inventoryAssignModal");
+  const assignForm = document.getElementById("inventoryAssignForm");
+  const assignInventoryNoInput = document.getElementById("assignInventoryNo");
+  const assignFactorySelect = document.getElementById("assignFactory");
+  const assignDepartmentSelect = document.getElementById("assignDepartment");
+  const assignUserSelect = document.getElementById("assignUser");
+  const assignRelatedInput = document.getElementById("assignRelated");
+
+  function openAssignModal() {
+    const detail = inventoryMap.get(activeInventoryId);
+    if (!detail) {
+      showActionAlert("Seçili envanter bulunamadı.", "danger");
+      return;
+    }
+    if (assignInventoryNoInput) {
+      assignInventoryNoInput.value = detail.inventory_no || "";
+    }
+    setSelectValue(assignFactorySelect, detail.factory_id, detail.factory);
+    setSelectValue(assignDepartmentSelect, detail.department, detail.department);
+    setSelectValue(assignUserSelect, detail.responsible_user_id, detail.responsible);
+    if (assignRelatedInput) {
+      assignRelatedInput.value = detail.related_machine_no || "";
+    }
+    if (assignModalEl && bootstrapLib) {
+      bootstrapLib.Modal.getOrCreateInstance(assignModalEl).show();
+    }
+  }
+
+  if (assignForm) {
+    assignForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const detail = inventoryMap.get(activeInventoryId);
+      if (!detail) {
+        return;
+      }
+
+      const factoryValue = assignFactorySelect ? assignFactorySelect.value : "";
+      detail.factory_id = factoryValue ? Number(factoryValue) : null;
+      detail.factory = factoryValue ? (factoriesMap.get(factoryValue)?.name || detail.factory) : "";
+
+      const departmentValue = assignDepartmentSelect ? assignDepartmentSelect.value : "";
+      detail.department = departmentValue || "";
+
+      const responsibleValue = assignUserSelect ? assignUserSelect.value : "";
+      detail.responsible_user_id = responsibleValue ? Number(responsibleValue) : null;
+      const responsibleUser = responsibleValue ? usersMap.get(responsibleValue) : null;
+      detail.responsible = responsibleUser ? responsibleUser.name : "Henüz atanmamış";
+
+      if (!detail.department && responsibleUser && responsibleUser.department) {
+        detail.department = responsibleUser.department;
+      }
+
+      if (assignRelatedInput) {
+        detail.related_machine_no = assignRelatedInput.value.trim();
+      }
+
+      addHistoryEntry(detail, "Atama güncellendi", [
+        detail.factory ? `Fabrika: ${detail.factory}` : "",
+        detail.department ? `Departman: ${detail.department}` : "",
+        detail.responsible && detail.responsible !== "Henüz atanmamış" ? `Sorumlu: ${detail.responsible}` : "",
+      ].filter(Boolean).join(" • "));
+
+      rebuildSearchIndex(detail);
+      updateRowFromDetail(detail);
+      filterInventory();
+
+      if (assignModalEl && bootstrapLib) {
+        bootstrapLib.Modal.getInstance(assignModalEl)?.hide();
+      }
+      showActionAlert("Envanter ataması güncellendi.", "success");
+    });
+  }
+
+  const editModalEl = document.getElementById("inventoryEditModal");
+  const editForm = document.getElementById("inventoryEditForm");
+  const editInventoryNo = document.getElementById("inventoryEditNo");
+  const editComputerName = document.getElementById("inventoryEditComputerName");
+  const editFactorySelect = document.getElementById("inventoryEditFactory");
+  const editDepartmentSelect = document.getElementById("inventoryEditDepartment");
+  const editTypeSelect = document.getElementById("inventoryEditType");
+  const editResponsibleSelect = document.getElementById("inventoryEditResponsible");
+  const editBrandSelect = document.getElementById("inventoryEditBrand");
+  const editModelSelect = document.getElementById("inventoryEditModel");
+  const editSerialInput = document.getElementById("inventoryEditSerial");
+  const editIfsInput = document.getElementById("inventoryEditIfs");
+  const editRelatedMachineInput = document.getElementById("inventoryEditRelatedMachine");
+  const editMachineInput = document.getElementById("inventoryEditMachine");
+  const editStatusSelect = document.getElementById("inventoryEditStatus");
+  const editNoteInput = document.getElementById("inventoryEditNote");
+
+  if (editBrandSelect) {
+    editBrandSelect.addEventListener("change", () => {
+      populateModelOptionsFor(editBrandSelect, editModelSelect);
+    });
+  }
+
+  function openEditModal() {
+    const detail = inventoryMap.get(activeInventoryId);
+    if (!detail) {
+      showActionAlert("Seçili envanter bulunamadı.", "danger");
+      return;
+    }
+
+    if (editInventoryNo) {
+      editInventoryNo.value = detail.inventory_no || "";
+    }
+    if (editComputerName) {
+      editComputerName.value = detail.computer_name || "";
+    }
+    setSelectValue(editFactorySelect, detail.factory_id, detail.factory);
+    setSelectValue(editDepartmentSelect, detail.department, detail.department);
+    setSelectValue(editTypeSelect, detail.hardware_type_id, detail.hardware_type);
+    setSelectValue(editResponsibleSelect, detail.responsible_user_id, detail.responsible);
+
+    if (editBrandSelect) {
+      editBrandSelect.value = detail.brand_id ? String(detail.brand_id) : editBrandSelect.value;
+      populateModelOptionsFor(editBrandSelect, editModelSelect, detail.model_id);
+    }
+
+    if (editSerialInput) {
+      editSerialInput.value = detail.serial_no || "";
+    }
+    if (editIfsInput) {
+      editIfsInput.value = detail.ifs_no || "";
+    }
+    if (editRelatedMachineInput) {
+      editRelatedMachineInput.value = detail.related_machine_no || "";
+    }
+    if (editMachineInput) {
+      editMachineInput.value = detail.machine_no || "";
+    }
+    if (editStatusSelect) {
+      editStatusSelect.value = detail.status || "aktif";
+    }
+    if (editNoteInput) {
+      editNoteInput.value = detail.note || "";
+    }
+
+    if (editModalEl && bootstrapLib) {
+      bootstrapLib.Modal.getOrCreateInstance(editModalEl).show();
+    }
+  }
+
+  if (editForm) {
+    editForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const detail = inventoryMap.get(activeInventoryId);
+      if (!detail) {
+        return;
+      }
+
+      const previousStatus = detail.status;
+
+      detail.computer_name = editComputerName ? editComputerName.value.trim() : "";
+
+      const factoryValue = editFactorySelect ? editFactorySelect.value : "";
+      detail.factory_id = factoryValue ? Number(factoryValue) : null;
+      detail.factory = factoryValue ? (factoriesMap.get(factoryValue)?.name || detail.factory) : "";
+
+      const departmentValue = editDepartmentSelect ? editDepartmentSelect.value : "";
+      detail.department = departmentValue || "";
+
+      const typeValue = editTypeSelect ? editTypeSelect.value : "";
+      detail.hardware_type_id = typeValue ? Number(typeValue) : null;
+      detail.hardware_type = typeValue ? (hardwareTypeMap.get(typeValue)?.name || detail.hardware_type) : "";
+
+      const responsibleValue = editResponsibleSelect ? editResponsibleSelect.value : "";
+      detail.responsible_user_id = responsibleValue ? Number(responsibleValue) : null;
+      detail.responsible = responsibleValue ? (usersMap.get(responsibleValue)?.name || detail.responsible) : "Henüz atanmamış";
+
+      const brandValue = editBrandSelect ? editBrandSelect.value : "";
+      detail.brand_id = brandValue ? Number(brandValue) : null;
+      const brand = brandValue ? brandMap.get(brandValue) : null;
+      detail.brand = brand ? brand.name : "";
+
+      const modelValue = editModelSelect ? editModelSelect.value : "";
+      detail.model_id = modelValue ? Number(modelValue) : null;
+      detail.model = modelValue ? findModelName(modelValue) : "";
+
+      detail.serial_no = editSerialInput ? editSerialInput.value.trim() : "";
+      detail.ifs_no = editIfsInput ? editIfsInput.value.trim() : "";
+      detail.related_machine_no = editRelatedMachineInput ? editRelatedMachineInput.value.trim() : "";
+      detail.machine_no = editMachineInput ? editMachineInput.value.trim() : "";
+
+      detail.status = editStatusSelect ? (editStatusSelect.value || "aktif") : detail.status;
+      detail.note = editNoteInput ? editNoteInput.value.trim() : "";
+
+      addHistoryEntry(detail, "Envanter bilgileri güncellendi");
+
+      rebuildSearchIndex(detail);
+      updateRowFromDetail(detail);
+      updateFaultyCounter();
+      filterInventory();
+
+      if (editModalEl && bootstrapLib) {
+        bootstrapLib.Modal.getInstance(editModalEl)?.hide();
+      }
+
+      if (previousStatus !== detail.status) {
+        showActionAlert("Envanter durumu güncellendi.", "info");
+      } else {
+        showActionAlert("Envanter bilgileri kaydedildi.", "success");
+      }
+    });
+  }
+
+  const stockModalEl = document.getElementById("inventoryStockModal");
+  const stockForm = document.getElementById("inventoryStockForm");
+  const stockInventoryLabel = document.getElementById("stockInventoryLabel");
+  const stockNoteInput = document.getElementById("stockNote");
+
+  function hideDetailIfMatching(itemId) {
+    if (!detailContainer || !bootstrapLib) {
+      return;
+    }
+    if (detailContainer.dataset.itemId === String(itemId)) {
+      bootstrapLib.Offcanvas.getInstance(detailContainer)?.hide();
+    }
+  }
+
+  function openStockModal() {
+    const detail = inventoryMap.get(activeInventoryId);
+    if (!detail) {
+      showActionAlert("Seçili envanter bulunamadı.", "danger");
+      return;
+    }
+    if (stockInventoryLabel) {
+      const pieces = [detail.inventory_no, detail.brand, detail.model].filter(Boolean);
+      stockInventoryLabel.textContent = pieces.join(" • ") || detail.inventory_no || "";
+    }
+    if (stockNoteInput) {
+      stockNoteInput.value = "";
+    }
+    if (stockModalEl && bootstrapLib) {
+      bootstrapLib.Modal.getOrCreateInstance(stockModalEl).show();
+    }
+  }
+
+  if (stockForm) {
+    stockForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const detail = inventoryMap.get(activeInventoryId);
+      if (!detail) {
+        return;
+      }
+
+      const row = getRowElement(detail.id);
+      if (row) {
+        row.remove();
+      }
+      inventoryMap.delete(detail.id);
+      refreshInventoryRows();
+      updateFaultyCounter();
+      filterInventory();
+      hideDetailIfMatching(detail.id);
+
+      if (stockModalEl && bootstrapLib) {
+        bootstrapLib.Modal.getInstance(stockModalEl)?.hide();
+      }
+      showActionAlert("Envanter stok girişine taşındı.", "info");
+    });
+  }
+
+  const scrapModalEl = document.getElementById("inventoryScrapModal");
+  const scrapForm = document.getElementById("inventoryScrapForm");
+  const scrapNoteInput = document.getElementById("scrapNote");
+
+  function openScrapModal() {
+    const detail = inventoryMap.get(activeInventoryId);
+    if (!detail) {
+      showActionAlert("Seçili envanter bulunamadı.", "danger");
+      return;
+    }
+    if (scrapNoteInput) {
+      scrapNoteInput.value = detail.scrap_note || "";
+    }
+    if (scrapModalEl && bootstrapLib) {
+      bootstrapLib.Modal.getOrCreateInstance(scrapModalEl).show();
+    }
+  }
+
+  if (scrapForm) {
+    scrapForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const detail = inventoryMap.get(activeInventoryId);
+      if (!detail) {
+        return;
+      }
+
+      if (scrapNoteInput) {
+        detail.scrap_note = scrapNoteInput.value.trim();
+      }
+
+      const row = getRowElement(detail.id);
+      if (row) {
+        row.remove();
+      }
+      inventoryMap.delete(detail.id);
+      refreshInventoryRows();
+      updateFaultyCounter();
+      filterInventory();
+      hideDetailIfMatching(detail.id);
+
+      if (scrapModalEl && bootstrapLib) {
+        bootstrapLib.Modal.getInstance(scrapModalEl)?.hide();
+      }
+      showActionAlert("Envanter hurdaya ayrıldı.", "danger");
+    });
+  }
+
+  document.querySelectorAll(".inventory-action").forEach((action) => {
+    action.addEventListener("click", (event) => {
+      event.preventDefault();
+      const { itemId, action: actionType } = action.dataset;
+      if (!itemId || !actionType) {
+        return;
+      }
+      activeInventoryId = Number(itemId);
+
+      switch (actionType) {
+        case "mark-faulty":
+          openFaultModal();
+          break;
+        case "assign":
+          openAssignModal();
+          break;
+        case "edit":
+          openEditModal();
+          break;
+        case "stock":
+          openStockModal();
+          break;
+        case "scrap":
+          openScrapModal();
+          break;
+        default:
+          break;
+      }
+    });
+  });
+
+  refreshInventoryRows();
+  updateFaultyCounter();
+  filterInventory();
+</script>
+{% endblock %}
