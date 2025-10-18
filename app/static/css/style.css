@@ -1,0 +1,111 @@
+:root {
+  --sidebar-width: 280px;
+  --sidebar-bg: linear-gradient(180deg, #f7f9fc 0%, #eef4ff 100%);
+  --card-bg: #ffffff;
+  --soft-bg: linear-gradient(180deg, #eef4ff 0%, #f7f9fc 40%, #ffffff 100%);
+  --primary-color: #4c6ef5;
+  --text-muted: #6c757d;
+}
+
+body.bg-soft {
+  background: var(--soft-bg);
+  min-height: 100vh;
+}
+
+.page-wrapper {
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  border-right: 1px solid rgba(76, 110, 245, 0.1);
+  gap: 1rem;
+}
+
+.sidebar .nav-link {
+  color: #1f2933;
+  padding: 0;
+  margin-bottom: 0.75rem;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+  text-decoration: none;
+}
+
+.sidebar-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 6px 24px rgba(76, 110, 245, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(76, 110, 245, 0.15);
+}
+
+.icon-wrapper {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(76, 110, 245, 0.1);
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.main-content {
+  background: transparent;
+}
+
+.content-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 1.75rem;
+  border: 1px solid rgba(76, 110, 245, 0.08);
+}
+
+.content-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.badge {
+  font-weight: 600;
+}
+
+@media (max-width: 991.98px) {
+  .page-wrapper {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 1.5rem;
+  }
+
+  .sidebar-section,
+  .sidebar-header {
+    min-width: 220px;
+    margin-right: 1rem;
+  }
+}
