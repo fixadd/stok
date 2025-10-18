@@ -13,6 +13,14 @@ docker run --rm -p 5001:5001 stok-uygulama
 
 Ardından tarayıcınızdan `http://localhost:5001` adresine gidin.
 
+Docker Compose tercih ediyorsanız aşağıdaki komutu kullanabilirsiniz:
+
+```bash
+docker compose up --build
+```
+
+Compose ortamı ilk kez ayağa kaldırıldığında `stok-db` adlı volume oluşturulur ve veritabanı dosyası konteyner içindeki `/data/stok.db` konumunda saklanır. Böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunmaya devam eder.
+
 ## Geliştirme
 
 Yerel geliştirme için Flask uygulamasını doğrudan çalıştırabilirsiniz:

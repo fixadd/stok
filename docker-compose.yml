@@ -12,4 +12,8 @@ services:
       FLASK_RUN_PORT: 5001
     volumes:
       - ./app:/app/app:ro
+      - stok-db:/data
     restart: unless-stopped
+
+volumes:
+  stok-db: {}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from pathlib import Path
 from typing import Any
 
 from flask import (
@@ -45,10 +46,15 @@ DEFAULT_EVENT_ACTOR = "Sistem"
 
 
 def create_app() -> Flask:
+    data_dir = Path("/data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    database_path = data_dir / "stok.db"
+
     app = Flask(__name__)
     app.config.from_mapping(
         SECRET_KEY="stok-admin-secret",
-        SQLALCHEMY_DATABASE_URI="sqlite:///stok.db",
+        SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
 
