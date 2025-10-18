@@ -1,0 +1,1049 @@
+{% extends "layout.html" %}
+
+{% block title %}Lisans Takip · Stok Yönetim Paneli{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <section class="content-card shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Lisans Takip</h1>
+        <p class="text-muted mb-0">Lisanslarınızı tek ekrandan takip edin, atama ve durum değişikliklerini yönetin.</p>
+      </div>
+      <div class="license-toolbar d-flex align-items-center gap-2">
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#licenseCreateModal">
+          <i class="bi bi-plus-lg"></i>
+          Ekle
+        </button>
+        <div class="btn-group">
+          <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+            Excel
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-box-arrow-up"></i>
+                Dışa Aktar
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-box-arrow-in-down"></i>
+                İçe Aktar
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-card shadow-sm">
+    <div class="row g-3 align-items-center mb-4">
+      <div class="col-lg-6">
+        <div>
+          <h2 class="h5 mb-1">Toplam Lisanslar</h2>
+          <p class="text-muted small mb-0">Aktif ve pasif durumdaki lisans kayıtlarınızı görüntüleyin.</p>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="d-flex flex-wrap justify-content-lg-end gap-3 text-center">
+          <div class="license-counter-card">
+            <span class="license-counter-label">Toplam</span>
+            <span class="license-counter-value" data-license-counter="total">{{ license_status_counts.total }}</span>
+          </div>
+          <div class="license-counter-card">
+            <span class="license-counter-label">Aktif</span>
+            <span class="license-counter-value text-success" data-license-counter="active">{{ license_status_counts.active }}</span>
+          </div>
+          <div class="license-counter-card">
+            <span class="license-counter-label">Pasif</span>
+            <span class="license-counter-value text-secondary" data-license-counter="passive">{{ license_status_counts.passive }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="license-search mb-4">
+      <label class="form-label text-muted text-uppercase small" for="licenseSearch">Sayfa genelinde ara</label>
+      <div class="input-group search-input">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input class="form-control" id="licenseSearch" type="search" placeholder="Lisans adı, key, sorumlu veya envanter numarası arayın">
+      </div>
+    </div>
+
+    <div class="alert alert-soft d-none" id="licenseActionAlert" role="alert"></div>
+
+    <div class="table-responsive">
+      <table class="table align-middle license-table">
+        <thead>
+          <tr>
+            <th scope="col">No</th>
+            <th scope="col">Lisans Adı</th>
+            <th scope="col">Key</th>
+            <th scope="col">Sorumlu</th>
+            <th scope="col">Bağlı Envanter</th>
+            <th scope="col">E-Posta</th>
+            <th scope="col" class="text-end">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody data-license-table>
+          {% for license in license_records %}
+          <tr
+            class="license-row{% if license.status == 'pasif' %} table-success is-passive{% endif %}"
+            data-license-id="{{ license.id }}"
+            data-row-index="{{ loop.index }}"
+            data-search-index="{{ license.search_index }}"
+            data-license='{{ license | tojson }}'
+          >
+            <td>
+              <span class="fw-semibold" data-field="row-number">{{ loop.index }}</span>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="license-name">{{ license.display_name }}</div>
+              <div class="small mt-1">
+                <span class="license-status-badge status-{{ license.status }}" data-field="license-status">{{ license.status_label }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="fw-semibold" data-field="license-key">{{ license.key or '—' }}</span>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="license-responsible">{{ license.responsible_name }}</div>
+              <div class="text-muted small" data-field="license-responsible-department">{{ license.responsible_department or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold" data-field="license-inventory">{{ license.inventory_no or '—' }}</div>
+              <div class="text-muted small" data-field="license-inventory-label">{{ license.inventory_label or '—' }}</div>
+            </td>
+            <td>
+              <span data-field="license-email">{{ license.email or '—' }}</span>
+            </td>
+            <td class="text-end">
+              <div class="d-inline-flex align-items-center gap-2">
+                <button class="btn btn-outline-secondary btn-sm icon-button license-detail-trigger" type="button" data-license-id="{{ license.id }}">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Seçiniz…
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">Atama Yap</button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item license-action" type="button" data-action="passive" data-license-id="{{ license.id }}">Pasif</button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td class="text-center text-muted" colspan="7">Kayıtlı lisans bulunamadı. Yeni lisans ekleyerek başlayın.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-soft mt-3 d-none" id="licenseEmptyState">Aradığınız kriterlere uygun lisans kaydı bulunamadı.</div>
+  </section>
+
+  <section class="content-card shadow-sm license-detail-card d-none" id="licenseDetailCard">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <p class="text-muted small mb-1">Seçili Lisans</p>
+        <h2 class="h4 mb-0" data-detail-field="title">Bir lisans seçin</h2>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="licenseDetailBack">Listeye dön</button>
+        <button class="btn btn-primary btn-sm" type="button" id="licenseDetailEdit" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+      </div>
+    </div>
+
+    <div class="license-detail-grid mb-4">
+      <div class="license-detail-item">
+        <span class="detail-label">No</span>
+        <span class="detail-value" data-detail-field="number">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Lisans Adı</span>
+        <span class="detail-value" data-detail-field="name">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Key</span>
+        <span class="detail-value" data-detail-field="key">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Durum</span>
+        <span class="detail-value">
+          <span class="license-status-badge status-aktif" data-detail-field="status">—</span>
+        </span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Sorumlu</span>
+        <span class="detail-value" data-detail-field="responsible">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Departman</span>
+        <span class="detail-value" data-detail-field="department">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Bağlı Envanter</span>
+        <span class="detail-value" data-detail-field="inventory">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">Fabrika</span>
+        <span class="detail-value" data-detail-field="factory">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">E-posta</span>
+        <span class="detail-value" data-detail-field="email">—</span>
+      </div>
+      <div class="license-detail-item">
+        <span class="detail-label">IFS No</span>
+        <span class="detail-value" data-detail-field="ifs">—</span>
+      </div>
+    </div>
+
+    <div>
+      <h5 class="fw-semibold mb-3">Geçmiş</h5>
+      <ul class="list-group list-group-flush license-history-list d-none" id="licenseHistoryList"></ul>
+      <div class="license-history-empty text-muted" id="licenseHistoryEmpty">Kayıt yok.</div>
+    </div>
+  </section>
+</div>
+
+<datalist id="licenseNameSuggestions">
+  {% for name in license_names %}
+  <option value="{{ name.name }}">{{ name.name }}</option>
+  {% endfor %}
+</datalist>
+
+<div class="modal fade" id="licenseCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header license-modal-header">
+        <div>
+          <h5 class="modal-title text-white">Yeni Lisans Ekle</h5>
+          <p class="modal-subtitle text-white-50 mb-0">Lisans envanterinize yeni bir kayıt ekleyin ve atama için hazır hale getirin.</p>
+        </div>
+        <button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form id="licenseCreateForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="licenseCreateName">Lisans Adı</label>
+              <input class="form-control" id="licenseCreateName" name="name" list="licenseNameSuggestions" placeholder="Adobe Creative Cloud" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="licenseCreateKey">Lisans Anahtarı</label>
+              <input class="form-control" id="licenseCreateKey" name="key" placeholder="XXXX-XXXX-XXXX" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="licenseCreateNote">Not</label>
+              <textarea class="form-control" id="licenseCreateNote" name="note" rows="2" placeholder="Lisans hakkında kısa bir not ekleyin"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="button" id="licenseCreateSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="licenseAssignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header license-modal-header">
+        <div>
+          <h5 class="modal-title text-white">Lisansı Ata</h5>
+          <p class="modal-subtitle text-white-50 mb-0">Lisansı bir personele veya envanter kaydına bağlayın.</p>
+        </div>
+        <button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4">
+          <span class="text-muted small d-block">Seçili Lisans</span>
+          <h6 class="mb-0" id="assignModalTitle">—</h6>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="assignResponsibleSelect">Sorumlu Personel</label>
+            <select class="form-select" id="assignResponsibleSelect" data-role="assign-responsible">
+              <option value="">Seçiniz</option>
+              {% for user in license_users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignInventorySelect">Bağlı Olduğu Envanter</label>
+            <select class="form-select" id="assignInventorySelect" data-role="assign-inventory">
+              <option value="">Seçiniz</option>
+              {% for inventory in license_inventory_options %}
+              <option value="{{ inventory.id }}">{{ inventory.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" id="assignAddHistory" type="checkbox" checked>
+              <label class="form-check-label" for="assignAddHistory">Bu işlem lisansın geçmiş kayıtlarına eklenecek.</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="button" id="licenseAssignSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="licenseEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <p class="text-uppercase text-muted small mb-1">Lisans Yönetimi</p>
+          <h5 class="modal-title mb-1">Lisans Bilgilerini Güncelleyin</h5>
+          <p class="text-muted small mb-0">Lisans kayıtlarını güncel tutarak kullanım ve atama geçmişini netleştirin.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form id="licenseEditForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="editLicenseName">Lisans Adı</label>
+              <input class="form-control" id="editLicenseName" name="edit_name" list="licenseNameSuggestions" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editLicenseKey">Lisans Anahtarı</label>
+              <input class="form-control" id="editLicenseKey" name="edit_key" placeholder="XXXX-XXXX-XXXX" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editResponsibleSelect">Sorumlu Personel</label>
+              <select class="form-select" id="editResponsibleSelect" name="edit_responsible">
+                <option value="">Seçiniz</option>
+                {% for user in license_users %}
+                <option value="{{ user.id }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editInventorySelect">Bağlı Olduğu Envanter</label>
+              <select class="form-select" id="editInventorySelect" name="edit_inventory">
+                <option value="">Seçiniz</option>
+                {% for inventory in license_inventory_options %}
+                <option value="{{ inventory.id }}">{{ inventory.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editIfsInput">IFS No</label>
+              <input class="form-control" id="editIfsInput" name="edit_ifs" placeholder="IFS referansı">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editEmailInput">Mail Adresi</label>
+              <input class="form-control" id="editEmailInput" name="edit_email" type="email" placeholder="ornek@firma.com">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editStatusSelect">Durum</label>
+              <select class="form-select" id="editStatusSelect" name="edit_status">
+                <option value="aktif">Aktif</option>
+                <option value="pasif">Pasif</option>
+                <option value="beklemede">Beklemede</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-check form-switch mt-4">
+            <input class="form-check-input" id="editHistoryToggle" type="checkbox" checked>
+            <label class="form-check-label" for="editHistoryToggle">Değişiklikler lisans geçmişine kaydedilecektir.</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="button" id="licenseEditSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const licenseUsers = {{ license_users | tojson }};
+  const licenseInventories = {{ license_inventory_options | tojson }};
+  const licenseStatusLabels = {"aktif": "Aktif", "pasif": "Pasif", "beklemede": "Beklemede"};
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tableBody = document.querySelector('[data-license-table]');
+    if (!tableBody) {
+      return;
+    }
+
+    const detailCard = document.getElementById('licenseDetailCard');
+    const detailBackButton = document.getElementById('licenseDetailBack');
+    const detailEditButton = document.getElementById('licenseDetailEdit');
+    const historyList = document.getElementById('licenseHistoryList');
+    const historyEmpty = document.getElementById('licenseHistoryEmpty');
+    const searchInput = document.getElementById('licenseSearch');
+    const emptyState = document.getElementById('licenseEmptyState');
+    const actionAlert = document.getElementById('licenseActionAlert');
+
+    const assignModalEl = document.getElementById('licenseAssignModal');
+    const assignResponsibleSelect = document.getElementById('assignResponsibleSelect');
+    const assignInventorySelect = document.getElementById('assignInventorySelect');
+    const assignHistoryCheckbox = document.getElementById('assignAddHistory');
+    const assignTitle = document.getElementById('assignModalTitle');
+
+    const editModalEl = document.getElementById('licenseEditModal');
+    const editForm = document.getElementById('licenseEditForm');
+    const editNameInput = document.getElementById('editLicenseName');
+    const editKeyInput = document.getElementById('editLicenseKey');
+    const editResponsibleSelect = document.getElementById('editResponsibleSelect');
+    const editInventorySelect = document.getElementById('editInventorySelect');
+    const editIfsInput = document.getElementById('editIfsInput');
+    const editEmailInput = document.getElementById('editEmailInput');
+    const editStatusSelect = document.getElementById('editStatusSelect');
+    const editHistoryToggle = document.getElementById('editHistoryToggle');
+
+    const createModalEl = document.getElementById('licenseCreateModal');
+    const createForm = document.getElementById('licenseCreateForm');
+    const createNameInput = document.getElementById('licenseCreateName');
+    const createKeyInput = document.getElementById('licenseCreateKey');
+
+    const detailFields = {
+      number: detailCard?.querySelector('[data-detail-field="number"]'),
+      title: detailCard?.querySelector('[data-detail-field="title"]'),
+      name: detailCard?.querySelector('[data-detail-field="name"]'),
+      key: detailCard?.querySelector('[data-detail-field="key"]'),
+      status: detailCard?.querySelector('[data-detail-field="status"]'),
+      responsible: detailCard?.querySelector('[data-detail-field="responsible"]'),
+      department: detailCard?.querySelector('[data-detail-field="department"]'),
+      inventory: detailCard?.querySelector('[data-detail-field="inventory"]'),
+      factory: detailCard?.querySelector('[data-detail-field="factory"]'),
+      email: detailCard?.querySelector('[data-detail-field="email"]'),
+      ifs: detailCard?.querySelector('[data-detail-field="ifs"]'),
+    };
+
+    const counterElements = {
+      total: document.querySelector('[data-license-counter="total"]'),
+      active: document.querySelector('[data-license-counter="active"]'),
+      passive: document.querySelector('[data-license-counter="passive"]'),
+    };
+
+    const licenseDataMap = new Map();
+    let activeRow = null;
+    let currentLicenseId = null;
+    let alertTimer = null;
+
+    const rows = () => Array.from(tableBody.querySelectorAll('tr[data-license-id]'));
+
+    function escapeHtml(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDateTime(date) {
+      try {
+        return new Intl.DateTimeFormat('tr-TR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        }).format(date);
+      } catch (error) {
+        return date.toLocaleString();
+      }
+    }
+
+    function refreshLicenseRecord(data) {
+      data.status_label = licenseStatusLabels[data.status] || data.status;
+      const tokens = [
+        data.display_name,
+        data.key,
+        data.responsible_name,
+        data.responsible_department,
+        data.email,
+        data.inventory_no,
+        data.inventory_label,
+        data.status_label,
+        data.raw_name,
+      ].filter(Boolean);
+      data.search_index = tokens.join(' ').toLowerCase();
+      if (!Array.isArray(data.history)) {
+        data.history = [];
+      }
+      return data;
+    }
+
+    function updateRow(licenseId) {
+      const row = tableBody.querySelector(`[data-license-id="${licenseId}"]`);
+      const data = licenseDataMap.get(licenseId);
+      if (!row || !data) {
+        return;
+      }
+
+      refreshLicenseRecord(data);
+
+      row.dataset.searchIndex = data.search_index || '';
+      row.dataset.license = JSON.stringify(data);
+      row.classList.toggle('table-success', data.status === 'pasif');
+      row.classList.toggle('is-passive', data.status === 'pasif');
+
+      const numberField = row.querySelector('[data-field="row-number"]');
+      const nameField = row.querySelector('[data-field="license-name"]');
+      const keyField = row.querySelector('[data-field="license-key"]');
+      const statusField = row.querySelector('[data-field="license-status"]');
+      const responsibleField = row.querySelector('[data-field="license-responsible"]');
+      const responsibleDeptField = row.querySelector('[data-field="license-responsible-department"]');
+      const inventoryField = row.querySelector('[data-field="license-inventory"]');
+      const inventoryLabelField = row.querySelector('[data-field="license-inventory-label"]');
+      const emailField = row.querySelector('[data-field="license-email"]');
+
+      if (numberField) {
+        numberField.textContent = row.dataset.rowIndex || numberField.textContent;
+      }
+      if (nameField) {
+        nameField.textContent = data.display_name || '—';
+      }
+      if (keyField) {
+        keyField.textContent = data.key || '—';
+      }
+      if (statusField) {
+        statusField.textContent = data.status_label || '—';
+        statusField.className = `license-status-badge status-${data.status}`;
+      }
+      if (responsibleField) {
+        responsibleField.textContent = data.responsible_name || 'Atama bekliyor';
+      }
+      if (responsibleDeptField) {
+        responsibleDeptField.textContent = data.responsible_department || '—';
+      }
+      if (inventoryField) {
+        inventoryField.textContent = data.inventory_no || '—';
+      }
+      if (inventoryLabelField) {
+        inventoryLabelField.textContent = data.inventory_label || '—';
+      }
+      if (emailField) {
+        emailField.textContent = data.email || '—';
+      }
+
+      if (activeRow === row) {
+        populateDetail(data, row);
+      }
+    }
+
+    function populateHistory(data) {
+      if (!historyList || !historyEmpty) {
+        return;
+      }
+
+      historyList.innerHTML = '';
+      if (!data.history || !data.history.length) {
+        historyList.classList.add('d-none');
+        historyEmpty.classList.remove('d-none');
+        return;
+      }
+
+      historyList.classList.remove('d-none');
+      historyEmpty.classList.add('d-none');
+
+      data.history.forEach((entry) => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item license-history-item';
+        item.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">${escapeHtml(entry.title)}</div>
+              ${entry.note ? `<div class="text-muted small mt-1">${escapeHtml(entry.note)}</div>` : ''}
+            </div>
+            <div class="text-end">
+              <div class="text-muted small">${escapeHtml(entry.performed_at || '')}</div>
+              ${entry.actor ? `<div class="text-muted small">${escapeHtml(entry.actor)}</div>` : ''}
+            </div>
+          </div>`;
+        historyList.appendChild(item);
+      });
+    }
+
+    function populateDetail(data, row) {
+      if (!detailCard) {
+        return;
+      }
+      detailCard.classList.remove('d-none');
+      if (detailFields.title) {
+        detailFields.title.textContent = data.display_name || 'Lisans';
+      }
+      if (detailFields.number) {
+        detailFields.number.textContent = row?.dataset.rowIndex || '—';
+      }
+      if (detailFields.name) {
+        detailFields.name.textContent = data.display_name || '—';
+      }
+      if (detailFields.key) {
+        detailFields.key.textContent = data.key || '—';
+      }
+      if (detailFields.status) {
+        detailFields.status.textContent = data.status_label || '—';
+        detailFields.status.className = `license-status-badge status-${data.status}`;
+      }
+      if (detailFields.responsible) {
+        detailFields.responsible.textContent = data.responsible_name || 'Atama bekliyor';
+      }
+      if (detailFields.department) {
+        detailFields.department.textContent = data.responsible_department || '—';
+      }
+      if (detailFields.inventory) {
+        detailFields.inventory.textContent = data.inventory_label || data.inventory_no || '—';
+      }
+      if (detailFields.factory) {
+        detailFields.factory.textContent = data.factory || '—';
+      }
+      if (detailFields.email) {
+        detailFields.email.textContent = data.email || '—';
+      }
+      if (detailFields.ifs) {
+        detailFields.ifs.textContent = data.ifs_no || '—';
+      }
+      if (detailEditButton) {
+        detailEditButton.dataset.licenseId = String(data.id);
+      }
+      populateHistory(data);
+    }
+
+    function setActiveRow(row) {
+      if (activeRow) {
+        activeRow.classList.remove('active-license-row');
+      }
+      activeRow = row || null;
+      if (activeRow) {
+        activeRow.classList.add('active-license-row');
+      }
+    }
+
+    function showFeedback(message, type = 'info') {
+      if (!actionAlert) {
+        return;
+      }
+      const variantMap = {
+        success: 'alert-success',
+        info: 'alert-primary',
+        warning: 'alert-warning',
+      };
+      actionAlert.textContent = message;
+      actionAlert.classList.remove('d-none', 'alert-success', 'alert-primary', 'alert-warning', 'show');
+      const variant = variantMap[type] || 'alert-primary';
+      actionAlert.classList.add('show', variant);
+      if (alertTimer) {
+        clearTimeout(alertTimer);
+      }
+      alertTimer = window.setTimeout(() => {
+        actionAlert.classList.remove('show', variant);
+        actionAlert.classList.add('d-none');
+      }, 3600);
+    }
+
+    function refreshRowNumbers() {
+      rows().forEach((row, index) => {
+        const numberField = row.querySelector('[data-field="row-number"]');
+        row.dataset.rowIndex = String(index + 1);
+        if (numberField) {
+          numberField.textContent = String(index + 1);
+        }
+      });
+    }
+
+    function refreshCounters() {
+      if (!counterElements.total) {
+        return;
+      }
+      let activeCount = 0;
+      let passiveCount = 0;
+      licenseDataMap.forEach((record) => {
+        if (record.status === 'pasif') {
+          passiveCount += 1;
+        } else if (record.status === 'aktif') {
+          activeCount += 1;
+        }
+      });
+      const totalCount = licenseDataMap.size;
+      counterElements.total.textContent = String(totalCount);
+      if (counterElements.active) {
+        counterElements.active.textContent = String(activeCount);
+      }
+      if (counterElements.passive) {
+        counterElements.passive.textContent = String(passiveCount);
+      }
+    }
+
+    function updateDetailIfVisible(licenseId) {
+      if (!detailCard || detailCard.classList.contains('d-none')) {
+        return;
+      }
+      if (currentLicenseId !== licenseId) {
+        return;
+      }
+      const row = tableBody.querySelector(`[data-license-id="${licenseId}"]`);
+      const data = licenseDataMap.get(licenseId);
+      if (row && data) {
+        populateDetail(data, row);
+      }
+    }
+
+    function markPassive(licenseId) {
+      const data = licenseDataMap.get(licenseId);
+      if (!data) {
+        return;
+      }
+      data.status = 'pasif';
+      data.history.unshift({
+        title: 'Durum güncellendi',
+        actor: 'Sistem',
+        note: 'Lisans pasif durumuna alındı.',
+        performed_at: formatDateTime(new Date()),
+      });
+      refreshLicenseRecord(data);
+      updateRow(licenseId);
+      updateDetailIfVisible(licenseId);
+      showFeedback('Lisans pasif durumuna alındı. Atama yapılana kadar satır yeşil kalacak.', 'info');
+      refreshCounters();
+    }
+
+    function applySearch() {
+      if (!searchInput) {
+        return;
+      }
+      const query = searchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
+      rows().forEach((row) => {
+        const matches = !query || (row.dataset.searchIndex || '').includes(query);
+        row.classList.toggle('d-none', !matches);
+        if (matches) {
+          visibleCount += 1;
+        }
+      });
+      if (emptyState) {
+        emptyState.classList.toggle('d-none', visibleCount > 0);
+      }
+    }
+
+    function attachRowEvents(row) {
+      const detailButton = row.querySelector('.license-detail-trigger');
+      if (detailButton) {
+        detailButton.addEventListener('click', () => {
+          const licenseId = Number(row.dataset.licenseId);
+          const data = licenseDataMap.get(licenseId);
+          if (!data) {
+            return;
+          }
+          currentLicenseId = licenseId;
+          setActiveRow(row);
+          populateDetail(data, row);
+        });
+      }
+
+      row.querySelectorAll('.license-action').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          const action = button.dataset.action;
+          const licenseId = Number(button.dataset.licenseId);
+          currentLicenseId = licenseId;
+          if (action === 'passive') {
+            event.preventDefault();
+            markPassive(licenseId);
+          }
+        });
+      });
+    }
+
+    function buildRow(data) {
+      const row = document.createElement('tr');
+      row.classList.add('license-row');
+      if (data.status === 'pasif') {
+        row.classList.add('table-success', 'is-passive');
+      }
+      row.dataset.licenseId = String(data.id);
+      row.dataset.searchIndex = data.search_index || '';
+      row.dataset.license = JSON.stringify(data);
+
+      row.innerHTML = `
+        <td><span class="fw-semibold" data-field="row-number"></span></td>
+        <td>
+          <div class="fw-semibold" data-field="license-name">${escapeHtml(data.display_name || 'Lisans')}</div>
+          <div class="small mt-1"><span class="license-status-badge status-${data.status}" data-field="license-status">${escapeHtml(data.status_label || '')}</span></div>
+        </td>
+        <td><span class="fw-semibold" data-field="license-key">${escapeHtml(data.key || '—')}</span></td>
+        <td>
+          <div class="fw-semibold" data-field="license-responsible">${escapeHtml(data.responsible_name || 'Atama bekliyor')}</div>
+          <div class="text-muted small" data-field="license-responsible-department">${escapeHtml(data.responsible_department || '—')}</div>
+        </td>
+        <td>
+          <div class="fw-semibold" data-field="license-inventory">${escapeHtml(data.inventory_no || '—')}</div>
+          <div class="text-muted small" data-field="license-inventory-label">${escapeHtml(data.inventory_label || '—')}</div>
+        </td>
+        <td><span data-field="license-email">${escapeHtml(data.email || '—')}</span></td>
+        <td class="text-end">
+          <div class="d-inline-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm icon-button license-detail-trigger" type="button" data-license-id="${data.id}">
+              <i class="bi bi-eye"></i>
+            </button>
+            <div class="dropdown">
+              <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Seçiniz…</button>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li><button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">Atama Yap</button></li>
+                <li><button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button></li>
+                <li><button class="dropdown-item license-action" type="button" data-action="passive" data-license-id="${data.id}">Pasif</button></li>
+              </ul>
+            </div>
+          </div>
+        </td>`;
+      tableBody.appendChild(row);
+      return row;
+    }
+
+    rows().forEach((row) => {
+      try {
+        const data = JSON.parse(row.dataset.license || '{}');
+        licenseDataMap.set(data.id, data);
+        attachRowEvents(row);
+      } catch (error) {
+        // ignore malformed rows
+      }
+    });
+    refreshRowNumbers();
+
+    let nextLicenseId = 1;
+    if (licenseDataMap.size) {
+      nextLicenseId = Math.max(...Array.from(licenseDataMap.keys())) + 1;
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', applySearch);
+    }
+
+    if (detailBackButton) {
+      detailBackButton.addEventListener('click', () => {
+        if (detailCard) {
+          detailCard.classList.add('d-none');
+        }
+        setActiveRow(null);
+        currentLicenseId = null;
+      });
+    }
+
+    if (assignModalEl) {
+      assignModalEl.addEventListener('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget;
+        const licenseId = Number(trigger?.dataset.licenseId || currentLicenseId);
+        currentLicenseId = licenseId;
+        const data = licenseDataMap.get(licenseId);
+        if (!data) {
+          return;
+        }
+        assignTitle.textContent = data.display_name || 'Lisans';
+        assignResponsibleSelect.value = data.responsible_id ? String(data.responsible_id) : '';
+        assignInventorySelect.value = data.inventory_id ? String(data.inventory_id) : '';
+      });
+      assignModalEl.addEventListener('hidden.bs.modal', () => {
+        assignHistoryCheckbox.checked = true;
+      });
+    }
+
+    if (editModalEl) {
+      editModalEl.addEventListener('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget;
+        const licenseId = Number(trigger?.dataset.licenseId || currentLicenseId);
+        currentLicenseId = licenseId;
+        const data = licenseDataMap.get(licenseId);
+        if (!data) {
+          return;
+        }
+        editNameInput.value = data.display_name || '';
+        editKeyInput.value = data.key || '';
+        editResponsibleSelect.value = data.responsible_id ? String(data.responsible_id) : '';
+        editInventorySelect.value = data.inventory_id ? String(data.inventory_id) : '';
+        editIfsInput.value = data.ifs_no || '';
+        editEmailInput.value = data.email || '';
+        editStatusSelect.value = data.status || 'aktif';
+      });
+      editModalEl.addEventListener('hidden.bs.modal', () => {
+        if (editForm) {
+          editForm.reset();
+        }
+        editStatusSelect.value = 'aktif';
+        editHistoryToggle.checked = true;
+      });
+    }
+
+    const assignSubmitButton = document.getElementById('licenseAssignSubmit');
+    if (assignSubmitButton) {
+      assignSubmitButton.addEventListener('click', () => {
+        if (!currentLicenseId) {
+          return;
+        }
+        const data = licenseDataMap.get(currentLicenseId);
+        if (!data) {
+          return;
+        }
+        const selectedUser = licenseUsers.find((user) => String(user.id) === assignResponsibleSelect.value);
+        const selectedInventory = licenseInventories.find((inv) => String(inv.id) === assignInventorySelect.value);
+
+        data.responsible_id = selectedUser ? selectedUser.id : null;
+        data.responsible_name = selectedUser ? selectedUser.name : 'Atama bekliyor';
+        data.responsible_department = selectedUser ? selectedUser.department : '';
+        data.email = selectedUser ? selectedUser.email : '';
+        data.inventory_id = selectedInventory ? selectedInventory.id : null;
+        data.inventory_no = selectedInventory ? selectedInventory.inventory_no : '';
+        data.inventory_label = selectedInventory ? selectedInventory.label : '';
+        if (!data.ifs_no && selectedInventory) {
+          data.ifs_no = selectedInventory.ifs_no || '';
+        }
+        data.status = 'aktif';
+        refreshLicenseRecord(data);
+        if (assignHistoryCheckbox.checked) {
+          data.history.unshift({
+            title: 'Atama yapıldı',
+            actor: selectedUser ? selectedUser.name : 'Sistem',
+            note: selectedInventory ? `${selectedInventory.label} envanterine bağlandı.` : 'Sorumlu güncellendi.',
+            performed_at: formatDateTime(new Date()),
+          });
+        }
+        updateRow(currentLicenseId);
+        updateDetailIfVisible(currentLicenseId);
+        showFeedback('Lisans ataması güncellendi.', 'success');
+        const modalInstance = bootstrap.Modal.getInstance(assignModalEl);
+        modalInstance?.hide();
+        refreshCounters();
+      });
+    }
+
+    const editSubmitButton = document.getElementById('licenseEditSubmit');
+    if (editSubmitButton) {
+      editSubmitButton.addEventListener('click', () => {
+        if (!currentLicenseId) {
+          return;
+        }
+        const data = licenseDataMap.get(currentLicenseId);
+        if (!data) {
+          return;
+        }
+        if (!editNameInput.value.trim()) {
+          editNameInput.reportValidity();
+          return;
+        }
+        data.display_name = editNameInput.value.trim();
+        data.key = editKeyInput.value.trim();
+        data.raw_name = data.key ? `${data.display_name} - ${data.key}` : data.display_name;
+
+        const selectedUser = licenseUsers.find((user) => String(user.id) === editResponsibleSelect.value);
+        const selectedInventory = licenseInventories.find((inv) => String(inv.id) === editInventorySelect.value);
+
+        data.responsible_id = selectedUser ? selectedUser.id : null;
+        data.responsible_name = selectedUser ? selectedUser.name : 'Atama bekliyor';
+        data.responsible_department = selectedUser ? selectedUser.department : '';
+        data.email = editEmailInput.value.trim() || (selectedUser ? selectedUser.email : '');
+        data.inventory_id = selectedInventory ? selectedInventory.id : null;
+        data.inventory_no = selectedInventory ? selectedInventory.inventory_no : '';
+        data.inventory_label = selectedInventory ? selectedInventory.label : '';
+        data.ifs_no = editIfsInput.value.trim();
+        data.status = editStatusSelect.value || data.status;
+
+        refreshLicenseRecord(data);
+        if (editHistoryToggle.checked) {
+          data.history.unshift({
+            title: 'Lisans düzenlendi',
+            actor: selectedUser ? selectedUser.name : 'Sistem',
+            note: 'Lisans bilgileri güncellendi.',
+            performed_at: formatDateTime(new Date()),
+          });
+        }
+        updateRow(currentLicenseId);
+        updateDetailIfVisible(currentLicenseId);
+        showFeedback('Lisans bilgileri güncellendi.', 'success');
+        const modalInstance = bootstrap.Modal.getInstance(editModalEl);
+        modalInstance?.hide();
+        refreshCounters();
+      });
+    }
+
+    const createSubmitButton = document.getElementById('licenseCreateSubmit');
+    if (createSubmitButton) {
+      createSubmitButton.addEventListener('click', () => {
+        if (!createNameInput.value.trim() || !createKeyInput.value.trim()) {
+          createNameInput.reportValidity();
+          createKeyInput.reportValidity();
+          return;
+        }
+        const displayName = createNameInput.value.trim();
+        const keyValue = createKeyInput.value.trim();
+        const newId = nextLicenseId++;
+        const newData = {
+          id: newId,
+          display_name: displayName,
+          key: keyValue,
+          raw_name: `${displayName} - ${keyValue}`,
+          status: 'pasif',
+          status_label: licenseStatusLabels.pasif,
+          responsible_id: null,
+          responsible_name: 'Atama bekliyor',
+          responsible_department: '',
+          email: '',
+          inventory_id: null,
+          inventory_no: '',
+          inventory_label: '',
+          factory: '',
+          department: '',
+          ifs_no: '',
+          history: [],
+        };
+        refreshLicenseRecord(newData);
+        const newRow = buildRow(newData);
+        licenseDataMap.set(newId, newData);
+        attachRowEvents(newRow);
+        refreshRowNumbers();
+        updateRow(newId);
+        showFeedback('Yeni lisans kaydı eklendi. Atama yapılana kadar pasif durumdadır.', 'success');
+        const modalInstance = bootstrap.Modal.getInstance(createModalEl);
+        modalInstance?.hide();
+        createForm.reset();
+        applySearch();
+        refreshCounters();
+      });
+    }
+
+    rows().forEach((row) => {
+      const data = licenseDataMap.get(Number(row.dataset.licenseId));
+      if (!data) {
+        return;
+      }
+      refreshLicenseRecord(data);
+      updateRow(data.id);
+    });
+
+    refreshCounters();
+    applySearch();
+  });
+</script>
+{% endblock %}
