@@ -1,0 +1,186 @@
+<div class="modal fade" id="userCreateModal" tabindex="-1" aria-labelledby="userCreateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userCreateModalLabel">Yeni Kullanıcı</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Kullanıcı bilgilerini doldurarak sisteme yeni bir kayıt ekleyin.</p>
+        <form class="row g-3" id="userCreateForm" method="post" action="{{ url_for('create_user') }}">
+          <div class="col-sm-6">
+            <label class="form-label" for="modalUserUsername">Kullanıcı Adı</label>
+            <input class="form-control" id="modalUserUsername" name="username" placeholder="kullanici.adi" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="modalUserPassword">Geçici Şifre</label>
+            <input class="form-control" id="modalUserPassword" name="password" type="password" placeholder="Minimum 8 karakter" minlength="8" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="modalUserFirstName">Ad</label>
+            <input class="form-control" id="modalUserFirstName" name="first_name" placeholder="Ad" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="modalUserLastName">Soyad</label>
+            <input class="form-control" id="modalUserLastName" name="last_name" placeholder="Soyad" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="modalUserEmail">E-posta</label>
+            <input class="form-control" id="modalUserEmail" name="email" type="email" placeholder="ornek@firma.com" required>
+          </div>
+          <div class="col-12">
+            <div class="form-text">İlk girişte kullanıcıdan şifresini güncellemesi istenecektir.</div>
+          </div>
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+            <button class="btn btn-primary" type="submit">Kullanıcı Oluştur</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="usageAreaModal" tabindex="-1" aria-labelledby="usageAreaModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="usageAreaModalLabel">Kullanım Alanları</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Departmanlara göre kullanım alanlarını ekleyin veya düzenleyin.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="usageAreaFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="usageAreaList"></ul>
+        <form class="d-flex gap-2" id="usageAreaForm">
+          <input class="form-control" id="usageAreaInput" placeholder="Yeni kullanım alanı" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="licenseNameModal" tabindex="-1" aria-labelledby="licenseNameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="licenseNameModalLabel">Lisans Adları</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Farklı departmanların kullandığı lisansları yönetin.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="licenseNameFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="licenseNameList"></ul>
+        <form class="d-flex gap-2" id="licenseNameForm">
+          <input class="form-control" id="licenseNameInput" placeholder="Yeni lisans adı" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="infoCategoryModal" tabindex="-1" aria-labelledby="infoCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="infoCategoryModalLabel">Bilgi Kategorileri</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Bilgi varlıklarınızı kategorilere ayırın ve güncel tutun.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="infoCategoryFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="infoCategoryList"></ul>
+        <form class="d-flex gap-2" id="infoCategoryForm">
+          <input class="form-control" id="infoCategoryInput" placeholder="Yeni kategori" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="factoryModal" tabindex="-1" aria-labelledby="factoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="factoryModalLabel">Fabrika Lokasyonları</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Üretim ve depo lokasyonlarını yönetin.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="factoryFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="factoryList"></ul>
+        <form class="d-flex gap-2" id="factoryForm">
+          <input class="form-control" id="factoryInput" placeholder="Yeni lokasyon" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="hardwareTypeModal" tabindex="-1" aria-labelledby="hardwareTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="hardwareTypeModalLabel">Donanım Tipleri</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Stoklarınızda kullanılan donanım tiplerini güncelleyin.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="hardwareTypeFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="hardwareTypeList"></ul>
+        <form class="d-flex gap-2" id="hardwareTypeForm">
+          <input class="form-control" id="hardwareTypeInput" placeholder="Yeni donanım tipi" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="brandModal" tabindex="-1" aria-labelledby="brandModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="brandModalLabel">Markalar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Marka listenizi güncelleyin. Her marka için ayrı modeller tanımlayabilirsiniz.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="brandFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="brandList"></ul>
+        <form class="d-flex gap-2" id="brandForm">
+          <input class="form-control" id="brandInput" placeholder="Yeni marka" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modelModal" tabindex="-1" aria-labelledby="modelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modelModalLabel">Modeller</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="modelBrandSelector">Marka Seçimi</label>
+          <select class="form-select" id="modelBrandSelector"></select>
+        </div>
+        <p class="text-muted small">Seçili markaya ait modelleri ekleyin veya kaldırın.</p>
+        <div class="alert alert-soft alert-danger modal-feedback d-none" id="modelFeedback" role="alert"></div>
+        <ul class="list-group mb-3" id="modelList"></ul>
+        <form class="d-flex gap-2" id="modelForm">
+          <input class="form-control" id="modelInput" placeholder="Yeni model" required>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
