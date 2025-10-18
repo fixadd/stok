@@ -43,6 +43,20 @@ from .models import (
 
 INVENTORY_STATUSES = {"aktif", "beklemede", "arizali", "hurda"}
 DEFAULT_EVENT_ACTOR = "Sistem"
+LICENSE_STATUS_LABELS = {
+    "aktif": "Aktif",
+    "pasif": "Pasif",
+    "beklemede": "Beklemede",
+}
+
+
+def split_license_name(value: str) -> tuple[str, str]:
+    if not value:
+        return "", ""
+    if " - " in value:
+        name, key = value.split(" - ", 1)
+        return name.strip(), key.strip()
+    return value.strip(), ""
 
 
 def create_app() -> Flask:
@@ -79,6 +93,15 @@ def create_app() -> Flask:
         return render_template(
             "inventory_tracking.html",
             active_page="inventory_tracking",
+            **payload,
+        )
+
+    @app.route("/lisans-takip")
+    def license_tracking():
+        payload = load_license_payload()
+        return render_template(
+            "license_tracking.html",
+            active_page="license_tracking",
             **payload,
         )
 
@@ -842,6 +865,141 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "history": history,
         "licenses": licenses,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
+    }
+
+
+def serialize_license_record(license: InventoryLicense) -> dict[str, Any]:
+    item = license.item
+    responsible_user = item.responsible_user if item else None
+    responsible_name = (
+        f"{responsible_user.first_name} {responsible_user.last_name}"
+        if responsible_user
+        else ""
+    )
+    email = responsible_user.email if responsible_user else ""
+    department = responsible_user.department if responsible_user else ""
+    inventory_no = item.inventory_no if item else ""
+    computer_name = item.computer_name if item else ""
+    hardware_type_name = item.hardware_type.name if item and item.hardware_type else ""
+    inventory_label = inventory_no
+    if inventory_no:
+        if computer_name:
+            inventory_label = f"{inventory_no} · {computer_name}"
+        elif hardware_type_name:
+            inventory_label = f"{inventory_no} · {hardware_type_name}"
+    factory_name = item.factory.name if item and item.factory else ""
+    ifs_no = item.ifs_no if item else ""
+    status_value = (license.status or "aktif").lower()
+    status_label = LICENSE_STATUS_LABELS.get(status_value, status_value.capitalize())
+    display_name, key = split_license_name(license.name)
+
+    history: list[dict[str, Any]] = []
+    if item and item.events:
+        for event in sorted(item.events, key=lambda e: e.performed_at, reverse=True):
+            history.append(
+                {
+                    "title": event.event_type,
+                    "actor": event.performed_by,
+                    "note": event.note or "",
+                    "performed_at": event.performed_at.strftime("%d.%m.%Y %H:%M"),
+                }
+            )
+
+    search_tokens = [
+        display_name or license.name,
+        key,
+        responsible_name,
+        email,
+        department,
+        inventory_no,
+        computer_name,
+        factory_name,
+        status_label,
+    ]
+
+    return {
+        "id": license.id,
+        "display_name": display_name or license.name,
+        "key": key,
+        "raw_name": license.name,
+        "status": status_value,
+        "status_label": status_label,
+        "responsible_id": responsible_user.id if responsible_user else None,
+        "responsible_name": responsible_name or "Atama bekliyor",
+        "responsible_department": department,
+        "email": email,
+        "inventory_id": item.id if item else None,
+        "inventory_no": inventory_no,
+        "inventory_label": inventory_label or inventory_no,
+        "computer_name": computer_name,
+        "factory": factory_name,
+        "department": item.department if item else "",
+        "ifs_no": ifs_no,
+        "history": history,
+        "search_index": " ".join(token for token in search_tokens if token).lower(),
+    }
+
+
+def load_license_payload() -> dict[str, Any]:
+    licenses = (
+        InventoryLicense.query.options(
+            joinedload(InventoryLicense.item)
+            .joinedload(InventoryItem.responsible_user),
+            joinedload(InventoryLicense.item).joinedload(InventoryItem.hardware_type),
+            joinedload(InventoryLicense.item).joinedload(InventoryItem.factory),
+            joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
+        )
+        .order_by(InventoryLicense.id)
+        .all()
+    )
+
+    license_records = [serialize_license_record(license) for license in licenses]
+
+    users = [
+        {
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "email": user.email,
+            "department": user.department or "",
+        }
+        for user in User.query.order_by(User.first_name, User.last_name)
+    ]
+
+    inventory_options = [
+        {
+            "id": item.id,
+            "inventory_no": item.inventory_no,
+            "label": (
+                f"{item.inventory_no} · {item.computer_name}"
+                if item.computer_name
+                else (
+                    f"{item.inventory_no} · {item.hardware_type.name}"
+                    if item.hardware_type
+                    else item.inventory_no
+                )
+            ),
+            "ifs_no": item.ifs_no or "",
+            "department": item.department or "",
+        }
+        for item in InventoryItem.query.options(
+            joinedload(InventoryItem.hardware_type)
+        ).order_by(InventoryItem.inventory_no)
+    ]
+
+    status_counts = {
+        "total": len(license_records),
+        "active": sum(1 for record in license_records if record["status"] == "aktif"),
+        "passive": sum(1 for record in license_records if record["status"] == "pasif"),
+    }
+
+    return {
+        "license_records": license_records,
+        "license_users": users,
+        "license_inventory_options": inventory_options,
+        "license_names": [
+            ln.to_dict() for ln in LicenseName.query.order_by(LicenseName.name)
+        ],
+        "license_status_counts": status_counts,
     }
 
 
