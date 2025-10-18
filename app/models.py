@@ -347,11 +347,11 @@ class ActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     @property
-    def metadata(self) -> dict | None:
+    def metadata_payload(self) -> dict | None:
         return self.metadata_json
 
-    @metadata.setter
-    def metadata(self, value: dict | None) -> None:
+    @metadata_payload.setter
+    def metadata_payload(self, value: dict | None) -> None:
         self.metadata_json = value
 
     def to_dict(self) -> dict:
@@ -361,6 +361,6 @@ class ActivityLog(db.Model):
             "action": self.action,
             "description": self.description,
             "actor": self.actor,
-            "metadata": self.metadata,
+            "metadata": self.metadata_payload,
             "created_at": self.created_at,
         }
