@@ -885,7 +885,7 @@ def serialize_activity_log(log: ActivityLog) -> dict[str, Any]:
         "action": log.action,
         "description": log.description,
         "actor": log.actor,
-        "metadata": log.metadata or {},
+        "metadata": log.metadata_payload or {},
         "created_display": log.created_at.strftime("%d.%m.%Y %H:%M"),
     }
 
@@ -1021,7 +1021,7 @@ def record_activity(
         action=action,
         description=description or None,
         actor=actor or DEFAULT_EVENT_ACTOR,
-        metadata=metadata or None,
+        metadata_payload=metadata or None,
     )
     db.session.add(log)
     return log
