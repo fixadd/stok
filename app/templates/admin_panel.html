@@ -1,0 +1,806 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Paneli{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <div class="content-card shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Admin Paneli</h1>
+        <p class="text-muted mb-0">Kullanıcıları yönetin, ürün kataloğunu güncelleyin ve entegrasyonları yapılandırın.</p>
+      </div>
+      <div class="status-toggle admin-toggle d-inline-flex align-items-center">
+        <button class="status-pill active" type="button" data-target="users-section">
+          <span>Kullanıcılar</span>
+        </button>
+        <button class="status-pill" type="button" data-target="product-section">
+          <span>Ürün Ekle</span>
+        </button>
+        <button class="status-pill" type="button" data-target="integration-section">
+          <span>Bağlantılar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <section id="users-section" class="content-card shadow-sm admin-section active">
+    <div class="mb-4">
+      <h2 class="h4 fw-semibold mb-1">Kullanıcılar</h2>
+      <p class="text-muted mb-0">Sisteme kayıtlı tüm kullanıcıları görüntüleyin ve yeni kullanıcılar ekleyin.</p>
+    </div>
+
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+      <div>
+        <h3 class="h5 fw-semibold mb-1">Kullanıcı Yönetimi</h3>
+        <p class="text-muted small mb-0">Sistemdeki kayıtları görüntüleyin veya yeni kullanıcı ekleyin.</p>
+      </div>
+      <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#userCreateModal">
+        <i class="bi bi-person-plus"></i>
+        Kullanıcı Ekle
+      </button>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% set icon_map = {
+          'success': 'bi-check-circle text-success',
+          'warning': 'bi-exclamation-triangle text-warning',
+          'danger': 'bi-exclamation-octagon text-danger'
+        } %}
+        <div class="alert-stack mb-4">
+          {% for category, message in messages %}
+            <div class="alert alert-soft alert-{{ category }} d-flex align-items-center gap-2{{ ' mb-0' if loop.last else ' mb-2' }}" role="alert">
+              <i class="bi {{ icon_map.get(category, 'bi-info-circle text-primary') }}"></i>
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="search-container">
+      <label class="form-label" for="userSearch">Kullanıcılar içinde ara</label>
+      <div class="input-group search-input">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input class="form-control" id="userSearch" type="search" placeholder="Kullanıcı adı, ad, soyad veya e-posta ara">
+      </div>
+    </div>
+
+    <div class="table-responsive mt-4">
+      <table class="table align-middle mb-0" id="userTable">
+        <thead>
+          <tr>
+            <th scope="col">Kullanıcı Adı</th>
+            <th scope="col">Ad</th>
+            <th scope="col">Soyad</th>
+            <th scope="col">E-posta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr data-search="{{ (user.username ~ ' ' ~ user.first_name ~ ' ' ~ user.last_name ~ ' ' ~ user.email ~ ' ' ~ (user.role or '') ~ ' ' ~ (user.department or ''))|lower }}">
+            <td class="fw-semibold">{{ user.username }}</td>
+            <td>{{ user.first_name }}</td>
+            <td>{{ user.last_name }}</td>
+            <td class="text-muted">{{ user.email }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-soft mt-3 d-none" id="userEmptyState">
+      Aradığınız kriterlere uygun bir kullanıcı bulunamadı.
+    </div>
+  </section>
+
+  <section id="product-section" class="content-card shadow-sm admin-section">
+    <div class="mb-4">
+      <h2 class="h4 fw-semibold mb-1">Ürün Kataloğu</h2>
+      <p class="text-muted mb-0">Yeni ürünler ekleyin, kullanım alanlarını yapılandırın ve marka-model ilişkilerini yönetin.</p>
+    </div>
+
+    <form class="row g-4" id="productForm">
+      <div class="col-md-6">
+        <label class="form-label" for="usageAreaSelect">Kullanım Alanı</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="usageAreaSelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#usageAreaModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="licenseNameSelect">Lisans Adı</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="licenseNameSelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#licenseNameModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="infoCategorySelect">Bilgi Kategorisi</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="infoCategorySelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#infoCategoryModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="factorySelect">Fabrika</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="factorySelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#factoryModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="hardwareTypeSelect">Donanım Tipi</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="hardwareTypeSelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#hardwareTypeModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="brandSelect">Marka</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="brandSelect"></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#brandModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="modelSelect">Model</label>
+        <div class="input-group option-manager">
+          <select class="form-select" id="modelSelect" disabled></select>
+          <button class="btn btn-outline-secondary icon-button" type="button" data-bs-toggle="modal" data-bs-target="#modelModal">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-12 d-flex justify-content-end">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-check2-circle me-2"></i>
+          Ürünü Kaydet
+        </button>
+      </div>
+    </form>
+
+    <div class="alert alert-soft mt-4 mb-0 d-none" id="productSuccess">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle text-success fs-5"></i>
+        <span>Ürün taslağı başarıyla oluşturuldu. Entegrasyon tamamlandığında stoklara aktarılacak.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="integration-section" class="content-card shadow-sm admin-section">
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <h2 class="h4 fw-semibold mb-1">Bağlantılar</h2>
+        <p class="text-muted">LDAP bağlantısı oluşturun veya mevcut profillerden hızlıca seçim yapın.</p>
+
+        <form class="row g-3" id="ldapForm">
+          <div class="col-sm-8">
+            <label class="form-label" for="ldapHost">Sunucu Adresi</label>
+            <input class="form-control" id="ldapHost" name="ldapHost" placeholder="ldap.example.com" required>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label" for="ldapPort">Port</label>
+            <input class="form-control" id="ldapPort" name="ldapPort" type="number" min="1" placeholder="389" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="ldapBaseDn">Base DN</label>
+            <input class="form-control" id="ldapBaseDn" name="ldapBaseDn" placeholder="DC=example,DC=com" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="ldapBindDn">Bind Kullanıcı</label>
+            <input class="form-control" id="ldapBindDn" name="ldapBindDn" placeholder="CN=service,OU=Accounts,DC=example,DC=com" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="ldapPassword">Parola</label>
+            <input class="form-control" id="ldapPassword" name="ldapPassword" type="password" placeholder="••••••" required>
+          </div>
+          <div class="col-12 d-flex justify-content-between align-items-center">
+            <div class="form-check form-switch">
+              <input class="form-check-input" id="ldapUseSSL" type="checkbox">
+              <label class="form-check-label" for="ldapUseSSL">SSL kullan</label>
+            </div>
+            <button class="btn btn-primary" type="submit">
+              <i class="bi bi-link-45deg me-2"></i>
+              Bağlantıyı Test Et
+            </button>
+          </div>
+        </form>
+
+        <div class="alert alert-soft mt-4 mb-0 d-none" id="ldapStatus"></div>
+      </div>
+      <div class="col-lg-5">
+        <div class="quick-profile card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <h3 class="h5 fw-semibold mb-3">Hazır LDAP Profilleri</h3>
+            <p class="text-muted small">Bir profil seçerek form alanlarını otomatik doldurun.</p>
+            <div class="list-group" id="ldapProfileList">
+              {% for profile in ldap_profiles %}
+              <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" type="button" data-profile='{{ profile | tojson | safe }}'>
+                <div>
+                  <span class="fw-semibold d-block">{{ profile.name }}</span>
+                  <small class="text-muted">{{ profile.host }} : {{ profile.port }}</small>
+                </div>
+                <i class="bi bi-arrow-down-left-square fs-5 text-primary"></i>
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% include "admin_panel_modals.html" %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  const productOptionData = {{ product_options | tojson }};
+  const brandModelData = {{ brand_models | tojson }};
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const sectionButtons = document.querySelectorAll(".admin-toggle .status-pill");
+    const sections = document.querySelectorAll(".admin-section");
+
+    sectionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const targetId = button.dataset.target;
+        sectionButtons.forEach((btn) => btn.classList.remove("active"));
+        button.classList.add("active");
+
+        sections.forEach((section) => {
+          if (section.id === targetId) {
+            section.classList.add("active");
+          } else {
+            section.classList.remove("active");
+          }
+        });
+      });
+    });
+
+    const userSearchInput = document.getElementById("userSearch");
+    const userRows = Array.from(document.querySelectorAll("#userTable tbody tr"));
+    const userEmptyState = document.getElementById("userEmptyState");
+
+    function filterUsers() {
+      const term = userSearchInput ? userSearchInput.value.trim().toLowerCase() : "";
+      let visibleCount = 0;
+
+      userRows.forEach((row) => {
+        const haystack = row.dataset.search || "";
+        const isVisible = !term || haystack.includes(term);
+        row.classList.toggle("d-none", !isVisible);
+        if (isVisible) {
+          visibleCount += 1;
+        }
+      });
+
+      if (userEmptyState) {
+        userEmptyState.classList.toggle("d-none", visibleCount !== 0);
+      }
+    }
+
+    if (userSearchInput) {
+      userSearchInput.addEventListener("input", filterUsers);
+    }
+
+    filterUsers();
+
+    function sortByName(items = []) {
+      return [...items].sort((a, b) => a.name.localeCompare(b.name, "tr") || a.id - b.id);
+    }
+
+    function renderSelectOptions(select, values) {
+      if (!select) {
+        return;
+      }
+      const previousValue = select.value;
+      select.innerHTML = "";
+
+      if (!values || !values.length) {
+        select.disabled = true;
+        return;
+      }
+
+      values.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name;
+        select.append(option);
+      });
+
+      select.disabled = false;
+      const hasPrevious = values.some((item) => String(item.id) === previousValue);
+      if (hasPrevious) {
+        select.value = previousValue;
+      } else {
+        select.value = String(values[0].id);
+      }
+    }
+
+    function renderSimpleList(listElement, values, emptyMessage = "Henüz bir kayıt yok.") {
+      if (!listElement) {
+        return;
+      }
+      listElement.innerHTML = "";
+      if (!values || !values.length) {
+        const emptyItem = document.createElement("li");
+        emptyItem.className = "list-group-item text-muted fst-italic";
+        emptyItem.textContent = emptyMessage;
+        listElement.append(emptyItem);
+        return;
+      }
+
+      values.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "list-group-item d-flex justify-content-between align-items-center";
+        li.innerHTML = `<span>${item.name}</span><button type="button" class="btn btn-outline-danger btn-sm" data-id="${item.id}"><i class="bi bi-x"></i></button>`;
+        listElement.append(li);
+      });
+    }
+
+    function showFeedback(element, message, variant = "danger", persist = true) {
+      if (!element) {
+        return;
+      }
+      element.textContent = message;
+      element.className = `alert alert-soft alert-${variant} modal-feedback`;
+      element.classList.remove("d-none");
+      if (!persist) {
+        setTimeout(() => {
+          if (element.textContent === message) {
+            element.classList.add("d-none");
+            element.textContent = "";
+          }
+        }, 2600);
+      }
+    }
+
+    function hideFeedback(element) {
+      if (!element) {
+        return;
+      }
+      element.classList.add("d-none");
+      element.textContent = "";
+    }
+
+    const optionConfigs = [
+      {
+        dataKey: "usage_areas",
+        endpoint: "usage-areas",
+        select: document.getElementById("usageAreaSelect"),
+        list: document.getElementById("usageAreaList"),
+        form: document.getElementById("usageAreaForm"),
+        input: document.getElementById("usageAreaInput"),
+        feedback: document.getElementById("usageAreaFeedback"),
+      },
+      {
+        dataKey: "license_names",
+        endpoint: "license-names",
+        select: document.getElementById("licenseNameSelect"),
+        list: document.getElementById("licenseNameList"),
+        form: document.getElementById("licenseNameForm"),
+        input: document.getElementById("licenseNameInput"),
+        feedback: document.getElementById("licenseNameFeedback"),
+      },
+      {
+        dataKey: "info_categories",
+        endpoint: "info-categories",
+        select: document.getElementById("infoCategorySelect"),
+        list: document.getElementById("infoCategoryList"),
+        form: document.getElementById("infoCategoryForm"),
+        input: document.getElementById("infoCategoryInput"),
+        feedback: document.getElementById("infoCategoryFeedback"),
+      },
+      {
+        dataKey: "factories",
+        endpoint: "factories",
+        select: document.getElementById("factorySelect"),
+        list: document.getElementById("factoryList"),
+        form: document.getElementById("factoryForm"),
+        input: document.getElementById("factoryInput"),
+        feedback: document.getElementById("factoryFeedback"),
+      },
+      {
+        dataKey: "hardware_types",
+        endpoint: "hardware-types",
+        select: document.getElementById("hardwareTypeSelect"),
+        list: document.getElementById("hardwareTypeList"),
+        form: document.getElementById("hardwareTypeForm"),
+        input: document.getElementById("hardwareTypeInput"),
+        feedback: document.getElementById("hardwareTypeFeedback"),
+      },
+    ];
+
+    optionConfigs.forEach((config) => {
+      const initialValues = sortByName(productOptionData[config.dataKey] || []);
+      productOptionData[config.dataKey] = initialValues;
+      renderSelectOptions(config.select, initialValues);
+      renderSimpleList(config.list, initialValues);
+
+      if (config.form && config.input) {
+        config.form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const name = config.input.value.trim();
+          if (!name) {
+            showFeedback(config.feedback, "Değer boş olamaz.");
+            return;
+          }
+
+          hideFeedback(config.feedback);
+          try {
+            const response = await fetch(`/api/options/${config.endpoint}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name }),
+            });
+            let payload = {};
+            try {
+              payload = await response.json();
+            } catch (error) {
+              payload = {};
+            }
+            if (!response.ok) {
+              showFeedback(config.feedback, payload.error || "Kayıt eklenemedi.");
+              return;
+            }
+
+            productOptionData[config.dataKey].push(payload);
+            productOptionData[config.dataKey] = sortByName(productOptionData[config.dataKey]);
+            renderSelectOptions(config.select, productOptionData[config.dataKey]);
+            renderSimpleList(config.list, productOptionData[config.dataKey]);
+            config.input.value = "";
+            showFeedback(config.feedback, "Kayıt eklendi.", "success", false);
+          } catch (error) {
+            showFeedback(config.feedback, "Sunucuya ulaşılamadı.");
+          }
+        });
+      }
+
+      if (config.list) {
+        config.list.addEventListener("click", async (event) => {
+          const button = event.target.closest("button[data-id]");
+          if (!button) {
+            return;
+          }
+          const optionId = Number(button.dataset.id);
+          if (!optionId) {
+            return;
+          }
+
+          hideFeedback(config.feedback);
+          try {
+            const response = await fetch(`/api/options/${config.endpoint}/${optionId}`, {
+              method: "DELETE",
+            });
+            if (!response.ok) {
+              let payload = {};
+              try {
+                payload = await response.json();
+              } catch (error) {
+                payload = {};
+              }
+              showFeedback(config.feedback, payload.error || "Kayıt silinemedi.");
+              return;
+            }
+
+            productOptionData[config.dataKey] = productOptionData[config.dataKey].filter(
+              (item) => item.id !== optionId,
+            );
+            renderSelectOptions(config.select, productOptionData[config.dataKey]);
+            renderSimpleList(config.list, productOptionData[config.dataKey]);
+            showFeedback(config.feedback, "Kayıt silindi.", "success", false);
+          } catch (error) {
+            showFeedback(config.feedback, "Sunucuya ulaşılamadı.");
+          }
+        });
+      }
+    });
+
+    const brandSelect = document.getElementById("brandSelect");
+    const brandList = document.getElementById("brandList");
+    const brandForm = document.getElementById("brandForm");
+    const brandInput = document.getElementById("brandInput");
+    const brandFeedback = document.getElementById("brandFeedback");
+
+    const modelSelect = document.getElementById("modelSelect");
+    const modelList = document.getElementById("modelList");
+    const modelForm = document.getElementById("modelForm");
+    const modelInput = document.getElementById("modelInput");
+    const modelFeedback = document.getElementById("modelFeedback");
+    const modelBrandSelector = document.getElementById("modelBrandSelector");
+
+    const brandMap = new Map();
+    (brandModelData || []).forEach((brand) => {
+      brandMap.set(brand.id, {
+        id: brand.id,
+        name: brand.name,
+        models: sortByName(brand.models || []),
+      });
+    });
+
+    function synchroniseBrands() {
+      productOptionData.brands = sortByName(
+        Array.from(brandMap.values()).map(({ id, name }) => ({ id, name })),
+      );
+    }
+
+    function updateBrandSelects(preferredId) {
+      synchroniseBrands();
+      renderSelectOptions(brandSelect, productOptionData.brands);
+      renderSimpleList(brandList, productOptionData.brands);
+      renderSelectOptions(modelBrandSelector, productOptionData.brands);
+
+      if (preferredId) {
+        const preferred = String(preferredId);
+        if (brandSelect) {
+          const hasPreferred = Array.from(brandSelect.options).some((option) => option.value === preferred);
+          if (hasPreferred) {
+            brandSelect.value = preferred;
+          }
+        }
+        if (modelBrandSelector) {
+          const hasPreferredBrand = Array.from(modelBrandSelector.options).some((option) => option.value === preferred);
+          if (hasPreferredBrand) {
+            modelBrandSelector.value = preferred;
+          }
+        }
+      }
+
+      updateModelOptions();
+      updateModelList();
+    }
+
+    function updateModelOptions() {
+      if (!brandSelect || !modelSelect) {
+        return;
+      }
+      const brandId = Number(brandSelect.value);
+      const brand = brandMap.get(brandId);
+      const models = brand ? brand.models : [];
+      renderSelectOptions(modelSelect, models);
+      if (!models.length) {
+        modelSelect.disabled = true;
+      }
+    }
+
+    function updateModelList() {
+      if (!modelBrandSelector || !modelList) {
+        return;
+      }
+      const brandId = Number(modelBrandSelector.value);
+      const brand = brandMap.get(brandId);
+      const models = brand ? brand.models : [];
+      renderSimpleList(modelList, models);
+    }
+
+    updateBrandSelects();
+
+    if (brandForm && brandInput) {
+      brandForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = brandInput.value.trim();
+        if (!name) {
+          showFeedback(brandFeedback, "Marka adı zorunludur.");
+          return;
+        }
+
+        hideFeedback(brandFeedback);
+        try {
+          const response = await fetch("/api/options/brands", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showFeedback(brandFeedback, payload.error || "Marka eklenemedi.");
+            return;
+          }
+
+          brandMap.set(payload.id, {
+            id: payload.id,
+            name: payload.name,
+            models: sortByName(payload.models || []),
+          });
+          brandInput.value = "";
+          updateBrandSelects(payload.id);
+          showFeedback(brandFeedback, "Marka eklendi.", "success", false);
+        } catch (error) {
+          showFeedback(brandFeedback, "Sunucuya ulaşılamadı.");
+        }
+      });
+    }
+
+    if (brandList) {
+      brandList.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-id]");
+        if (!button) {
+          return;
+        }
+        const brandId = Number(button.dataset.id);
+        if (!brandId) {
+          return;
+        }
+
+        hideFeedback(brandFeedback);
+        try {
+          const response = await fetch(`/api/options/brands/${brandId}`, { method: "DELETE" });
+          if (!response.ok) {
+            let payload = {};
+            try {
+              payload = await response.json();
+            } catch (error) {
+              payload = {};
+            }
+            showFeedback(brandFeedback, payload.error || "Marka silinemedi.");
+            return;
+          }
+
+          brandMap.delete(brandId);
+          updateBrandSelects();
+          showFeedback(brandFeedback, "Marka silindi.", "success", false);
+        } catch (error) {
+          showFeedback(brandFeedback, "Sunucuya ulaşılamadı.");
+        }
+      });
+    }
+
+    if (brandSelect) {
+      brandSelect.addEventListener("change", () => {
+        updateModelOptions();
+      });
+    }
+
+    if (modelBrandSelector) {
+      modelBrandSelector.addEventListener("change", () => {
+        updateModelList();
+      });
+    }
+
+    if (modelForm && modelInput) {
+      modelForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const brandId = Number(modelBrandSelector ? modelBrandSelector.value : "0");
+        const name = modelInput.value.trim();
+        if (!brandId) {
+          showFeedback(modelFeedback, "Lütfen bir marka seçin.");
+          return;
+        }
+        if (!name) {
+          showFeedback(modelFeedback, "Model adı zorunludur.");
+          return;
+        }
+
+        hideFeedback(modelFeedback);
+        try {
+          const response = await fetch(`/api/options/brands/${brandId}/models`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showFeedback(modelFeedback, payload.error || "Model eklenemedi.");
+            return;
+          }
+
+          const brand = brandMap.get(brandId);
+          if (brand) {
+            brand.models.push(payload);
+            brand.models = sortByName(brand.models);
+          }
+          modelInput.value = "";
+          updateBrandSelects(brandId);
+          showFeedback(modelFeedback, "Model eklendi.", "success", false);
+        } catch (error) {
+          showFeedback(modelFeedback, "Sunucuya ulaşılamadı.");
+        }
+      });
+    }
+
+    if (modelList) {
+      modelList.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-id]");
+        if (!button) {
+          return;
+        }
+        const modelId = Number(button.dataset.id);
+        const brandId = Number(modelBrandSelector ? modelBrandSelector.value : "0");
+        if (!modelId || !brandId) {
+          return;
+        }
+
+        hideFeedback(modelFeedback);
+        try {
+          const response = await fetch(`/api/options/models/${modelId}`, { method: "DELETE" });
+          if (!response.ok) {
+            let payload = {};
+            try {
+              payload = await response.json();
+            } catch (error) {
+              payload = {};
+            }
+            showFeedback(modelFeedback, payload.error || "Model silinemedi.");
+            return;
+          }
+
+          const brand = brandMap.get(brandId);
+          if (brand) {
+            brand.models = brand.models.filter((model) => model.id !== modelId);
+          }
+          updateBrandSelects(brandId);
+          showFeedback(modelFeedback, "Model silindi.", "success", false);
+        } catch (error) {
+          showFeedback(modelFeedback, "Sunucuya ulaşılamadı.");
+        }
+      });
+    }
+
+    const productForm = document.getElementById("productForm");
+    const productSuccess = document.getElementById("productSuccess");
+    if (productForm && productSuccess) {
+      productForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        productSuccess.classList.remove("d-none");
+        productSuccess.classList.add("show");
+      });
+    }
+
+    const ldapProfileList = document.getElementById("ldapProfileList");
+    const ldapForm = document.getElementById("ldapForm");
+    const ldapStatus = document.getElementById("ldapStatus");
+
+    if (ldapProfileList) {
+      ldapProfileList.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-profile]");
+        if (!button) {
+          return;
+        }
+        const profile = JSON.parse(button.dataset.profile);
+        const hostInput = document.getElementById("ldapHost");
+        const portInput = document.getElementById("ldapPort");
+        const baseDnInput = document.getElementById("ldapBaseDn");
+        const bindDnInput = document.getElementById("ldapBindDn");
+        if (hostInput) hostInput.value = profile.host;
+        if (portInput) portInput.value = profile.port;
+        if (baseDnInput) baseDnInput.value = profile.base_dn;
+        if (bindDnInput) bindDnInput.value = profile.bind_dn;
+      });
+    }
+
+    if (ldapForm && ldapStatus) {
+      ldapForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        ldapStatus.classList.remove("d-none");
+        ldapStatus.innerHTML = '<div class="d-flex align-items-center gap-2"><i class="bi bi-check-circle text-success fs-5"></i><span>LDAP bağlantısı başarıyla doğrulandı. Yetkilendirme için test dizini okunabilir durumda.</span></div>';
+      });
+    }
+  });
+</script>
+{% endblock %}
