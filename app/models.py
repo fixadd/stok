@@ -343,8 +343,16 @@ class ActivityLog(db.Model):
     action = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text, nullable=True)
     actor = db.Column(db.String(128), nullable=False)
-    metadata = db.Column(db.JSON, nullable=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def metadata(self) -> dict | None:
+        return self.metadata_json
+
+    @metadata.setter
+    def metadata(self, value: dict | None) -> None:
+        self.metadata_json = value
 
     def to_dict(self) -> dict:
         return {
