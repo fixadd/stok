@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from pathlib import Path
 from typing import Any
@@ -8,15 +9,19 @@ from typing import Any
 from flask import (
     Flask,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
     render_template,
     request,
+    send_from_directory,
     url_for,
 )
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
 from .models import (
     Brand,
@@ -24,6 +29,7 @@ from .models import (
     HardwareModel,
     HardwareType,
     InfoCategory,
+    InfoEntry,
     InventoryEvent,
     InventoryItem,
     InventoryLicense,
@@ -64,6 +70,8 @@ def create_app() -> Flask:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     database_path = data_dir / "stok.db"
+    info_upload_dir = data_dir / "info_uploads"
+    info_upload_dir.mkdir(parents=True, exist_ok=True)
 
     app = Flask(__name__)
     app.config.from_mapping(
@@ -71,6 +79,7 @@ def create_app() -> Flask:
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
+    app.config["INFO_UPLOAD_DIR"] = info_upload_dir
 
     db.init_app(app)
 
@@ -112,6 +121,123 @@ def create_app() -> Flask:
             "printer_tracking.html",
             active_page="printer_tracking",
             **payload,
+        )
+
+    @app.route("/uploads/info/<path:filename>")
+    def info_uploads(filename: str):
+        upload_dir: Path = app.config["INFO_UPLOAD_DIR"]
+        return send_from_directory(upload_dir, filename)
+
+    @app.route("/bilgiler")
+    def information_list():
+        payload = load_information_payload()
+        return render_template(
+            "information/list.html",
+            active_page="information",
+            **payload,
+        )
+
+    @app.post("/bilgiler")
+    def create_information_entry():
+        title = (request.form.get("title") or "").strip()
+        category_id = parse_int_or_none(request.form.get("category_id"))
+        content = (request.form.get("content") or "").strip()
+
+        if not title or not category_id or not content:
+            flash("Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger")
+            return redirect(url_for("information_list"))
+
+        category = InfoCategory.query.get(category_id)
+        if category is None:
+            flash("Seçilen kategori bulunamadı.", "danger")
+            return redirect(url_for("information_list"))
+
+        image_filename = save_information_image(request.files.get("photo"))
+
+        entry = InfoEntry(
+            title=title,
+            category=category,
+            content=content,
+            image_filename=image_filename,
+        )
+        db.session.add(entry)
+        db.session.flush()
+
+        record_activity(
+            area="bilgi",
+            action="Bilgi kaydı oluşturuldu",
+            description=title,
+            metadata={"info_id": entry.id},
+        )
+
+        db.session.commit()
+
+        flash("Bilgi kaydı başarıyla oluşturuldu.", "success")
+        return redirect(url_for("information_list"))
+
+    @app.route("/bilgiler/<int:entry_id>")
+    def information_detail(entry_id: int):
+        entry = load_information_entry(entry_id)
+        if entry is None:
+            abort(404)
+
+        categories = InfoCategory.query.order_by(InfoCategory.name).all()
+        return render_template(
+            "information/detail.html",
+            active_page="information",
+            entry=entry,
+            categories=categories,
+            mode="view",
+        )
+
+    @app.route("/bilgiler/<int:entry_id>/duzenle", methods=["GET", "POST"])
+    def information_edit(entry_id: int):
+        entry = load_information_entry(entry_id)
+        if entry is None:
+            abort(404)
+
+        if request.method == "POST":
+            title = (request.form.get("title") or "").strip()
+            category_id = parse_int_or_none(request.form.get("category_id"))
+            content = (request.form.get("content") or "").strip()
+
+            if not title or not category_id or not content:
+                flash("Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger")
+                return redirect(url_for("information_edit", entry_id=entry.id))
+
+            category = InfoCategory.query.get(category_id)
+            if category is None:
+                flash("Seçilen kategori bulunamadı.", "danger")
+                return redirect(url_for("information_edit", entry_id=entry.id))
+
+            entry.title = title
+            entry.category = category
+            entry.content = content
+
+            new_filename = save_information_image(request.files.get("photo"))
+            if new_filename:
+                remove_information_image(entry.image_filename)
+                entry.image_filename = new_filename
+
+            record_activity(
+                area="bilgi",
+                action="Bilgi kaydı güncellendi",
+                description=title,
+                metadata={"info_id": entry.id},
+            )
+
+            db.session.commit()
+
+            flash("Bilgi kaydı güncellendi.", "success")
+            return redirect(url_for("information_detail", entry_id=entry.id))
+
+        categories = InfoCategory.query.order_by(InfoCategory.name).all()
+        return render_template(
+            "information/detail.html",
+            active_page="information",
+            entry=entry,
+            categories=categories,
+            mode="edit",
         )
 
     @app.route("/admin-panel")
@@ -904,6 +1030,58 @@ def load_printer_payload() -> dict[str, Any]:
     }
 
 
+def load_information_entry(entry_id: int) -> InfoEntry | None:
+    return (
+        InfoEntry.query.options(joinedload(InfoEntry.category))
+        .filter_by(id=entry_id)
+        .first()
+    )
+
+
+def load_information_payload() -> dict[str, Any]:
+    entries = (
+        InfoEntry.query.options(joinedload(InfoEntry.category))
+        .order_by(InfoEntry.created_at.desc())
+        .all()
+    )
+    categories = [
+        category.to_dict() for category in InfoCategory.query.order_by(InfoCategory.name)
+    ]
+    return {
+        "info_entries": entries,
+        "categories": categories,
+        "info_count": len(entries),
+    }
+
+
+def save_information_image(file: FileStorage | None) -> str | None:
+    if file is None or not file.filename:
+        return None
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        return None
+
+    extension = Path(filename).suffix
+    unique_name = f"{uuid4().hex}{extension}" if extension else uuid4().hex
+    upload_dir: Path = current_app.config["INFO_UPLOAD_DIR"]
+    target = upload_dir / unique_name
+    file.save(target)
+    return unique_name
+
+
+def remove_information_image(filename: str | None) -> None:
+    if not filename:
+        return
+
+    upload_dir: Path = current_app.config["INFO_UPLOAD_DIR"]
+    target = upload_dir / filename
+    try:
+        target.unlink()
+    except FileNotFoundError:
+        pass
+
+
 def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
     responsible = (
         f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
@@ -1386,6 +1564,7 @@ OPTION_MODEL_MAPPING = {
 def seed_initial_data() -> None:
     seed_simple_users()
     seed_product_metadata()
+    seed_information_entries()
     seed_inventory_data()
     seed_ldap_profiles()
     seed_request_data()
@@ -1520,6 +1699,61 @@ def seed_product_metadata() -> None:
             area="urun",
             action="Ürün katalog seçenekleri hazırlandı",
             description="Varsayılan marka, model ve kullanım alanı verileri yüklendi.",
+        )
+
+
+def seed_information_entries() -> None:
+    if InfoEntry.query.count():
+        return
+
+    categories = {category.name: category for category in InfoCategory.query.all()}
+
+    sample_entries = [
+        {
+            "title": "Sosyal Mühendislik Farkındalığı",
+            "category": "Güvenlik",
+            "content": (
+                "Şüpheli e-posta ve bağlantıları bildirmeden açmayın. Kurumsal sistemlere erişim "
+                "sağlarken her zaman çok faktörlü kimlik doğrulamayı kullanın."
+            ),
+        },
+        {
+            "title": "VPN Kullanım Kılavuzu",
+            "category": "Altyapı",
+            "content": (
+                "Uzak bağlantı kurmadan önce cihazınızın güncel olduğundan emin olun ve bağlantı "
+                "esnasında sadece iş amaçlı kaynaklara erişin."
+            ),
+        },
+        {
+            "title": "Yeni Satın Alma Süreçleri",
+            "category": "İş Uygulamaları",
+            "content": (
+                "Tüm donanım talepleri Talep Takip sayfası üzerinden açılmalı ve satın alma onayı "
+                "alınmadan sipariş verilmemelidir."
+            ),
+        },
+    ]
+
+    created_count = 0
+    for payload in sample_entries:
+        category = categories.get(payload["category"])
+        if not category:
+            continue
+        entry = InfoEntry(
+            title=payload["title"],
+            category=category,
+            content=payload["content"],
+        )
+        db.session.add(entry)
+        created_count += 1
+
+    if created_count:
+        record_activity(
+            area="bilgi",
+            action="Bilgi kayıtları oluşturuldu",
+            description="Varsayılan bilgi içerikleri eklendi.",
+            metadata={"count": created_count},
         )
 
 

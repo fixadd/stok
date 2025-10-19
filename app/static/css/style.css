@@ -318,6 +318,80 @@ body.bg-soft {
   background: rgba(248, 250, 252, 0.6);
 }
 
+.text-bg-primary-soft {
+  background: rgba(76, 110, 245, 0.12);
+  color: #1d4ed8;
+}
+
+.text-bg-secondary-soft {
+  background: rgba(15, 23, 42, 0.08);
+  color: #1f2937;
+}
+
+.information-page .info-hero {
+  background: linear-gradient(135deg, rgba(76, 110, 245, 0.12) 0%, rgba(59, 130, 246, 0.08) 45%, #ffffff 100%);
+}
+
+.information-page .info-count-pill {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(76, 110, 245, 0.2);
+  color: #1f2937;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(76, 110, 245, 0.18);
+}
+
+.information-page .info-search-group {
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.information-page .info-search-group .input-group-text {
+  border: 0;
+  background: transparent;
+  color: var(--primary-color);
+}
+
+.information-page .info-search-group .form-control {
+  border: 0;
+  padding: 0.85rem 1rem;
+}
+
+.information-page .info-search-group .form-control:focus {
+  box-shadow: none;
+}
+
+.info-detail-header {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.05) 0%, rgba(76, 110, 245, 0.08) 60%, #ffffff 100%);
+}
+
+.info-detail-body {
+  line-height: 1.7;
+  font-size: 1rem;
+  color: #1f2937;
+}
+
+.info-detail-content p {
+  white-space: pre-wrap;
+}
+
+.info-detail-image img {
+  max-height: 420px;
+  object-fit: cover;
+  width: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .information-page .info-actions {
+    align-items: stretch;
+  }
+
+  .information-page .info-count-pill {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .license-toolbar .btn,
 .license-toolbar .btn-group > .btn {
   border-radius: 999px;
