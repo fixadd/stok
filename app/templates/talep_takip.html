@@ -340,6 +340,7 @@
     const visibleCount = document.querySelector('[data-visible-count]');
     const feedback = document.querySelector('[data-feedback]');
     let feedbackTimer;
+    const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
 
     let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
 
@@ -813,6 +814,7 @@
               action: pendingAction.actionType,
               quantity,
               note: noteValue,
+              performed_by: defaultActor,
             }),
           });
           let payload = {};

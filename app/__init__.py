@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from collections import Counter
 from uuid import uuid4
 
 from pathlib import Path
@@ -16,12 +17,14 @@ from flask import (
     render_template,
     request,
     send_from_directory,
+    session,
     url_for,
 )
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 
 from .models import (
     Brand,
@@ -44,6 +47,8 @@ from .models import (
     db,
     find_existing_by_name,
     ActivityLog,
+    StockItem,
+    StockLog,
 )
 
 
@@ -54,6 +59,117 @@ LICENSE_STATUS_LABELS = {
     "pasif": "Pasif",
     "beklemede": "Beklemede",
 }
+
+
+STOCK_CATEGORY_LABELS = {
+    "envanter": "Envanter",
+    "yazici": "Yazıcı",
+    "lisans": "Lisans",
+    "talep": "Talep",
+    "manuel": "Manuel",
+}
+
+STOCK_STATUS_LABELS = {
+    "stokta": "Stokta",
+    "devredildi": "Devredildi",
+    "arizali": "Arızalı",
+    "hurda": "Hurda",
+}
+
+STOCK_STATUS_CLASSES = {
+    "stokta": "status-stock",
+    "devredildi": "status-assigned",
+    "arizali": "status-faulty",
+    "hurda": "status-scrap",
+}
+
+STOCK_SOURCE_LABELS = {
+    "inventory": "Envanter Takip",
+    "license": "Lisans Takip",
+    "request": "Talep Takip",
+    "manual": "Manuel Kayıt",
+}
+
+
+THEME_OPTIONS = {
+    "varsayilan": {
+        "label": "Varsayılan",
+        "description": "Hafif mavi tonlarda, modern varsayılan görünüm.",
+        "preview": {"bg": "#eef4ff", "fg": "#1f2933"},
+    },
+    "gece": {
+        "label": "Gece Modu",
+        "description": "Koyu arka plan ve yüksek kontrastlı metinler.",
+        "preview": {"bg": "#111827", "fg": "#f9fafb"},
+    },
+    "okyanus": {
+        "label": "Okyanus",
+        "description": "Serin mavi ve turkuaz geçişleriyle dinlendirici bir tema.",
+        "preview": {"bg": "#0f172a", "fg": "#38bdf8"},
+    },
+    "orman": {
+        "label": "Orman",
+        "description": "Yeşil tonlarda doğal ve sakin bir görünüm.",
+        "preview": {"bg": "#0b3d2e", "fg": "#c3f0ca"},
+    },
+    "gunes": {
+        "label": "Güneş",
+        "description": "Sıcak sarı ve turuncu vurgularla enerjik bir tema.",
+        "preview": {"bg": "#fff7ed", "fg": "#c2410c"},
+    },
+    "lavanta": {
+        "label": "Lavanta",
+        "description": "Mor ve pembe pastel tonlarda yumuşak bir görünüm.",
+        "preview": {"bg": "#f3e8ff", "fg": "#6d28d9"},
+    },
+}
+
+
+def ensure_user_profile_columns() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+    }
+    altered = False
+
+    if "preferred_theme" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN preferred_theme VARCHAR(64)"
+                " DEFAULT 'varsayilan'"
+            )
+        )
+        altered = True
+
+    if "password_hash" not in existing_columns:
+        db.session.execute(
+            text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
+        )
+        altered = True
+
+    if altered:
+        db.session.commit()
+
+
+def get_active_user() -> User | None:
+    user_id = session.get("active_user_id")
+    user: User | None = None
+    if user_id is not None:
+        user = User.query.get(user_id)
+
+    if user is None:
+        user = User.query.order_by(User.id).first()
+        if user is not None:
+            session["active_user_id"] = user.id
+
+    return user
+
+
+def set_active_user(user: User | None) -> None:
+    if user is None:
+        session.pop("active_user_id", None)
+    else:
+        session["active_user_id"] = user.id
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -85,7 +201,31 @@ def create_app() -> Flask:
 
     with app.app_context():
         db.create_all()
+        ensure_user_profile_columns()
         seed_initial_data()
+
+    @app.before_request
+    def ensure_profile_context() -> None:
+        if "active_user_id" in session:
+            return
+        user = User.query.order_by(User.id).first()
+        if user is not None:
+            set_active_user(user)
+
+    @app.context_processor
+    def inject_profile_preferences() -> dict[str, Any]:
+        user = get_active_user()
+        theme_key = "varsayilan"
+        if user and user.preferred_theme in THEME_OPTIONS:
+            theme_key = user.preferred_theme
+        theme_meta = THEME_OPTIONS.get(theme_key, THEME_OPTIONS["varsayilan"])
+        return {
+            "active_user": user,
+            "active_theme": theme_key,
+            "active_theme_meta": theme_meta,
+            "active_theme_class": f"theme-{theme_key}",
+            "theme_options": THEME_OPTIONS,
+        }
 
     @app.route("/")
     def index():
@@ -122,6 +262,106 @@ def create_app() -> Flask:
             active_page="printer_tracking",
             **payload,
         )
+
+    @app.route("/stok-takip")
+    def stock_tracking():
+        payload = load_stock_payload()
+        return render_template(
+            "stock_tracking.html",
+            active_page="stock_tracking",
+            **payload,
+        )
+
+    @app.route("/hurdalar")
+    def scrap_inventory_page():
+        payload = load_scrap_inventory_payload()
+        return render_template(
+            "scrap_inventory.html",
+            active_page="scrap_inventory",
+            **payload,
+        )
+
+    @app.route("/profil")
+    def profile():
+        users = User.query.order_by(User.first_name, User.last_name).all()
+        profile_user = get_active_user()
+        return render_template(
+            "profile.html",
+            active_page="profile",
+            users=users,
+            profile_user=profile_user,
+        )
+
+    @app.post("/profil/kullanici")
+    def profile_switch_user():
+        user_id = parse_int_or_none(request.form.get("user_id"))
+        user = User.query.get(user_id) if user_id is not None else None
+
+        if user is None:
+            flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
+            return redirect(url_for("profile"))
+
+        set_active_user(user)
+        flash(f"{user.first_name} {user.last_name} profili görüntüleniyor.", "success")
+        return redirect(url_for("profile"))
+
+    @app.post("/profil/tema")
+    def profile_update_theme():
+        user = get_active_user()
+        if user is None:
+            flash("Tema güncellemek için kayıtlı kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("profile"))
+
+        theme = (request.form.get("theme") or "").strip()
+        if theme not in THEME_OPTIONS:
+            flash("Lütfen geçerli bir tema seçin.", "warning")
+            return redirect(url_for("profile"))
+
+        user.preferred_theme = theme
+
+        record_activity(
+            area="profil",
+            action="Tema güncellendi",
+            description=f"{user.first_name} {user.last_name}",
+            metadata={"user_id": user.id, "theme": theme},
+        )
+        db.session.commit()
+        flash("Tema tercihi güncellendi.", "success")
+        return redirect(url_for("profile"))
+
+    @app.post("/profil/sifre")
+    def profile_update_password():
+        user = get_active_user()
+        if user is None:
+            flash("Şifre güncellemek için kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("profile"))
+
+        new_password = (request.form.get("new_password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
+
+        if not new_password or not confirm_password:
+            flash("Lütfen yeni şifre alanlarını doldurun.", "warning")
+            return redirect(url_for("profile"))
+
+        if new_password != confirm_password:
+            flash("Yeni şifre ve doğrulama şifresi eşleşmiyor.", "danger")
+            return redirect(url_for("profile"))
+
+        if len(new_password) < 8:
+            flash("Şifre en az 8 karakter olmalıdır.", "warning")
+            return redirect(url_for("profile"))
+
+        user.password_hash = generate_password_hash(new_password)
+
+        record_activity(
+            area="profil",
+            action="Şifre güncellendi",
+            description=f"{user.first_name} {user.last_name}",
+            metadata={"user_id": user.id},
+        )
+        db.session.commit()
+        flash("Şifre başarıyla güncellendi.", "success")
+        return redirect(url_for("profile"))
 
     @app.route("/uploads/info/<path:filename>")
     def info_uploads(filename: str):
@@ -284,6 +524,39 @@ def create_app() -> Flask:
         db.session.commit()
 
         flash("Yeni kullanıcı başarıyla oluşturuldu.", "success")
+        return redirect(url_for("admin_panel"))
+
+    @app.post("/admin-panel/users/<int:user_id>/delete")
+    def delete_user(user_id: int):
+        user = User.query.get(user_id)
+        if user is None:
+            flash("Silinmek istenen kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        active_user = get_active_user()
+        was_active_user = active_user is not None and active_user.id == user.id
+
+        display_name = f"{user.first_name} {user.last_name}".strip()
+        if display_name:
+            description = f"{display_name} ({user.username}) kullanıcısı silindi."
+        else:
+            description = f"{user.username} kullanıcısı silindi."
+
+        metadata = {"user_id": user.id, "email": user.email}
+
+        db.session.delete(user)
+        record_activity(
+            area="kullanici",
+            action="Kullanıcı silindi",
+            description=description,
+            metadata=metadata,
+        )
+        db.session.commit()
+
+        if was_active_user:
+            set_active_user(None)
+
+        flash("Kullanıcı başarıyla silindi.", "success")
         return redirect(url_for("admin_panel"))
 
     @app.post("/api/options/<string:option_key>")
@@ -581,12 +854,21 @@ def create_app() -> Flask:
             return json_error("Geçersiz JSON gövdesi."), 400
 
         note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
         item.status = "beklemede"
-        add_inventory_event(item, "Stok girişi", note)
+        add_inventory_event(item, "Stok girişi", note, performed_by=actor)
+        stock_item = create_stock_item_from_inventory(item, note=note, actor=actor)
         db.session.commit()
 
         fresh_item = get_inventory_item_with_relations(item.id)
-        return jsonify({"item": serialize_inventory_item(fresh_item)})
+        payload: dict[str, Any] = {"item": serialize_inventory_item(fresh_item)}
+        if stock_item:
+            fresh_stock = get_stock_item_with_relations(stock_item.id)
+            if fresh_stock:
+                payload["stock_item"] = serialize_stock_item(fresh_stock)
+                if fresh_stock.logs:
+                    payload["log"] = serialize_stock_log(fresh_stock.logs[0])
+        return jsonify(payload)
 
     @app.post("/api/inventory/<int:item_id>/scrap")
     def scrap_inventory(item_id: int):
@@ -607,6 +889,253 @@ def create_app() -> Flask:
 
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
+
+    @app.post("/api/licenses/<int:license_id>/stock")
+    def move_license_to_stock(license_id: int):
+        license = (
+            InventoryLicense.query.options(
+                joinedload(InventoryLicense.item)
+                .joinedload(InventoryItem.factory)
+                .joinedload(InventoryItem.hardware_type),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.brand),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.model),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.responsible_user),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
+            )
+            .filter_by(id=license_id)
+            .first()
+        )
+        if license is None:
+            return json_error("Lisans kaydı bulunamadı."), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return json_error("Geçersiz JSON gövdesi."), 400
+
+        note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+
+        associated_item = license.item
+        stock_item = create_stock_item_from_license(license, note=note, actor=actor)
+
+        license.status = "pasif"
+        license.item = None
+
+        if associated_item:
+            add_inventory_event(
+                associated_item,
+                "Lisans stoklandı",
+                note or f"{license.name} lisansı stok listesine taşındı.",
+                performed_by=actor,
+            )
+
+        db.session.commit()
+
+        fresh_license = (
+            InventoryLicense.query.options(
+                joinedload(InventoryLicense.item)
+                .joinedload(InventoryItem.responsible_user),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.hardware_type),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.factory),
+                joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
+            )
+            .filter_by(id=license.id)
+            .first()
+        )
+        response: dict[str, Any] = {
+            "message": "Lisans stok listesine taşındı.",
+            "license": serialize_license_record(fresh_license) if fresh_license else None,
+        }
+        fresh_stock = get_stock_item_with_relations(stock_item.id)
+        if fresh_stock:
+            response["stock_item"] = serialize_stock_item(fresh_stock)
+            if fresh_stock.logs:
+                response["log"] = serialize_stock_log(fresh_stock.logs[0])
+        return jsonify(response)
+
+    @app.post("/api/stock")
+    def create_stock_entry():
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return json_error("Geçersiz JSON gövdesi."), 400
+
+        title = (data.get("title") or "").strip()
+        if not title:
+            return json_error("Stok adı zorunludur."), 400
+
+        category = normalize_stock_category(data.get("category"))
+        quantity = parse_int_or_none(data.get("quantity")) or 1
+        note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        reference_code = (data.get("reference_code") or "").strip() or None
+        unit = (data.get("unit") or "").strip() or None
+
+        stock_item = StockItem(
+            source_type="manual",
+            title=title,
+            category=category,
+            quantity=max(1, quantity),
+            status="stokta",
+            reference_code=reference_code,
+            unit=unit,
+            note=note or None,
+        )
+        metadata_payload = {
+            "unit": unit,
+            "department": (data.get("department") or "").strip() or None,
+            "factory": (data.get("factory") or "").strip() or None,
+        }
+        stock_item.metadata_payload = {k: v for k, v in metadata_payload.items() if v}
+        db.session.add(stock_item)
+        db.session.flush()
+
+        log_entry = record_stock_log(
+            stock_item,
+            "Manuel stok girişi",
+            action_type="in",
+            performed_by=actor,
+            quantity_change=stock_item.quantity,
+            note=note,
+        )
+
+        db.session.commit()
+
+        fresh_item = get_stock_item_with_relations(stock_item.id)
+        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        if log_entry:
+            response_payload["log"] = serialize_stock_log(log_entry)
+        return jsonify(response_payload), 201
+
+    @app.post("/api/stock/<int:item_id>/assign")
+    def assign_stock_item(item_id: int):
+        stock_item = get_stock_item_with_relations(item_id)
+        if stock_item is None:
+            return json_error("Stok kaydı bulunamadı."), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return json_error("Geçersiz JSON gövdesi."), 400
+
+        note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+
+        stock_item.status = "devredildi"
+        if note:
+            stock_item.note = note
+
+        if stock_item.inventory_item:
+            inventory = stock_item.inventory_item
+            inventory.status = "aktif"
+            add_inventory_event(
+                inventory,
+                "Stoktan atama yapıldı",
+                note or f"{stock_item.title} stoğa alınan ürün atandı.",
+                performed_by=actor,
+            )
+
+        log_entry = record_stock_log(
+            stock_item,
+            "Stoktan atama yapıldı",
+            action_type="out",
+            performed_by=actor,
+            quantity_change=-max(1, stock_item.quantity),
+            note=note,
+        )
+
+        db.session.commit()
+
+        fresh_item = get_stock_item_with_relations(stock_item.id)
+        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        if log_entry:
+            response_payload["log"] = serialize_stock_log(log_entry)
+        return jsonify(response_payload)
+
+    @app.post("/api/stock/<int:item_id>/mark-faulty")
+    def mark_stock_item_faulty(item_id: int):
+        stock_item = get_stock_item_with_relations(item_id)
+        if stock_item is None:
+            return json_error("Stok kaydı bulunamadı."), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return json_error("Geçersiz JSON gövdesi."), 400
+
+        note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+
+        stock_item.status = "arizali"
+        if note:
+            stock_item.note = note
+
+        if stock_item.inventory_item:
+            inventory = stock_item.inventory_item
+            inventory.status = "arizali"
+            add_inventory_event(
+                inventory,
+                "Stok ürünü arızalı",
+                note or f"{stock_item.title} stok kaydı arızalı işaretlendi.",
+                performed_by=actor,
+            )
+
+        log_entry = record_stock_log(
+            stock_item,
+            "Stok ürünü arızalı işaretlendi",
+            action_type="warning",
+            performed_by=actor,
+            note=note,
+        )
+
+        db.session.commit()
+
+        fresh_item = get_stock_item_with_relations(stock_item.id)
+        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        if log_entry:
+            response_payload["log"] = serialize_stock_log(log_entry)
+        return jsonify(response_payload)
+
+    @app.post("/api/stock/<int:item_id>/scrap")
+    def scrap_stock_item(item_id: int):
+        stock_item = get_stock_item_with_relations(item_id)
+        if stock_item is None:
+            return json_error("Stok kaydı bulunamadı."), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return json_error("Geçersiz JSON gövdesi."), 400
+
+        note = (data.get("note") or "").strip()
+        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+
+        stock_item.status = "hurda"
+        if note:
+            stock_item.note = note
+
+        if stock_item.inventory_item:
+            inventory = stock_item.inventory_item
+            inventory.status = "hurda"
+            add_inventory_event(
+                inventory,
+                "Stok ürünü hurdaya ayrıldı",
+                note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
+                performed_by=actor,
+            )
+
+        log_entry = record_stock_log(
+            stock_item,
+            "Stok ürünü hurdaya ayrıldı",
+            action_type="out",
+            performed_by=actor,
+            quantity_change=-max(1, stock_item.quantity),
+            note=note,
+        )
+
+        db.session.commit()
+
+        fresh_item = get_stock_item_with_relations(stock_item.id)
+        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        if log_entry:
+            response_payload["log"] = serialize_stock_log(log_entry)
+        return jsonify(response_payload)
 
     @app.post("/api/requests")
     def create_request():
@@ -727,6 +1256,19 @@ def create_app() -> Flask:
 
         db.session.flush()
 
+        created_stock_items: list[StockItem] = []
+        if action_key == "stok":
+            for line in order.lines:
+                created_stock_items.append(
+                    create_stock_item_from_request_line(
+                        order,
+                        line,
+                        quantity=line.quantity,
+                        note=note,
+                        actor=actor,
+                    )
+                )
+
         record_activity(
             area="talep",
             action=action_label,
@@ -745,7 +1287,14 @@ def create_app() -> Flask:
         fresh_order = get_request_order_with_relations(order.id)
         payload = serialize_request_order(fresh_order)
         message = f"{payload['order_no']} numaralı talep için işlem kaydedildi."
-        return jsonify({"order": payload, "message": message})
+        response_payload: dict[str, Any] = {"order": payload, "message": message}
+        if created_stock_items:
+            response_payload["stock_items"] = [
+                serialize_stock_item(get_stock_item_with_relations(item.id))
+                for item in created_stock_items
+                if item
+            ]
+        return jsonify(response_payload)
 
     @app.post("/api/catalog/products")
     def create_catalog_product():
@@ -1027,6 +1576,227 @@ def load_printer_payload() -> dict[str, Any]:
         "users": users,
         "inventory_catalog": inventory_catalog,
         "status_choices": status_choices,
+    }
+
+
+def normalize_stock_category(value: str | None, fallback: str = "envanter") -> str:
+    if not value:
+        return fallback
+    normalized = value.strip().lower()
+    return normalized if normalized in STOCK_CATEGORY_LABELS else fallback
+
+
+def determine_stock_category_from_inventory(
+    item: InventoryItem | None, fallback: str = "envanter"
+) -> str:
+    if not item:
+        return fallback
+    hardware_name = (item.hardware_type.name if item.hardware_type else "") or ""
+    if "yazıcı" in hardware_name.lower():
+        return "yazici"
+    return fallback
+
+
+def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
+    item = stock_item.inventory_item
+    license_record = stock_item.license
+    metadata = stock_item.metadata_payload or {}
+
+    category_value = normalize_stock_category(stock_item.category)
+    if category_value == "envanter" and item:
+        category_value = determine_stock_category_from_inventory(item, category_value)
+    if category_value == "envanter" and stock_item.source_type == "license":
+        category_value = "lisans"
+    if category_value == "envanter" and stock_item.source_type == "request":
+        category_value = "talep"
+
+    status_value = normalize_stock_status(stock_item.status)
+    source_type = (stock_item.source_type or "manual").lower()
+    source_label = STOCK_SOURCE_LABELS.get(source_type, STOCK_SOURCE_LABELS["manual"])
+
+    created_display = (
+        stock_item.created_at.strftime("%d.%m.%Y %H:%M")
+        if stock_item.created_at
+        else ""
+    )
+    updated_display = (
+        stock_item.updated_at.strftime("%d.%m.%Y %H:%M")
+        if stock_item.updated_at
+        else created_display
+    )
+
+    hardware_type = item.hardware_type.name if item and item.hardware_type else ""
+    brand_name = item.brand.name if item and item.brand else metadata.get("brand", "")
+    model_name = item.model.name if item and item.model else metadata.get("model", "")
+
+    search_tokens = [
+        stock_item.title,
+        stock_item.reference_code,
+        STOCK_CATEGORY_LABELS.get(category_value, category_value.capitalize()),
+        STOCK_STATUS_LABELS.get(status_value, status_value.capitalize()),
+        source_label,
+        metadata.get("factory"),
+        metadata.get("department"),
+        hardware_type,
+        brand_name,
+        model_name,
+        metadata.get("license_key"),
+        metadata.get("request_no"),
+        metadata.get("responsible"),
+    ]
+    if item:
+        search_tokens.extend(
+            [
+                item.inventory_no,
+                item.department,
+                item.factory.name if item.factory else "",
+                hardware_type,
+                item.serial_no,
+                item.ifs_no,
+            ]
+        )
+    if license_record:
+        search_tokens.extend([license_record.name, license_record.status])
+
+    allow_operations = bool(
+        item
+        and item.hardware_type
+        and "yazıcı" in (item.hardware_type.name or "").lower()
+    )
+
+    return {
+        "id": stock_item.id,
+        "title": stock_item.title,
+        "category": category_value,
+        "category_label": STOCK_CATEGORY_LABELS.get(
+            category_value, category_value.capitalize()
+        ),
+        "quantity": stock_item.quantity,
+        "unit": stock_item.unit or metadata.get("unit") or "adet",
+        "reference_code": stock_item.reference_code or "",
+        "status": status_value,
+        "status_label": STOCK_STATUS_LABELS.get(
+            status_value, status_value.capitalize()
+        ),
+        "status_class": STOCK_STATUS_CLASSES.get(status_value, "status-stock"),
+        "source_type": source_type,
+        "source_label": source_label,
+        "note": stock_item.note or "",
+        "metadata": metadata,
+        "inventory_id": item.id if item else None,
+        "inventory_no": item.inventory_no if item else "",
+        "hardware_type": hardware_type,
+        "brand": brand_name,
+        "model": model_name,
+        "license_id": license_record.id if license_record else None,
+        "license_name": license_record.name if license_record else metadata.get("license_name"),
+        "created_display": created_display,
+        "updated_display": updated_display,
+        "search_index": " ".join(filter(None, search_tokens)).lower(),
+        "allow_operations": allow_operations,
+    }
+
+
+def serialize_stock_log(log: StockLog) -> dict[str, Any]:
+    item = log.stock_item
+    status_value = normalize_stock_status(item.status if item else "stokta")
+    return {
+        "id": log.id,
+        "stock_item_id": item.id if item else None,
+        "title": item.title if item else "",
+        "action": log.action,
+        "action_type": log.action_type,
+        "performed_by": log.performed_by,
+        "quantity_change": log.quantity_change,
+        "note": log.note or "",
+        "status": status_value,
+        "status_label": STOCK_STATUS_LABELS.get(status_value, status_value.capitalize()),
+        "status_class": STOCK_STATUS_CLASSES.get(status_value, "status-stock"),
+        "created_display": log.created_at.strftime("%d.%m.%Y %H:%M"),
+        "metadata": log.metadata_payload or {},
+    }
+
+
+def load_stock_payload() -> dict[str, Any]:
+    items = (
+        StockItem.query.options(
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
+            joinedload(StockItem.license),
+            joinedload(StockItem.logs),
+        )
+        .order_by(StockItem.created_at.desc())
+        .all()
+    )
+
+    stock_items = [serialize_stock_item(item) for item in items]
+    category_counts = Counter(item["category"] for item in stock_items)
+    status_counts = Counter(item["status"] for item in stock_items)
+    faulty_count = status_counts.get("arizali", 0)
+
+    categories = [
+        {
+            "value": key,
+            "label": STOCK_CATEGORY_LABELS[key],
+            "count": category_counts.get(key, 0),
+        }
+        for key in STOCK_CATEGORY_LABELS
+    ]
+
+    status_summary = [
+        {
+            "value": key,
+            "label": STOCK_STATUS_LABELS[key],
+            "count": status_counts.get(key, 0),
+        }
+        for key in STOCK_STATUS_LABELS
+    ]
+
+    logs = (
+        StockLog.query.options(joinedload(StockLog.stock_item))
+        .order_by(StockLog.created_at.desc())
+        .limit(40)
+        .all()
+    )
+
+    return {
+        "stock_items": stock_items,
+        "stock_logs": [serialize_stock_log(log) for log in logs],
+        "stock_categories": categories,
+        "stock_status_summary": status_summary,
+        "stock_faulty_count": faulty_count,
+    }
+
+
+def normalize_stock_status(value: str | None, fallback: str = "stokta") -> str:
+    if not value:
+        return fallback
+    normalized = value.strip().lower()
+    return normalized if normalized in STOCK_STATUS_LABELS else fallback
+
+
+def load_scrap_inventory_payload() -> dict[str, Any]:
+    items = (
+        InventoryItem.query.options(
+            joinedload(InventoryItem.factory),
+            joinedload(InventoryItem.hardware_type),
+            joinedload(InventoryItem.brand),
+            joinedload(InventoryItem.model),
+            joinedload(InventoryItem.responsible_user),
+            joinedload(InventoryItem.events),
+        )
+        .filter(func.lower(InventoryItem.status) == "hurda")
+        .order_by(InventoryItem.updated_at.desc(), InventoryItem.inventory_no)
+        .all()
+    )
+
+    scrap_items = [serialize_inventory_item(item) for item in items]
+
+    return {
+        "scrap_items": scrap_items,
+        "scrap_count": len(scrap_items),
     }
 
 
@@ -1392,6 +2162,21 @@ def get_inventory_item_with_relations(item_id: int) -> InventoryItem | None:
     )
 
 
+def get_stock_item_with_relations(item_id: int) -> StockItem | None:
+    return (
+        StockItem.query.options(
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
+            joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
+            joinedload(StockItem.license),
+            joinedload(StockItem.logs),
+        )
+        .filter_by(id=item_id)
+        .first()
+    )
+
+
 def get_request_order_with_relations(order_id: int) -> RequestOrder | None:
     return (
         RequestOrder.query.options(
@@ -1432,6 +2217,177 @@ def add_inventory_event(
         },
     )
     return event
+
+
+def record_stock_log(
+    stock_item: StockItem,
+    action: str,
+    *,
+    action_type: str = "info",
+    performed_by: str | None = None,
+    quantity_change: int = 0,
+    note: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> StockLog:
+    actor = (performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+    log = StockLog(
+        stock_item=stock_item,
+        action=action,
+        action_type=action_type,
+        performed_by=actor,
+        quantity_change=quantity_change,
+        note=note or None,
+    )
+    log.metadata_payload = metadata or None
+    db.session.add(log)
+
+    activity_metadata = {
+        "stock_item_id": stock_item.id,
+        "stock_item_title": stock_item.title,
+        "stock_item_status": stock_item.status,
+    }
+    if metadata:
+        activity_metadata.update(metadata)
+
+    record_activity(
+        area="stok",
+        action=action,
+        description=note or stock_item.title,
+        actor=actor,
+        metadata=activity_metadata,
+    )
+    return log
+
+
+def create_stock_item_from_inventory(
+    item: InventoryItem,
+    *,
+    note: str | None = None,
+    actor: str = DEFAULT_EVENT_ACTOR,
+) -> StockItem:
+    title_parts = [
+        item.brand.name if item.brand else "",
+        item.model.name if item.model else "",
+    ]
+    title = " ".join(part for part in title_parts if part).strip()
+    if not title:
+        title = item.inventory_no or "Envanter"
+
+    stock_item = StockItem(
+        source_type="inventory",
+        inventory_item=item,
+        reference_code=item.inventory_no,
+        title=title,
+        category=determine_stock_category_from_inventory(item),
+        quantity=1,
+        status="stokta",
+        note=note or None,
+    )
+    stock_item.metadata_payload = {
+        "factory": item.factory.name if item.factory else "",
+        "department": item.department or "",
+        "hardware_type": item.hardware_type.name if item.hardware_type else "",
+        "brand": item.brand.name if item.brand else "",
+        "model": item.model.name if item.model else "",
+        "responsible": (
+            f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
+            if item.responsible_user
+            else ""
+        ),
+    }
+    db.session.add(stock_item)
+    db.session.flush()
+    record_stock_log(
+        stock_item,
+        "Stok girişi",
+        action_type="in",
+        performed_by=actor,
+        quantity_change=1,
+        note=note,
+        metadata={"inventory_no": item.inventory_no},
+    )
+    return stock_item
+
+
+def create_stock_item_from_license(
+    license: InventoryLicense,
+    *,
+    note: str | None = None,
+    actor: str = DEFAULT_EVENT_ACTOR,
+) -> StockItem:
+    display_name, key = split_license_name(license.name)
+    title = display_name or license.name
+    stock_item = StockItem(
+        source_type="license",
+        license=license,
+        reference_code=license.name,
+        title=title or "Lisans",
+        category="lisans",
+        quantity=1,
+        status="stokta",
+        note=note or None,
+    )
+    associated_item = license.item
+    stock_item.metadata_payload = {
+        "license_key": key,
+        "license_name": title,
+        "inventory_no": associated_item.inventory_no if associated_item else "",
+        "department": associated_item.department if associated_item else "",
+        "factory": associated_item.factory.name if associated_item and associated_item.factory else "",
+    }
+    db.session.add(stock_item)
+    db.session.flush()
+    record_stock_log(
+        stock_item,
+        "Lisans stok girişi",
+        action_type="in",
+        performed_by=actor,
+        quantity_change=1,
+        note=note,
+        metadata={"license_id": license.id},
+    )
+    return stock_item
+
+
+def create_stock_item_from_request_line(
+    order: RequestOrder,
+    line: RequestLine,
+    *,
+    quantity: int,
+    note: str | None = None,
+    actor: str = DEFAULT_EVENT_ACTOR,
+) -> StockItem:
+    title_parts = [line.brand, line.model]
+    title = " ".join(part for part in title_parts if part).strip() or line.hardware_type
+    stock_item = StockItem(
+        source_type="request",
+        source_id=order.id,
+        reference_code=order.order_no,
+        title=title or "Talep Öğesi",
+        category="talep",
+        quantity=max(1, quantity),
+        status="stokta",
+        note=note or None,
+    )
+    stock_item.metadata_payload = {
+        "request_no": order.order_no,
+        "department": order.department,
+        "hardware_type": line.hardware_type,
+        "brand": line.brand,
+        "model": line.model,
+    }
+    db.session.add(stock_item)
+    db.session.flush()
+    record_stock_log(
+        stock_item,
+        "Talep stok girişi",
+        action_type="in",
+        performed_by=actor,
+        quantity_change=stock_item.quantity,
+        note=note,
+        metadata={"request_id": order.id},
+    )
+    return stock_item
 
 
 def parse_int_or_none(value: Any) -> int | None:
@@ -1568,6 +2524,7 @@ def seed_initial_data() -> None:
     seed_inventory_data()
     seed_ldap_profiles()
     seed_request_data()
+    seed_stock_data()
     db.session.commit()
 
 
@@ -1575,6 +2532,7 @@ def seed_simple_users() -> None:
     if User.query.count():
         return
 
+    default_password = generate_password_hash("Parola123!")
     users = [
         User(
             username="m.cetin",
@@ -1583,6 +2541,7 @@ def seed_simple_users() -> None:
             email="merve.cetin@example.com",
             role="Yönetici",
             department="IT Operasyon",
+            password_hash=default_password,
         ),
         User(
             username="a.kaya",
@@ -1591,6 +2550,7 @@ def seed_simple_users() -> None:
             email="ahmet.kaya@example.com",
             role="Satın Alma Uzmanı",
             department="Satın Alma",
+            password_hash=default_password,
         ),
         User(
             username="z.ucar",
@@ -1599,6 +2559,7 @@ def seed_simple_users() -> None:
             email="zeynep.ucar@example.com",
             role="Depo Sorumlusu",
             department="Lojistik",
+            password_hash=default_password,
         ),
         User(
             username="b.tan",
@@ -1607,6 +2568,7 @@ def seed_simple_users() -> None:
             email="berk.tan@example.com",
             role="Destek Uzmanı",
             department="Teknik Destek",
+            password_hash=default_password,
         ),
         User(
             username="e.sonmez",
@@ -1615,6 +2577,7 @@ def seed_simple_users() -> None:
             email="elif.sonmez@example.com",
             role="Finans Analisti",
             department="Finans",
+            password_hash=default_password,
         ),
     ]
     db.session.add_all(users)
@@ -2163,6 +3126,56 @@ def seed_request_data() -> None:
         description="Açık, kapalı ve iptal statülerine örnek talepler eklendi.",
         metadata={"group_count": 3, "order_count": total_orders},
     )
+
+
+def seed_stock_data() -> None:
+    if StockItem.query.count():
+        return
+
+    samples = [
+        {
+            "title": "Yedek Laptop Adaptörü",
+            "category": "envanter",
+            "quantity": 8,
+            "note": "Saha ekipleri için hazır tutulan adaptörler.",
+            "metadata": {"department": "IT Operasyon", "factory": "İstanbul Merkez"},
+        },
+        {
+            "title": "HP 83A Toner",
+            "category": "yazici",
+            "quantity": 15,
+            "note": "Merkez yazıcıları için stok toner.",
+            "metadata": {"department": "Lojistik", "factory": "Bursa Lojistik"},
+        },
+        {
+            "title": "Office 2021 Pro Plus",
+            "category": "lisans",
+            "quantity": 4,
+            "note": "Yeni cihaz kurulumu için bekleyen lisans anahtarları.",
+            "metadata": {"department": "IT Operasyon"},
+        },
+    ]
+
+    for sample in samples:
+        stock_item = StockItem(
+            source_type="manual",
+            title=sample["title"],
+            category=sample["category"],
+            quantity=sample["quantity"],
+            status="stokta",
+            note=sample["note"],
+        )
+        stock_item.metadata_payload = sample.get("metadata")
+        db.session.add(stock_item)
+        db.session.flush()
+        record_stock_log(
+            stock_item,
+            "Başlangıç stok kaydı",
+            action_type="in",
+            performed_by="Sistem",
+            quantity_change=stock_item.quantity,
+            note=sample["note"],
+        )
 
 
 app = create_app()

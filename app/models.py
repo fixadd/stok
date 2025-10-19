@@ -27,6 +27,8 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     role = db.Column(db.String(128), nullable=True)
     department = db.Column(db.String(128), nullable=True)
+    preferred_theme = db.Column(db.String(64), nullable=False, default="varsayilan")
+    password_hash = db.Column(db.String(255), nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -37,6 +39,7 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "department": self.department,
+            "preferred_theme": self.preferred_theme,
         }
 
 
@@ -302,6 +305,85 @@ class InventoryLicense(db.Model):
             "name": self.name,
             "status": self.status,
         }
+
+
+class StockItem(db.Model):
+    __tablename__ = "stock_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_type = db.Column(db.String(32), nullable=False, default="manual")
+    source_id = db.Column(db.Integer, nullable=True)
+    inventory_item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("inventory_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    license_id = db.Column(
+        db.Integer,
+        db.ForeignKey("inventory_licenses.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reference_code = db.Column(db.String(128), nullable=True)
+    title = db.Column(db.String(256), nullable=False)
+    category = db.Column(db.String(32), nullable=False, default="envanter")
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    unit = db.Column(db.String(32), nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="stokta")
+    note = db.Column(db.String(256), nullable=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    inventory_item = db.relationship("InventoryItem")
+    license = db.relationship("InventoryLicense")
+
+    logs = db.relationship(
+        "StockLog",
+        cascade="all, delete-orphan",
+        back_populates="stock_item",
+        order_by="StockLog.created_at.desc()",
+    )
+
+    @property
+    def metadata_payload(self) -> dict | None:
+        return self.metadata_json
+
+    @metadata_payload.setter
+    def metadata_payload(self, value: dict | None) -> None:
+        self.metadata_json = value
+
+
+class StockLog(db.Model):
+    __tablename__ = "stock_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    stock_item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    action = db.Column(db.String(128), nullable=False)
+    action_type = db.Column(db.String(32), nullable=False, default="info")
+    performed_by = db.Column(db.String(128), nullable=False)
+    quantity_change = db.Column(db.Integer, nullable=False, default=0)
+    note = db.Column(db.String(256), nullable=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    stock_item = db.relationship("StockItem", back_populates="logs")
+
+    @property
+    def metadata_payload(self) -> dict | None:
+        return self.metadata_json
+
+    @metadata_payload.setter
+    def metadata_payload(self, value: dict | None) -> None:
+        self.metadata_json = value
 
 
 def find_existing_by_name(model: type[NamedEntityMixin], name: str):

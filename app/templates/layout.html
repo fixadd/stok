@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   </head>
-  <body class="bg-soft">
+  <body class="bg-soft {{ active_theme_class | default('') }}">
     <div class="page-wrapper d-flex">
       <aside class="sidebar d-flex flex-column p-4">
         <div class="sidebar-header mb-4">
@@ -50,7 +50,7 @@
                 <span>Yazıcı Takip</span>
               </div>
             </a>
-            <a class="nav-link" href="#">
+            <a class="nav-link {{ 'active' if active_page == 'stock_tracking' else '' }}" href="{{ url_for('stock_tracking') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
                   <i class="bi bi-bar-chart"></i>
@@ -80,7 +80,7 @@
                 <span>Bilgiler</span>
               </div>
             </a>
-            <a class="nav-link" href="#">
+            <a class="nav-link {{ 'active' if active_page == 'scrap_inventory' else '' }}" href="{{ url_for('scrap_inventory_page') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
                   <i class="bi bi-trash"></i>
@@ -94,7 +94,7 @@
         <div class="sidebar-section mt-auto">
           <p class="section-title text-uppercase text-muted">Ayarlar</p>
           <nav class="nav flex-column">
-            <a class="nav-link" href="#">
+            <a class="nav-link {{ 'active' if active_page == 'profile' else '' }}" href="{{ url_for('profile') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
                   <i class="bi bi-person"></i>
