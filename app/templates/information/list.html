@@ -1,0 +1,191 @@
+{% extends "layout.html" %}
+
+{% block title %}Bilgiler{% endblock %}
+
+{% block main %}
+<div class="information-page d-flex flex-column gap-4">
+  <div class="info-hero content-card shadow-sm">
+    <div class="d-flex flex-column flex-lg-row gap-4 justify-content-between align-items-lg-end">
+      <div class="info-hero-copy">
+        <span class="badge rounded-pill text-bg-primary-soft mb-2">Bilgi Yönetimi</span>
+        <h1 class="h3 fw-bold mb-2">Bilgiler</h1>
+        <p class="text-muted mb-3">Bilgi ve dokümantasyonları yönetin.</p>
+        <div class="info-count-pill d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill">
+          <i class="bi bi-collection"></i>
+          <span><span data-filtered-count>{{ info_count }}</span> bilgi</span>
+        </div>
+      </div>
+      <div class="info-actions d-flex flex-column gap-3">
+        <button class="btn btn-primary align-self-lg-end" type="button" data-bs-toggle="modal" data-bs-target="#newInfoModal">
+          <i class="bi bi-plus-circle me-2"></i>
+          Yeni Bilgi
+        </button>
+      </div>
+    </div>
+    <div class="info-filters mt-4">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <label class="form-label text-uppercase small fw-semibold" for="infoSearch">Arama</label>
+          <div class="input-group info-search-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input class="form-control" id="infoSearch" type="search" placeholder="Başlık veya içerik içinde ara...">
+          </div>
+        </div>
+        <div class="col-lg-3">
+          <label class="form-label text-uppercase small fw-semibold" for="infoCategoryFilter">Kategori</label>
+          <select class="form-select" id="infoCategoryFilter">
+            <option value="">Tümü</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-2 d-flex align-items-end">
+          <button class="btn btn-outline-primary w-100" id="infoFilterButton" type="button">
+            <i class="bi bi-funnel me-2"></i>
+            Filtrele
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="alert-stack">
+        {% for category, message in messages %}
+          <div class="alert alert-soft alert-{{ category }} d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-info-circle"></i>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="content-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 fw-semibold mb-0">Tüm Bilgiler</h2>
+      <span class="badge rounded-pill text-bg-light" data-total-count>{{ info_count }} kayıt</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 info-table">
+        <thead>
+          <tr>
+            <th scope="col">Başlık</th>
+            <th scope="col" class="text-muted">Kategori</th>
+            <th scope="col" class="text-muted">Oluşturulma</th>
+            <th scope="col" class="text-muted text-end">İşlem</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in info_entries %}
+          <tr data-info-row data-search="{{ (entry.title ~ ' ' ~ entry.content)|lower }}" data-category="{{ entry.category_id }}">
+            <td class="fw-semibold">{{ entry.title }}</td>
+            <td class="text-muted">{{ entry.category.name if entry.category else 'Belirtilmedi' }}</td>
+            <td class="text-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') if entry.created_at else '' }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ url_for('information_detail', entry_id=entry.id) }}">
+                <i class="bi bi-eye"></i>
+                Görüntüle
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-soft alert-info mt-3 {% if info_entries %}d-none{% endif %}" id="infoEmptyState">
+      Henüz paylaşılmış bilgi bulunmuyor. İlk bilgiyi siz ekleyin!
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="newInfoModal" tabindex="-1" aria-labelledby="newInfoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" id="newInfoModalLabel">Yeni Bilgi Ekle</h5>
+          <p class="text-muted small mb-0">Bilgi başlığını girin, kategori seçin ve içeriği paylaşın.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form action="{{ url_for('create_information_entry') }}" method="post" enctype="multipart/form-data" id="newInfoForm" class="d-flex flex-column gap-3">
+          <div>
+            <label class="form-label" for="infoTitle">Başlık</label>
+            <input class="form-control" id="infoTitle" name="title" type="text" placeholder="Bilgi başlığını girin" required>
+          </div>
+          <div>
+            <label class="form-label" for="infoCategory">Kategori</label>
+            <select class="form-select" id="infoCategory" name="category_id" required>
+              <option value="" selected disabled>Seçiniz...</option>
+              {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="infoContent">İçerik</label>
+            <textarea class="form-control" id="infoContent" name="content" rows="6" placeholder="İçeriği yazın..." required></textarea>
+          </div>
+          <div>
+            <label class="form-label" for="infoPhoto">Fotoğraf (opsiyonel)</label>
+            <input class="form-control" id="infoPhoto" name="photo" type="file" accept="image/*">
+            <div class="form-text">En fazla 5MB. Dosya türleri: JPG, PNG veya GIF.</div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-2">
+            <button class="btn btn-link" type="button" data-bs-dismiss="modal">Vazgeç</button>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const rows = Array.from(document.querySelectorAll('[data-info-row]'));
+    const searchInput = document.getElementById('infoSearch');
+    const categorySelect = document.getElementById('infoCategoryFilter');
+    const emptyState = document.getElementById('infoEmptyState');
+    const filterButton = document.getElementById('infoFilterButton');
+    const filteredCountEl = document.querySelector('[data-filtered-count]');
+
+    function applyFilters() {
+      const term = (searchInput?.value || '').trim().toLowerCase();
+      const category = categorySelect?.value || '';
+      let visibleCount = 0;
+
+      rows.forEach((row) => {
+        const matchesSearch = !term || (row.dataset.search || '').includes(term);
+        const matchesCategory = !category || category === (row.dataset.category || '');
+        const visible = matchesSearch && matchesCategory;
+        row.classList.toggle('d-none', !visible);
+        if (visible) {
+          visibleCount += 1;
+        }
+      });
+
+      if (emptyState) {
+        emptyState.classList.toggle('d-none', visibleCount !== 0);
+      }
+
+      if (filteredCountEl) {
+        filteredCountEl.textContent = visibleCount;
+      }
+    }
+
+    searchInput?.addEventListener('input', applyFilters);
+    categorySelect?.addEventListener('change', applyFilters);
+    filterButton?.addEventListener('click', applyFilters);
+
+    applyFilters();
+  });
+</script>
+{% endblock %}
