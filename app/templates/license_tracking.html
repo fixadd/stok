@@ -126,7 +126,7 @@
                   <i class="bi bi-eye"></i>
                 </button>
                 <div class="dropdown">
-                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     Seçiniz…
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
@@ -155,69 +155,65 @@
     <div class="alert alert-soft mt-3 d-none" id="licenseEmptyState">Aradığınız kriterlere uygun lisans kaydı bulunamadı.</div>
   </section>
 
-  <section class="content-card shadow-sm license-detail-card d-none" id="licenseDetailCard">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-      <div>
-        <p class="text-muted small mb-1">Seçili Lisans</p>
-        <h2 class="h4 mb-0" data-detail-field="title">Bir lisans seçin</h2>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-outline-secondary btn-sm" type="button" id="licenseDetailBack">Listeye dön</button>
-        <button class="btn btn-primary btn-sm" type="button" id="licenseDetailEdit" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+  <div class="modal fade" id="licenseDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h5 class="modal-title" data-detail-field="title">Lisans Detayı</h5>
+            <p class="text-muted mb-0 small" data-detail-field="subtitle">Seçilen lisansa ait özet bilgiler.</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-primary" type="button" id="licenseDetailEditButton" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+            <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+          </div>
+        </div>
+        <div class="modal-body pt-3">
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="license-detail-modal-card h-100">
+                <h6 class="text-uppercase text-muted small mb-3">Temel Bilgiler</h6>
+                <dl class="row mb-0">
+                  <dt class="col-sm-5 text-muted small">Kayıt No</dt>
+                  <dd class="col-sm-7 fw-semibold" data-detail-field="number">—</dd>
+                  <dt class="col-sm-5 text-muted small">Lisans Adı</dt>
+                  <dd class="col-sm-7" data-detail-field="name">—</dd>
+                  <dt class="col-sm-5 text-muted small">Anahtar</dt>
+                  <dd class="col-sm-7" data-detail-field="key">—</dd>
+                  <dt class="col-sm-5 text-muted small">Durum</dt>
+                  <dd class="col-sm-7"><span class="license-status-badge status-aktif" data-detail-field="status">—</span></dd>
+                </dl>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="license-detail-modal-card h-100">
+                <h6 class="text-uppercase text-muted small mb-3">Atama Bilgileri</h6>
+                <dl class="row mb-0">
+                  <dt class="col-sm-5 text-muted small">Sorumlu</dt>
+                  <dd class="col-sm-7" data-detail-field="responsible">—</dd>
+                  <dt class="col-sm-5 text-muted small">Departman</dt>
+                  <dd class="col-sm-7" data-detail-field="department">—</dd>
+                  <dt class="col-sm-5 text-muted small">E-Posta</dt>
+                  <dd class="col-sm-7" data-detail-field="email">—</dd>
+                  <dt class="col-sm-5 text-muted small">Bağlı Envanter</dt>
+                  <dd class="col-sm-7" data-detail-field="inventory">—</dd>
+                  <dt class="col-sm-5 text-muted small">Fabrika</dt>
+                  <dd class="col-sm-7" data-detail-field="factory">—</dd>
+                  <dt class="col-sm-5 text-muted small">IFS No</dt>
+                  <dd class="col-sm-7" data-detail-field="ifs">—</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div class="license-history-card mt-4">
+            <h6 class="text-uppercase text-muted small mb-3">Geçmiş</h6>
+            <ul class="list-group list-group-flush license-history-list d-none" id="licenseHistoryList"></ul>
+            <div class="license-history-empty text-muted" id="licenseHistoryEmpty">Kayıt yok.</div>
+          </div>
+        </div>
       </div>
     </div>
-
-    <div class="license-detail-grid mb-4">
-      <div class="license-detail-item">
-        <span class="detail-label">No</span>
-        <span class="detail-value" data-detail-field="number">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Lisans Adı</span>
-        <span class="detail-value" data-detail-field="name">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Key</span>
-        <span class="detail-value" data-detail-field="key">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Durum</span>
-        <span class="detail-value">
-          <span class="license-status-badge status-aktif" data-detail-field="status">—</span>
-        </span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Sorumlu</span>
-        <span class="detail-value" data-detail-field="responsible">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Departman</span>
-        <span class="detail-value" data-detail-field="department">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Bağlı Envanter</span>
-        <span class="detail-value" data-detail-field="inventory">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">Fabrika</span>
-        <span class="detail-value" data-detail-field="factory">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">E-posta</span>
-        <span class="detail-value" data-detail-field="email">—</span>
-      </div>
-      <div class="license-detail-item">
-        <span class="detail-label">IFS No</span>
-        <span class="detail-value" data-detail-field="ifs">—</span>
-      </div>
-    </div>
-
-    <div>
-      <h5 class="fw-semibold mb-3">Geçmiş</h5>
-      <ul class="list-group list-group-flush license-history-list d-none" id="licenseHistoryList"></ul>
-      <div class="license-history-empty text-muted" id="licenseHistoryEmpty">Kayıt yok.</div>
-    </div>
-  </section>
+  </div>
 </div>
 
 <datalist id="licenseNameSuggestions">
@@ -397,9 +393,10 @@
       return;
     }
 
-    const detailCard = document.getElementById('licenseDetailCard');
-    const detailBackButton = document.getElementById('licenseDetailBack');
-    const detailEditButton = document.getElementById('licenseDetailEdit');
+    const bootstrapLib = window.bootstrap || null;
+    const detailModalEl = document.getElementById('licenseDetailModal');
+    const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
+    const detailEditButton = document.getElementById('licenseDetailEditButton');
     const historyList = document.getElementById('licenseHistoryList');
     const historyEmpty = document.getElementById('licenseHistoryEmpty');
     const searchInput = document.getElementById('licenseSearch');
@@ -427,19 +424,24 @@
     const createForm = document.getElementById('licenseCreateForm');
     const createNameInput = document.getElementById('licenseCreateName');
     const createKeyInput = document.getElementById('licenseCreateKey');
+    const licenseNameDatalist = document.getElementById('licenseNameSuggestions');
+
+    let licenseNameOptionsLoaded = false;
+    let licenseNameOptions = [];
 
     const detailFields = {
-      number: detailCard?.querySelector('[data-detail-field="number"]'),
-      title: detailCard?.querySelector('[data-detail-field="title"]'),
-      name: detailCard?.querySelector('[data-detail-field="name"]'),
-      key: detailCard?.querySelector('[data-detail-field="key"]'),
-      status: detailCard?.querySelector('[data-detail-field="status"]'),
-      responsible: detailCard?.querySelector('[data-detail-field="responsible"]'),
-      department: detailCard?.querySelector('[data-detail-field="department"]'),
-      inventory: detailCard?.querySelector('[data-detail-field="inventory"]'),
-      factory: detailCard?.querySelector('[data-detail-field="factory"]'),
-      email: detailCard?.querySelector('[data-detail-field="email"]'),
-      ifs: detailCard?.querySelector('[data-detail-field="ifs"]'),
+      title: detailModalEl?.querySelector('[data-detail-field="title"]'),
+      subtitle: detailModalEl?.querySelector('[data-detail-field="subtitle"]'),
+      number: detailModalEl?.querySelector('[data-detail-field="number"]'),
+      name: detailModalEl?.querySelector('[data-detail-field="name"]'),
+      key: detailModalEl?.querySelector('[data-detail-field="key"]'),
+      status: detailModalEl?.querySelector('[data-detail-field="status"]'),
+      responsible: detailModalEl?.querySelector('[data-detail-field="responsible"]'),
+      department: detailModalEl?.querySelector('[data-detail-field="department"]'),
+      inventory: detailModalEl?.querySelector('[data-detail-field="inventory"]'),
+      factory: detailModalEl?.querySelector('[data-detail-field="factory"]'),
+      email: detailModalEl?.querySelector('[data-detail-field="email"]'),
+      ifs: detailModalEl?.querySelector('[data-detail-field="ifs"]'),
     };
 
     const counterElements = {
@@ -455,6 +457,14 @@
 
     const rows = () => Array.from(tableBody.querySelectorAll('tr[data-license-id]'));
 
+    if (licenseNameDatalist) {
+      licenseNameOptions = Array.from(
+        licenseNameDatalist.querySelectorAll('option')
+      )
+        .map((option) => option.value)
+        .filter((value, index, array) => value && array.indexOf(value) === index);
+    }
+
     function escapeHtml(value) {
       if (value === undefined || value === null) {
         return '';
@@ -465,6 +475,43 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function refreshLicenseNameDatalist() {
+      if (!licenseNameDatalist) {
+        return;
+      }
+      licenseNameDatalist.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      licenseNameOptions.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        fragment.appendChild(option);
+      });
+      licenseNameDatalist.appendChild(fragment);
+    }
+
+    async function ensureLicenseNameOptions() {
+      if (licenseNameOptionsLoaded) {
+        return;
+      }
+      try {
+        const response = await fetch('/api/license-names');
+        if (!response.ok) {
+          throw new Error('Yanıt alınamadı');
+        }
+        const payload = await response.json();
+        if (!payload || !Array.isArray(payload.items)) {
+          throw new Error('Geçersiz yanıt');
+        }
+        licenseNameOptions = payload.items
+          .map((item) => item?.name)
+          .filter((name, index, array) => name && array.indexOf(name) === index);
+        licenseNameOptionsLoaded = true;
+        refreshLicenseNameDatalist();
+      } catch (error) {
+        console.warn('Lisans adları yüklenemedi.', error);
+      }
     }
 
     function formatDateTime(date) {
@@ -590,12 +637,23 @@
     }
 
     function populateDetail(data, row) {
-      if (!detailCard) {
+      if (!detailModalEl) {
         return;
       }
-      detailCard.classList.remove('d-none');
       if (detailFields.title) {
-        detailFields.title.textContent = data.display_name || 'Lisans';
+        detailFields.title.textContent = data.display_name || 'Lisans Detayı';
+      }
+      if (detailFields.subtitle) {
+        const subtitleParts = [];
+        if (data.inventory_label || data.inventory_no) {
+          subtitleParts.push(data.inventory_label || data.inventory_no);
+        }
+        if (data.responsible_name) {
+          subtitleParts.push(data.responsible_name);
+        }
+        detailFields.subtitle.textContent = subtitleParts.length
+          ? subtitleParts.join(' • ')
+          : 'Seçilen lisansa ait güncel bilgiler';
       }
       if (detailFields.number) {
         detailFields.number.textContent = row?.dataset.rowIndex || '—';
@@ -699,8 +757,15 @@
       }
     }
 
+    function isDetailModalVisible() {
+      if (!detailModalEl) {
+        return false;
+      }
+      return detailModalEl.classList.contains('show');
+    }
+
     function updateDetailIfVisible(licenseId) {
-      if (!detailCard || detailCard.classList.contains('d-none')) {
+      if (!isDetailModalVisible()) {
         return;
       }
       if (currentLicenseId !== licenseId) {
@@ -762,6 +827,11 @@
           currentLicenseId = licenseId;
           setActiveRow(row);
           populateDetail(data, row);
+          if (detailModal) {
+            detailModal.show();
+          } else if (detailModalEl) {
+            detailModalEl.classList.add('show');
+          }
         });
       }
 
@@ -810,7 +880,7 @@
               <i class="bi bi-eye"></i>
             </button>
             <div class="dropdown">
-              <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Seçiniz…</button>
+              <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">Seçiniz…</button>
               <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                 <li><button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">Atama Yap</button></li>
                 <li><button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button></li>
@@ -843,13 +913,16 @@
       searchInput.addEventListener('input', applySearch);
     }
 
-    if (detailBackButton) {
-      detailBackButton.addEventListener('click', () => {
-        if (detailCard) {
-          detailCard.classList.add('d-none');
-        }
+    if (detailModalEl && bootstrapLib) {
+      detailModalEl.addEventListener('hidden.bs.modal', () => {
         setActiveRow(null);
         currentLicenseId = null;
+      });
+    }
+
+    if (createModalEl) {
+      createModalEl.addEventListener('show.bs.modal', () => {
+        ensureLicenseNameOptions();
       });
     }
 
@@ -873,6 +946,7 @@
 
     if (editModalEl) {
       editModalEl.addEventListener('show.bs.modal', (event) => {
+        ensureLicenseNameOptions();
         const trigger = event.relatedTarget;
         const licenseId = Number(trigger?.dataset.licenseId || currentLicenseId);
         currentLicenseId = licenseId;
@@ -970,6 +1044,15 @@
         data.ifs_no = editIfsInput.value.trim();
         data.status = editStatusSelect.value || data.status;
 
+        if (data.display_name && !licenseNameOptions.includes(data.display_name)) {
+          licenseNameOptions.push(data.display_name);
+          licenseNameOptions = licenseNameOptions
+            .filter((value, index, array) => array.indexOf(value) === index)
+            .sort((a, b) => a.localeCompare(b, 'tr-TR'));
+          licenseNameOptionsLoaded = true;
+          refreshLicenseNameDatalist();
+        }
+
         refreshLicenseRecord(data);
         if (editHistoryToggle.checked) {
           data.history.unshift({
@@ -1028,6 +1111,14 @@
         const modalInstance = bootstrap.Modal.getInstance(createModalEl);
         modalInstance?.hide();
         createForm.reset();
+        if (!licenseNameOptions.includes(displayName)) {
+          licenseNameOptions.push(displayName);
+          licenseNameOptions = licenseNameOptions
+            .filter((value, index, array) => array.indexOf(value) === index)
+            .sort((a, b) => a.localeCompare(b, 'tr-TR'));
+          licenseNameOptionsLoaded = true;
+          refreshLicenseNameDatalist();
+        }
         applySearch();
         refreshCounters();
       });
