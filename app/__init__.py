@@ -728,6 +728,14 @@ def create_app() -> Flask:
         db.session.commit()
         return ("", 204)
 
+    @app.get("/api/license-names")
+    def list_license_names():
+        names = [
+            license_name.to_dict()
+            for license_name in LicenseName.query.order_by(LicenseName.name)
+        ]
+        return jsonify({"items": names})
+
     @app.route("/talep-takip")
     def talep_takip():
         payload = load_request_groups()
@@ -917,14 +925,7 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         for event in item.events
     ]
 
-    licenses = [
-        {
-            "id": license.id,
-            "name": license.name,
-            "status": license.status,
-        }
-        for license in item.licenses
-    ]
+    licenses = [serialize_license_record(license) for license in item.licenses]
 
     search_tokens = [
         item.inventory_no,

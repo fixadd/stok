@@ -372,8 +372,11 @@ body.bg-soft {
   color: #b98100;
 }
 
-.license-detail-card {
+.license-detail-modal-card {
   border: 1px solid rgba(76, 110, 245, 0.1);
+  background: rgba(76, 110, 245, 0.04);
+  border-radius: 18px;
+  padding: 1.5rem;
 }
 
 .license-detail-grid {
@@ -382,7 +385,7 @@ body.bg-soft {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.license-detail-item .detail-label {
+.license-detail-modal-card dt {
   display: block;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -391,16 +394,28 @@ body.bg-soft {
   margin-bottom: 0.3rem;
 }
 
-.license-detail-item .detail-value {
+.license-detail-modal-card dd {
   font-weight: 600;
   color: #1f2937;
   font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.license-detail-modal-card dd:last-of-type {
+  margin-bottom: 0;
 }
 
 .license-history-list {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.license-history-card {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 18px;
+  padding: 1.5rem;
 }
 
 .license-history-item {
@@ -886,16 +901,6 @@ body.bg-soft {
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
 }
 
-.inventory-detail-offcanvas {
-  width: min(420px, 100%);
-  background: var(--soft-bg);
-  border-left: 1px solid rgba(76, 110, 245, 0.12);
-}
-
-.inventory-detail-offcanvas .offcanvas-header {
-  border-bottom: 1px solid rgba(76, 110, 245, 0.12);
-}
-
 .inventory-detail-card {
   background: var(--card-bg);
   border-radius: 20px;
@@ -938,6 +943,21 @@ body.bg-soft {
 
 .inventory-license-list .list-group-item:last-child {
   margin-bottom: 0;
+}
+
+.inventory-license-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.inventory-license-link:hover,
+.inventory-license-link:focus {
+  color: var(--primary-color);
+  text-decoration: underline;
 }
 
 .inventory-license-badge {
