@@ -1,0 +1,29 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="paint0_linear" x1="36" y1="24" x2="284" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4C6EF5"/>
+      <stop offset="1" stop-color="#9E77ED"/>
+    </linearGradient>
+    <linearGradient id="paint1_linear" x1="96" y1="20" x2="224" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF2FF"/>
+      <stop offset="1" stop-color="#E0EAFF"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="320" height="220" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feOffset dy="8"/>
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0.12 0"/>
+      <feBlend in="SourceGraphic" in2="blur" mode="normal"/>
+    </filter>
+  </defs>
+  <rect x="28" y="32" width="264" height="160" rx="28" fill="url(#paint1_linear)" filter="url(#shadow)"/>
+  <rect x="60" y="52" width="200" height="72" rx="18" fill="white" stroke="url(#paint0_linear)" stroke-width="2"/>
+  <rect x="76" y="68" width="168" height="40" rx="12" fill="#F4F7FF"/>
+  <rect x="92" y="148" width="136" height="28" rx="14" fill="#4C6EF5" opacity="0.1"/>
+  <rect x="108" y="152" width="104" height="20" rx="10" fill="#4C6EF5" opacity="0.2"/>
+  <path d="M96 132h128a10 10 0 0 1 10 10v8H86v-8a10 10 0 0 1 10-10z" fill="#4C6EF5"/>
+  <rect x="112" y="36" width="96" height="40" rx="12" fill="#4C6EF5" opacity="0.35"/>
+  <circle cx="248" cy="120" r="18" fill="#4C6EF5" opacity="0.2"/>
+  <path d="M248 108c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm0 20a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-30c-11.046 0-20 8.954-20 20h4c0-8.837 7.163-16 16-16s16 7.163 16 16h4c0-11.046-8.954-20-20-20z" fill="#4C6EF5"/>
+  <circle cx="88" cy="152" r="8" fill="#4C6EF5" opacity="0.5"/>
+  <circle cx="232" cy="152" r="8" fill="#4C6EF5" opacity="0.5"/>
+</svg>

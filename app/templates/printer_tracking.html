@@ -1,0 +1,772 @@
+{% extends "layout.html" %}
+{% block title %}Yazıcı Takip · Stok Yönetimi{% endblock %}
+
+{% block main %}
+<div class="printer-page d-flex flex-column gap-4">
+  <div class="content-card printer-hero-card shadow-sm">
+    <div class="row gy-4 align-items-center">
+      <div class="col-lg-8">
+        <div class="d-flex flex-wrap align-items-start gap-3 mb-3">
+          <div class="printer-hero-icon">
+            <i class="bi bi-printer-fill"></i>
+          </div>
+          <div>
+            <h1 class="mb-1">Yazıcı Takip</h1>
+            <p class="text-muted mb-0">
+              Organizasyonunuzdaki yazıcıları tek ekran üzerinden takip edin, arıza süreçlerini yönetin ve atamaları hızlandırın.
+            </p>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <button class="btn btn-primary px-4" type="button" data-bs-toggle="modal" data-bs-target="#printerCreateModal">
+            <i class="bi bi-plus-lg me-2"></i>Yeni Yazıcı Ekle
+          </button>
+          <button class="btn btn-warning d-flex align-items-center gap-2 printer-faulty-toggle" type="button" data-toggle-faulty>
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>Arızalı Durum</span>
+            <span class="badge rounded-pill bg-dark text-white" data-faulty-count>{{ printer_faulty_count }}</span>
+          </button>
+          <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Excel
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><a class="dropdown-item" href="#">Dışa Aktar</a></li>
+              <li><a class="dropdown-item" href="#">İçe Aktar</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="printer-hero-visual text-lg-end text-center">
+          <img src="{{ url_for('static', filename='img/printer-hero.svg') }}" alt="Yazıcı yönetimi görseli" class="img-fluid">
+        </div>
+        <div class="printer-hero-search mt-3">
+          <label for="printer-search" class="form-label text-muted small">Sayfa içi arama</label>
+          <div class="input-group search-input">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="printer-search" placeholder="Yazıcı, seri numarası veya sorumlu ara...">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="printer-status-overview mt-4 d-flex flex-wrap gap-2">
+      {% for status in printer_status_summary %}
+      <div class="printer-status-pill" data-status-pill="{{ status.value }}">
+        <span class="label">{{ status.label }}</span>
+        <span class="value">{{ status.count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="content-card printer-table-card shadow-sm">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+      <div>
+        <h2 class="h4 mb-1">Yazıcı Envanteri</h2>
+        <p class="text-muted mb-0">Toplam <span data-total-count>{{ printers|length }}</span> yazıcı listeleniyor.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-reset-filters>
+          <i class="bi bi-arrow-counterclockwise me-1"></i>Filtreleri Temizle
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle printer-table mb-0">
+        <thead>
+          <tr>
+            <th scope="col" class="text-muted small text-uppercase">ID</th>
+            <th scope="col" class="text-muted small text-uppercase">Marka</th>
+            <th scope="col" class="text-muted small text-uppercase">Model</th>
+            <th scope="col" class="text-muted small text-uppercase">Seri No</th>
+            <th scope="col" class="text-muted small text-uppercase">Fabrika</th>
+            <th scope="col" class="text-muted small text-uppercase">Kullanım Alanı</th>
+            <th scope="col" class="text-muted small text-uppercase">Sorumlu</th>
+            <th scope="col" class="text-muted small text-uppercase">Durum</th>
+            <th scope="col" class="text-muted small text-uppercase text-end">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if printers %}
+            {% for printer in printers %}
+            {% set status_class = {
+              'aktif': 'text-bg-success-subtle text-success fw-semibold',
+              'beklemede': 'text-bg-info-subtle text-info fw-semibold',
+              'arizali': 'text-bg-warning-subtle text-warning fw-semibold',
+              'hurda': 'text-bg-danger-subtle text-danger fw-semibold'
+            }.get(printer.status, 'text-bg-secondary-subtle text-secondary fw-semibold') %}
+            <tr data-printer-row data-printer-id="{{ printer.id }}" data-search-index="{{ printer.search_index }}" data-status="{{ printer.status }}">
+              <td class="fw-semibold">#{{ printer.inventory_no }}</td>
+              <td>{{ printer.brand or '-' }}</td>
+              <td>{{ printer.model or '-' }}</td>
+              <td>{% if printer.serial_no %}{{ printer.serial_no }}{% else %}<span class="text-muted">Belirtilmedi</span>{% endif %}</td>
+              <td>{{ printer.factory or '-' }}</td>
+              <td>{{ printer.department or '-' }}</td>
+              <td>
+                {% if printer.responsible_user_id %}
+                  <span class="responsible-chip">{{ printer.responsible }}</span>
+                {% else %}
+                  <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#printerAssignModal" data-printer-id="{{ printer.id }}">
+                    Ata
+                  </button>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge {{ status_class }}">
+                  {{ printer_status_labels.get(printer.status, printer.status.title()) }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="d-inline-flex align-items-center gap-2">
+                  <button class="btn btn-icon btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#printerDetailsModal" data-printer-id="{{ printer.id }}" aria-label="Yazıcı detaylarını görüntüle">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      Seçiniz...
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#printerFaultModal" data-printer-id="{{ printer.id }}">Arızalı İşaretle</button></li>
+                      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#printerAssignModal" data-printer-id="{{ printer.id }}">Atama Yap</button></li>
+                      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#printerEditModal" data-printer-id="{{ printer.id }}">Düzenle</button></li>
+                      <li><button class="dropdown-item" type="button">Stok Girişi</button></li>
+                      <li><button class="dropdown-item text-danger" type="button">Tarihten Ayır</button></li>
+                    </ul>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9" class="py-5 text-center text-muted">Henüz yazıcı kaydı bulunmuyor.</td>
+            </tr>
+          {% endif %}
+          <tr data-no-results class="d-none">
+            <td colspan="9" class="py-4 text-center text-muted">Arama kriterlerinize uyan kayıt bulunamadı.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<datalist id="usage-area-options">
+  {% for area in usage_areas %}
+  <option value="{{ area.name }}">
+  {% endfor %}
+</datalist>
+
+<!-- Detay Modalı -->
+<div class="modal fade" id="printerDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" data-detail-title>Yazıcı Detayı</h5>
+          <p class="text-muted mb-0" data-detail-subtitle></p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-primary" type="button" data-action="open-edit">Düzenle</button>
+          <button class="btn btn-light" type="button" data-bs-dismiss="modal">Geri</button>
+        </div>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="printer-detail-card h-100">
+              <h6 class="text-uppercase text-muted small mb-3">Bilgiler</h6>
+              <dl class="row mb-0" data-detail-info></dl>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="printer-detail-card h-100">
+              <h6 class="text-uppercase text-muted small mb-3">Geçmiş Kayıtları</h6>
+              <div data-detail-history>
+                <p class="text-muted mb-0">Kayıt yok.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Arızalı İşaretle Modalı -->
+<div class="modal fade" id="printerFaultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">Arızalı İşaretle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-3">
+          <div class="col-12">
+            <label class="form-label" for="faulty-inventory">Arızalı Cihaz No</label>
+            <input type="text" class="form-control" id="faulty-inventory" readonly>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="faulty-reason">Arıza Nedeni</label>
+            <textarea class="form-control" id="faulty-reason" rows="4" placeholder="Gözlemlenen sorunu detaylandırın..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="faulty-destination">Gönderildiği Yer</label>
+            <input type="text" class="form-control" id="faulty-destination" placeholder="Servis sağlayıcısı veya lokasyon">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Atama Modalı -->
+<div class="modal fade" id="printerAssignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header gradient-header text-white">
+        <div>
+          <h5 class="modal-title" data-assign-title>Yazıcıyı Ata</h5>
+          <p class="mb-0 small opacity-75" data-assign-subtitle>Yazıcı için fabrika, kullanım alanı ve sorumlu bilgilerini güncelleyin.</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="assign-factory">Fabrika</label>
+            <select class="form-select" id="assign-factory">
+              <option value="">Seçiniz</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assign-usage">Kullanım Alanı</label>
+            <input type="text" class="form-control" id="assign-usage" list="usage-area-options" placeholder="Ör. IT Operasyon">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assign-responsible">Sorumlu Personel</label>
+            <select class="form-select" id="assign-responsible">
+              <option value="">Seçiniz</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assign-inventory">Bağlı Olduğu Envanter</label>
+            <select class="form-select" id="assign-inventory">
+              <option value="">Seçiniz</option>
+              {% for option in inventory_catalog %}
+              <option value="{{ option.id }}">{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="assign-note">Not</label>
+            <textarea class="form-control" id="assign-note" rows="3" placeholder="Teslim bilgileri veya özel yönlendirmeleri ekleyin..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary">Atamayı Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Düzenleme Modalı -->
+<div class="modal fade" id="printerEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header gradient-header gradient-secondary text-white">
+        <div>
+          <h5 class="modal-title">Yazıcı Bilgilerini Düzenleyin</h5>
+          <p class="mb-0 small opacity-75">Yazıcı envanteri kayıtlarını güncel tutarak bakım ve takibi kolaylaştırın.</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="edit-brand">Yazıcı Markası</label>
+            <select class="form-select" id="edit-brand">
+              <option value="">Seçiniz</option>
+              {% for brand in brand_models %}
+              <option value="{{ brand.id }}">{{ brand.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-model">Yazıcı Modeli</label>
+            <select class="form-select" id="edit-model">
+              <option value="">Seçiniz</option>
+              {% for brand in brand_models %}
+                {% for model in brand.models %}
+                <option value="{{ model.id }}" data-brand="{{ brand.id }}">{{ model.name }}</option>
+                {% endfor %}
+              {% endfor %}
+            </select>
+            <div class="form-text">Not: Model listesi seçilen markaya göre filtrelenir.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-usage">Kullanım Alanı</label>
+            <input type="text" class="form-control" id="edit-usage" list="usage-area-options">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-inventory-no">Envanter No</label>
+            <input type="text" class="form-control" id="edit-inventory-no">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-ip-address">IP Adresi</label>
+            <input type="text" class="form-control" id="edit-ip-address" placeholder="10.0.0.10">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-mac-address">MAC</label>
+            <input type="text" class="form-control" id="edit-mac-address" placeholder="AA:BB:CC:DD:EE:FF">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-hostname">Hostname</label>
+            <input type="text" class="form-control" id="edit-hostname" placeholder="ör. PRN-OFIS-01">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="edit-ifs-no">IFS No</label>
+            <input type="text" class="form-control" id="edit-ifs-no">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="edit-note">Not</label>
+            <textarea class="form-control" id="edit-note" rows="3" placeholder="Bakım geçmişi veya özel notlar"></textarea>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="edit-history-check" checked>
+              <label class="form-check-label" for="edit-history-check">Kaydedilen bilgiler yazıcı geçmişine işlenecektir.</label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Yeni Yazıcı Modalı -->
+<div class="modal fade" id="printerCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-white border-0 pb-0">
+        <div>
+          <h5 class="modal-title">Yeni Yazıcı Ekleyin</h5>
+          <p class="text-muted mb-0">Yeni bir yazıcıyı envantere ekleyin ve yapılandırmasını belirleyin.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="create-inventory-no">Envanter No</label>
+            <input type="text" class="form-control" id="create-inventory-no" placeholder="PRN-000999">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-factory">Fabrika</label>
+            <select class="form-select" id="create-factory">
+              <option value="">Seçiniz</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-brand">Yazıcı Markası</label>
+            <select class="form-select" id="create-brand">
+              <option value="">Seçiniz</option>
+              {% for brand in brand_models %}
+              <option value="{{ brand.id }}">{{ brand.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-model">Yazıcı Modeli</label>
+            <select class="form-select" id="create-model">
+              <option value="">Seçiniz</option>
+              {% for brand in brand_models %}
+                {% for model in brand.models %}
+                <option value="{{ model.id }}" data-brand="{{ brand.id }}">{{ model.name }}</option>
+                {% endfor %}
+              {% endfor %}
+            </select>
+            <div class="form-text">Not: Model listesi seçilen markaya göre filtrelenir.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-usage">Kullanım Alanı</label>
+            <input type="text" class="form-control" id="create-usage" list="usage-area-options" placeholder="Ör. Finans">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-hostname">Hostname</label>
+            <input type="text" class="form-control" id="create-hostname" placeholder="PRN-OFIS-01">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-ip-address">IP Adresi</label>
+            <input type="text" class="form-control" id="create-ip-address" placeholder="10.0.0.10">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-mac-address">MAC</label>
+            <input type="text" class="form-control" id="create-mac-address" placeholder="AA:BB:CC:DD:EE:FF">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-ifs-no">IFS No</label>
+            <input type="text" class="form-control" id="create-ifs-no" placeholder="IFS-00000">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="create-responsible">Sorumlu Personel</label>
+            <select class="form-select" id="create-responsible">
+              <option value="">Seçiniz</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="create-note">Not</label>
+            <textarea class="form-control" id="create-note" rows="3" placeholder="Kurulum ve teslimat notları"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Vazgeç</button>
+        <button type="button" class="btn btn-primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const printerRecords = {{ printers | tojson }};
+    const printerMap = new Map(printerRecords.map((printer) => [String(printer.id), printer]));
+    const statusChoices = {{ status_choices | tojson }};
+    const statusLabelMap = new Map(statusChoices.map((choice) => [choice.value, choice.label]));
+    const searchInput = document.getElementById('printer-search');
+    const rows = Array.from(document.querySelectorAll('[data-printer-row]'));
+    const totalCountEl = document.querySelector('[data-total-count]');
+    const noResultRow = document.querySelector('[data-no-results]');
+    const faultyToggle = document.querySelector('[data-toggle-faulty]');
+    const resetFiltersBtn = document.querySelector('[data-reset-filters]');
+    const faultyCountBadge = document.querySelector('[data-faulty-count]');
+
+    let faultyOnly = false;
+
+    const updateCounters = () => {
+      const visibleRows = rows.filter((row) => !row.classList.contains('d-none'));
+      if (totalCountEl) {
+        totalCountEl.textContent = visibleRows.length;
+      }
+    };
+
+    const filterRows = () => {
+      const query = (searchInput?.value || '').trim().toLowerCase();
+      let visibleCount = 0;
+
+      rows.forEach((row) => {
+        const matchesQuery = !query || row.dataset.searchIndex.includes(query);
+        const matchesFaulty = !faultyOnly || row.dataset.status === 'arizali';
+        const isVisible = matchesQuery && matchesFaulty;
+        row.classList.toggle('d-none', !isVisible);
+        if (isVisible) {
+          visibleCount += 1;
+        }
+      });
+
+      if (noResultRow) {
+        noResultRow.classList.toggle('d-none', visibleCount !== 0);
+      }
+
+      updateCounters();
+    };
+
+    searchInput?.addEventListener('input', () => {
+      filterRows();
+    });
+
+    faultyToggle?.addEventListener('click', () => {
+      faultyOnly = !faultyOnly;
+      faultyToggle.classList.toggle('active', faultyOnly);
+      filterRows();
+    });
+
+    resetFiltersBtn?.addEventListener('click', () => {
+      faultyOnly = false;
+      faultyToggle?.classList.remove('active');
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      filterRows();
+    });
+
+    filterRows();
+
+    const detailModalEl = document.getElementById('printerDetailsModal');
+    const faultModalEl = document.getElementById('printerFaultModal');
+    const assignModalEl = document.getElementById('printerAssignModal');
+    const editModalEl = document.getElementById('printerEditModal');
+    const createModalEl = document.getElementById('printerCreateModal');
+
+    const renderDetailModal = (printer) => {
+      if (!detailModalEl || !printer) return;
+      detailModalEl.dataset.printerId = String(printer.id);
+
+      const titleEl = detailModalEl.querySelector('[data-detail-title]');
+      const subtitleEl = detailModalEl.querySelector('[data-detail-subtitle]');
+      const infoContainer = detailModalEl.querySelector('[data-detail-info]');
+      const historyContainer = detailModalEl.querySelector('[data-detail-history]');
+
+      if (titleEl) {
+        const brandModel = [printer.brand, printer.model].filter(Boolean).join(' ');
+        titleEl.textContent = brandModel ? `${brandModel} — ${printer.inventory_no}` : `Yazıcı ${printer.inventory_no}`;
+      }
+      if (subtitleEl) {
+        const subtitleParts = [printer.factory, printer.department, statusLabelMap.get(printer.status) || printer.status];
+        subtitleEl.textContent = subtitleParts.filter(Boolean).join(' · ');
+      }
+
+      if (infoContainer) {
+        infoContainer.innerHTML = '';
+        const infoPairs = [
+          ['Seri No', printer.serial_no || 'Belirtilmedi'],
+          ['Fabrika', printer.factory || 'Belirtilmedi'],
+          ['Kullanım Alanı', printer.department || 'Belirtilmedi'],
+          ['Sorumlu', printer.responsible || 'Henüz atanmamış'],
+          ['Bağlı Envanter', printer.inventory_no],
+          ['Durum', statusLabelMap.get(printer.status) || printer.status],
+          ['IP Adresi', printer.ip_address || 'Belirtilmedi'],
+          ['MAC', printer.mac_address || 'Belirtilmedi'],
+          ['Not', printer.note || 'Ek bilgi bulunmuyor'],
+        ];
+        infoPairs.forEach(([label, value]) => {
+          const dt = document.createElement('dt');
+          dt.className = 'col-sm-5 text-muted fw-semibold';
+          dt.textContent = label;
+          const dd = document.createElement('dd');
+          dd.className = 'col-sm-7';
+          dd.textContent = value;
+          infoContainer.append(dt, dd);
+        });
+      }
+
+      if (historyContainer) {
+        historyContainer.innerHTML = '';
+        if (printer.history && printer.history.length) {
+          const list = document.createElement('div');
+          list.className = 'timeline';
+          printer.history.forEach((entry) => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+              <div class="timeline-marker"></div>
+              <div class="timeline-content">
+                <div class="d-flex justify-content-between align-items-start">
+                  <span class="fw-semibold">${entry.event_type}</span>
+                  <span class="text-muted small">${entry.performed_at}</span>
+                </div>
+                <p class="text-muted small mb-1">${entry.performed_by || ''}</p>
+                <p class="mb-0">${entry.note || ''}</p>
+              </div>
+            `;
+            list.appendChild(item);
+          });
+          historyContainer.appendChild(list);
+        } else {
+          const empty = document.createElement('p');
+          empty.className = 'text-muted mb-0';
+          empty.textContent = 'Kayıt yok.';
+          historyContainer.appendChild(empty);
+        }
+      }
+    };
+
+    detailModalEl?.addEventListener('show.bs.modal', (event) => {
+      const trigger = event.relatedTarget;
+      const printerId = trigger?.getAttribute('data-printer-id');
+      const printer = printerMap.get(String(printerId));
+      renderDetailModal(printer);
+    });
+
+    detailModalEl?.querySelector('[data-action="open-edit"]')?.addEventListener('click', () => {
+      const printerId = detailModalEl?.dataset.printerId;
+      const printer = printerMap.get(String(printerId));
+      if (!printer) {
+        return;
+      }
+      const modalInstance = bootstrap.Modal.getInstance(detailModalEl);
+      modalInstance?.hide();
+      const openEdit = () => {
+        populateEditModal(printer);
+        const editInstance = new bootstrap.Modal(editModalEl);
+        editInstance.show();
+        detailModalEl.removeEventListener('hidden.bs.modal', openEdit);
+      };
+      detailModalEl.addEventListener('hidden.bs.modal', openEdit);
+    });
+
+    const populateFaultModal = (printer) => {
+      if (!faultModalEl || !printer) return;
+      faultModalEl.querySelector('#faulty-inventory').value = printer.inventory_no || '';
+      faultModalEl.querySelector('#faulty-reason').value = '';
+      faultModalEl.querySelector('#faulty-destination').value = '';
+    };
+
+    faultModalEl?.addEventListener('show.bs.modal', (event) => {
+      const trigger = event.relatedTarget;
+      const printerId = trigger?.getAttribute('data-printer-id');
+      const printer = printerMap.get(String(printerId));
+      populateFaultModal(printer);
+    });
+
+    const populateAssignModal = (printer) => {
+      if (!assignModalEl || !printer) return;
+      assignModalEl.dataset.printerId = String(printer.id);
+      assignModalEl.querySelector('[data-assign-title]').textContent = `Yazıcıyı Ata — ${printer.inventory_no}`;
+      assignModalEl.querySelector('[data-assign-subtitle]').textContent = `${printer.brand || 'Yazıcı'} için fabrika ve sorumlu bilgilerini güncelleyin.`;
+
+      const factorySelect = assignModalEl.querySelector('#assign-factory');
+      const usageInput = assignModalEl.querySelector('#assign-usage');
+      const responsibleSelect = assignModalEl.querySelector('#assign-responsible');
+      const inventorySelect = assignModalEl.querySelector('#assign-inventory');
+      const noteArea = assignModalEl.querySelector('#assign-note');
+
+      if (factorySelect) {
+        factorySelect.value = printer.factory_id ? String(printer.factory_id) : '';
+      }
+      if (usageInput) {
+        usageInput.value = printer.department || '';
+      }
+      if (responsibleSelect) {
+        responsibleSelect.value = printer.responsible_user_id ? String(printer.responsible_user_id) : '';
+      }
+      if (inventorySelect) {
+        inventorySelect.value = printer.id ? String(printer.id) : '';
+      }
+      if (noteArea) {
+        noteArea.value = printer.note || '';
+      }
+    };
+
+    assignModalEl?.addEventListener('show.bs.modal', (event) => {
+      const trigger = event.relatedTarget;
+      const printerId = trigger?.getAttribute('data-printer-id');
+      const printer = printerMap.get(String(printerId));
+      populateAssignModal(printer);
+    });
+
+    const createBrandSelect = createModalEl?.querySelector('#create-brand');
+    const createModelSelect = createModalEl?.querySelector('#create-model');
+    const editBrandSelect = editModalEl?.querySelector('#edit-brand');
+    const editModelSelect = editModalEl?.querySelector('#edit-model');
+
+    const refreshModels = (brandSelect, modelSelect, selectedModelId) => {
+      if (!brandSelect || !modelSelect) return;
+      const brandId = brandSelect.value;
+      const options = Array.from(modelSelect.querySelectorAll('option'));
+      options.forEach((option) => {
+        if (!option.value) return;
+        const optionBrand = option.dataset.brand;
+        const shouldShow = !brandId || optionBrand === brandId;
+        option.classList.toggle('d-none', !shouldShow);
+      });
+      if (selectedModelId) {
+        modelSelect.value = selectedModelId;
+        if (modelSelect.selectedOptions.length === 0) {
+          modelSelect.value = '';
+        }
+      } else if (brandId) {
+        const firstVisible = options.find((option) => !option.classList.contains('d-none') && option.value);
+        modelSelect.value = firstVisible ? firstVisible.value : '';
+      } else {
+        modelSelect.value = '';
+      }
+    };
+
+    createBrandSelect?.addEventListener('change', () => {
+      refreshModels(createBrandSelect, createModelSelect);
+    });
+
+    editBrandSelect?.addEventListener('change', () => {
+      refreshModels(editBrandSelect, editModelSelect);
+    });
+
+    const populateEditModal = (printer) => {
+      if (!editModalEl || !printer) return;
+      editModalEl.dataset.printerId = String(printer.id);
+      const brandSelect = editModalEl.querySelector('#edit-brand');
+      const modelSelect = editModalEl.querySelector('#edit-model');
+      const usageInput = editModalEl.querySelector('#edit-usage');
+      const inventoryInput = editModalEl.querySelector('#edit-inventory-no');
+      const ipInput = editModalEl.querySelector('#edit-ip-address');
+      const macInput = editModalEl.querySelector('#edit-mac-address');
+      const hostnameInput = editModalEl.querySelector('#edit-hostname');
+      const ifsInput = editModalEl.querySelector('#edit-ifs-no');
+      const noteArea = editModalEl.querySelector('#edit-note');
+
+      if (brandSelect) {
+        brandSelect.value = printer.brand_id ? String(printer.brand_id) : '';
+        refreshModels(brandSelect, modelSelect, printer.model_id ? String(printer.model_id) : '');
+      }
+      if (modelSelect && (!printer.model_id || !modelSelect.value)) {
+        modelSelect.value = printer.model_id ? String(printer.model_id) : '';
+      }
+      if (usageInput) {
+        usageInput.value = printer.department || '';
+      }
+      if (inventoryInput) {
+        inventoryInput.value = printer.inventory_no || '';
+      }
+      if (ipInput) {
+        ipInput.value = printer.ip_address || '';
+      }
+      if (macInput) {
+        macInput.value = printer.mac_address || '';
+      }
+      if (hostnameInput) {
+        hostnameInput.value = printer.computer_name || '';
+      }
+      if (ifsInput) {
+        ifsInput.value = printer.ifs_no || '';
+      }
+      if (noteArea) {
+        noteArea.value = printer.note || '';
+      }
+    };
+
+    editModalEl?.addEventListener('show.bs.modal', (event) => {
+      const trigger = event.relatedTarget;
+      const printerId = trigger?.getAttribute('data-printer-id');
+      const printer = printerMap.get(String(printerId));
+      populateEditModal(printer);
+    });
+
+    // Excel count update for faulty button
+    const updateFaultyBadge = () => {
+      if (!faultyCountBadge) return;
+      const faultyRows = printerRecords.filter((printer) => printer.status === 'arizali');
+      faultyCountBadge.textContent = faultyRows.length;
+    };
+
+    updateFaultyBadge();
+  });
+</script>
+{% endblock %}

@@ -105,6 +105,15 @@ def create_app() -> Flask:
             **payload,
         )
 
+    @app.route("/yazici-takip")
+    def printer_tracking():
+        payload = load_printer_payload()
+        return render_template(
+            "printer_tracking.html",
+            active_page="printer_tracking",
+            **payload,
+        )
+
     @app.route("/admin-panel")
     def admin_panel():
         admin_payload = load_admin_panel_payload()
@@ -798,6 +807,95 @@ def load_inventory_payload() -> dict:
     }
 
 
+def load_printer_payload() -> dict[str, Any]:
+    printer_type = (
+        HardwareType.query.filter(func.lower(HardwareType.name) == "yazıcı").first()
+    )
+
+    query = InventoryItem.query.options(
+        joinedload(InventoryItem.factory),
+        joinedload(InventoryItem.hardware_type),
+        joinedload(InventoryItem.brand),
+        joinedload(InventoryItem.model),
+        joinedload(InventoryItem.responsible_user),
+        joinedload(InventoryItem.events),
+        joinedload(InventoryItem.licenses),
+    ).order_by(InventoryItem.inventory_no)
+
+    if printer_type is None:
+        items: list[InventoryItem] = []
+    else:
+        items = query.filter(InventoryItem.hardware_type_id == printer_type.id).all()
+
+    printers = [serialize_inventory_item(item) for item in items]
+    faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
+
+    status_choices = [
+        {"value": "aktif", "label": "Aktif"},
+        {"value": "beklemede", "label": "Beklemede"},
+        {"value": "arizali", "label": "Arızalı"},
+        {"value": "hurda", "label": "Hurdaya Ayrıldı"},
+    ]
+    status_labels = {choice["value"]: choice["label"] for choice in status_choices}
+
+    status_summary = [
+        {
+            "value": value,
+            "label": status_labels[value],
+            "count": sum(1 for printer in printers if printer["status"] == value),
+        }
+        for value in status_labels
+    ]
+
+    factories = [factory.to_dict() for factory in Factory.query.order_by(Factory.name)]
+    usage_areas = [ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)]
+    brand_models = [
+        brand.to_dict(include_models=True)
+        for brand in Brand.query.options(joinedload(Brand.models)).order_by(Brand.name)
+    ]
+    users = [
+        {
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "department": user.department,
+        }
+        for user in User.query.order_by(User.first_name, User.last_name)
+    ]
+
+    inventory_catalog = [
+        {
+            "id": item.id,
+            "inventory_no": item.inventory_no,
+            "label": " · ".join(
+                filter(
+                    None,
+                    [
+                        item.inventory_no,
+                        item.computer_name,
+                        item.hardware_type.name if item.hardware_type else "",
+                    ],
+                )
+            ),
+        }
+        for item in InventoryItem.query.options(
+            joinedload(InventoryItem.hardware_type)
+        ).order_by(InventoryItem.inventory_no)
+    ]
+
+    return {
+        "printers": printers,
+        "printer_faulty_count": faulty_count,
+        "printer_status_summary": status_summary,
+        "printer_status_labels": status_labels,
+        "factories": factories,
+        "usage_areas": usage_areas,
+        "brand_models": brand_models,
+        "users": users,
+        "inventory_catalog": inventory_catalog,
+        "status_choices": status_choices,
+    }
+
+
 def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
     responsible = (
         f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
@@ -860,6 +958,8 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "ifs_no": item.ifs_no,
         "related_machine_no": item.related_machine_no,
         "machine_no": item.machine_no,
+        "ip_address": item.related_machine_no,
+        "mac_address": item.machine_no,
         "note": item.note,
         "status": status_value,
         "history": history,
@@ -1525,6 +1625,74 @@ def seed_inventory_data() -> None:
         ),
     ]
 
+    printer_central = InventoryItem(
+        inventory_no="PRN-000444",
+        computer_name="PRN-MERKEZ-01",
+        factory=factories.get("İstanbul Merkez"),
+        department="IT Operasyon",
+        hardware_type=hardware_types.get("Yazıcı"),
+        responsible_user=users.get("Merve Çetin"),
+        brand=brands.get("HP"),
+        model=model_lookup.get(("HP", "LaserJet Pro M404")),
+        serial_no="HP444MERKEZ",
+        ifs_no="IFS-00444",
+        related_machine_no="10.0.0.32",
+        machine_no="AA:BC:44:32:10:01",
+        note="Merkez ofiste paylaşımlı yazıcı olarak kullanılıyor.",
+        status="aktif",
+    )
+    printer_central.events = [
+        InventoryEvent(
+            event_type="Stok Girişi",
+            performed_by="Berk Tan",
+            performed_at=now - timedelta(days=60),
+            note="Merkez depoya teslim alındı.",
+        ),
+        InventoryEvent(
+            event_type="Atama",
+            performed_by="Merve Çetin",
+            performed_at=now - timedelta(days=58),
+            note="IT Operasyon ekibine paylaşımlı olarak tanımlandı.",
+        ),
+        InventoryEvent(
+            event_type="Bakım",
+            performed_by="Servis Sağlayıcısı",
+            performed_at=now - timedelta(days=12),
+            note="Toner ve drum değişimi yapıldı.",
+        ),
+    ]
+
+    printer_faulty = InventoryItem(
+        inventory_no="PRN-000558",
+        computer_name="PRN-LOG-01",
+        factory=factories.get("Bursa Lojistik"),
+        department="Lojistik",
+        hardware_type=hardware_types.get("Yazıcı"),
+        responsible_user=users.get("Zeynep Uçar"),
+        brand=brands.get("HP"),
+        model=model_lookup.get(("HP", "LaserJet Pro M404")),
+        serial_no="HP558LOGISTIK",
+        ifs_no="IFS-00558",
+        related_machine_no="10.0.0.78",
+        machine_no="AA:BC:55:58:10:01",
+        note="Kağıt besleme ünitesinde sıkışma sorunu gözlemlendi.",
+        status="arizali",
+    )
+    printer_faulty.events = [
+        InventoryEvent(
+            event_type="Atama",
+            performed_by="Ahmet Kaya",
+            performed_at=now - timedelta(days=180),
+            note="Lojistik depoya kurulum yapıldı.",
+        ),
+        InventoryEvent(
+            event_type="Arıza Bildirimi",
+            performed_by="Zeynep Uçar",
+            performed_at=now - timedelta(days=3),
+            note="Kağıt besleme ünitesi kontrol edilmek üzere servis çağırıldı.",
+        ),
+    ]
+
     item_retired = InventoryItem(
         inventory_no="ENV-000318",
         computer_name="PRN-FN-02",
@@ -1536,8 +1704,8 @@ def seed_inventory_data() -> None:
         model=model_lookup.get(("HP", "LaserJet Pro M404")),
         serial_no="SN564738291",
         ifs_no="IFS-00221",
-        related_machine_no="",
-        machine_no="PRN-FIN-02",
+        related_machine_no="10.0.0.45",
+        machine_no="AA:BC:31:18:00:02",
         note="Yeni yazıcı alındığından hurdaya ayrıldı.",
         status="hurda",
     )
@@ -1559,12 +1727,12 @@ def seed_inventory_data() -> None:
         ),
     ]
 
-    db.session.add_all([item_primary, item_faulty, item_retired])
+    db.session.add_all([item_primary, item_faulty, printer_central, printer_faulty, item_retired])
     record_activity(
         area="envanter",
         action="Örnek envanter kayıtları yüklendi",
         description="Sistem başlangıcı için örnek envanter kayıtları oluşturuldu.",
-        metadata={"count": 3},
+        metadata={"count": 5},
     )
 
 
