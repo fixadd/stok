@@ -137,6 +137,9 @@
                       <button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
                     </li>
                     <li>
+                      <button class="dropdown-item license-action" type="button" data-action="stock" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseStockModal">Stok Girişi</button>
+                    </li>
+                    <li>
                       <button class="dropdown-item license-action" type="button" data-action="passive" data-license-id="{{ license.id }}">Pasif</button>
                     </li>
                   </ul>
@@ -308,6 +311,32 @@
   </div>
 </div>
 
+<div class="modal fade" id="licenseStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="licenseStockForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" data-license-stock="title">Lisansı Stoğa Taşı</h5>
+          <p class="text-muted small mb-0">Seçili lisans stok takip ekranına aktarılacaktır.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" data-license-stock="message">Bu lisansı stok kayıtlarına taşımak istediğinize emin misiniz?</p>
+        <div class="alert alert-soft" data-license-stock="summary"></div>
+        <div class="mb-0">
+          <label class="form-label" for="licenseStockNote">Not (opsiyonel)</label>
+          <textarea class="form-control" id="licenseStockNote" rows="2" placeholder="İşlem hakkında kısa not"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="submit">Stok Girişini Onayla</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal fade" id="licenseEditModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
@@ -385,6 +414,7 @@
   const licenseUsers = {{ license_users | tojson }};
   const licenseInventories = {{ license_inventory_options | tojson }};
   const licenseStatusLabels = {"aktif": "Aktif", "pasif": "Pasif", "beklemede": "Beklemede"};
+  const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
 </script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
@@ -408,6 +438,13 @@
     const assignInventorySelect = document.getElementById('assignInventorySelect');
     const assignHistoryCheckbox = document.getElementById('assignAddHistory');
     const assignTitle = document.getElementById('assignModalTitle');
+
+    const stockModalEl = document.getElementById('licenseStockModal');
+    const stockNoteInput = document.getElementById('licenseStockNote');
+    const stockSummary = stockModalEl?.querySelector('[data-license-stock="summary"]');
+    const stockTitle = stockModalEl?.querySelector('[data-license-stock="title"]');
+    const stockMessage = stockModalEl?.querySelector('[data-license-stock="message"]');
+    const stockForm = document.getElementById('licenseStockForm');
 
     const editModalEl = document.getElementById('licenseEditModal');
     const editForm = document.getElementById('licenseEditForm');
@@ -843,6 +880,8 @@
           if (action === 'passive') {
             event.preventDefault();
             markPassive(licenseId);
+          } else if (action === 'stock' && !stockModalEl) {
+            event.preventDefault();
           }
         });
       });
@@ -884,6 +923,7 @@
               <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                 <li><button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">Atama Yap</button></li>
                 <li><button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button></li>
+                <li><button class="dropdown-item license-action" type="button" data-action="stock" data-license-id="${data.id}" data-bs-toggle="modal" data-bs-target="#licenseStockModal">Stok Girişi</button></li>
                 <li><button class="dropdown-item license-action" type="button" data-action="passive" data-license-id="${data.id}">Pasif</button></li>
               </ul>
             </div>
@@ -941,6 +981,35 @@
       });
       assignModalEl.addEventListener('hidden.bs.modal', () => {
         assignHistoryCheckbox.checked = true;
+      });
+    }
+
+    if (stockModalEl) {
+      stockModalEl.addEventListener('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget;
+        const licenseId = Number(trigger?.dataset.licenseId || currentLicenseId);
+        currentLicenseId = licenseId;
+        const data = licenseDataMap.get(licenseId);
+        if (!data) {
+          return;
+        }
+        if (stockTitle) {
+          stockTitle.textContent = `${data.display_name || 'Lisans'} stoğa taşınıyor`;
+        }
+        if (stockMessage) {
+          stockMessage.textContent = 'Bu lisans stok takip sayfasına aktarılacaktır.';
+        }
+        if (stockSummary) {
+          const summaryParts = [];
+          if (data.inventory_no) summaryParts.push(data.inventory_no);
+          if (data.responsible_name && data.responsible_name !== 'Atama bekliyor') {
+            summaryParts.push(data.responsible_name);
+          }
+          stockSummary.textContent = summaryParts.length ? summaryParts.join(' • ') : 'Herhangi bir atama bulunmuyor.';
+        }
+        if (stockNoteInput) {
+          stockNoteInput.value = '';
+        }
       });
     }
 
@@ -1010,6 +1079,46 @@
         const modalInstance = bootstrap.Modal.getInstance(assignModalEl);
         modalInstance?.hide();
         refreshCounters();
+      });
+    }
+
+    if (stockForm) {
+      stockForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!currentLicenseId) {
+          return;
+        }
+        const noteValue = stockNoteInput ? stockNoteInput.value.trim() : '';
+        try {
+          const response = await fetch(`/api/licenses/${currentLicenseId}/stock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note: noteValue, performed_by: defaultActor }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showFeedback(payload.error || 'İşlem tamamlanamadı.', 'danger');
+            return;
+          }
+
+          if (payload.license) {
+            refreshLicenseRecord(payload.license);
+            updateRow(currentLicenseId);
+            updateDetailIfVisible(currentLicenseId);
+            refreshCounters();
+          }
+          showFeedback(payload.message || 'Lisans stok listesine taşındı.', 'success');
+          if (stockModalEl && bootstrapLib) {
+            bootstrapLib.Modal.getInstance(stockModalEl)?.hide();
+          }
+        } catch (error) {
+          showFeedback('Sunucuya ulaşılamadı.', 'danger');
+        }
       });
     }
 

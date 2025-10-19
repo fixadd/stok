@@ -1,0 +1,695 @@
+{% extends "layout.html" %}
+
+{% block title %}Stok Takip · Stok Yönetim Paneli{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <section class="content-card shadow-sm">
+    <div class="stock-header">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Stok Yönetimi</h1>
+        <p class="text-muted mb-0">Donanım, yazıcı ve lisans stok hareketlerini izleyin, hızlı aksiyon alın.</p>
+      </div>
+      <div class="stock-toolbar">
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#stockCreateModal">
+          <i class="bi bi-plus-lg"></i>
+          Ekle
+        </button>
+        <button class="btn btn-warning stock-faulty-button d-flex align-items-center gap-2" type="button">
+          <i class="bi bi-exclamation-triangle"></i>
+          Arızalı Durum
+          <span class="stock-faulty-counter">{{ stock_faulty_count }}</span>
+        </button>
+        <div class="btn-group">
+          <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+            Excel
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li><button class="dropdown-item" type="button"><i class="bi bi-box-arrow-up"></i> Dışa Aktar</button></li>
+            <li><button class="dropdown-item" type="button"><i class="bi bi-box-arrow-in-down"></i> İçe Aktar</button></li>
+          </ul>
+        </div>
+      </div>
+      <div class="stock-search">
+        <div class="input-group search-input">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input class="form-control" id="stockSearchInput" type="search" placeholder="Ara">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-card shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <ul class="nav nav-tabs stock-tabs" id="stockViewTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="stock-status-tab" data-bs-toggle="tab" data-bs-target="#stockStatusPane" type="button" role="tab" aria-controls="stockStatusPane" aria-selected="true">Stok Durumu</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="stock-log-tab" data-bs-toggle="tab" data-bs-target="#stockLogPane" type="button" role="tab" aria-controls="stockLogPane" aria-selected="false">Log</button>
+        </li>
+      </ul>
+      <div class="stock-status-summary d-flex flex-wrap gap-3">
+        {% for summary in stock_status_summary %}
+        <div class="stock-summary-chip">
+          <span class="stock-summary-count">{{ summary.count }}</span>
+          <span class="stock-summary-label">{{ summary.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-content pt-4" id="stockViewTabContent">
+      <div class="tab-pane fade show active" id="stockStatusPane" role="tabpanel" aria-labelledby="stock-status-tab">
+        <div class="stock-category-filters d-flex flex-wrap gap-2 mb-4" id="stockCategoryFilters">
+          <input class="btn-check" type="radio" name="stockCategory" id="stockCategoryAll" value="all" checked>
+          <label class="btn btn-outline-primary" for="stockCategoryAll">
+            Tümü
+            <span class="badge bg-light text-dark">{{ stock_items | length }}</span>
+          </label>
+          {% for category in stock_categories %}
+          <input class="btn-check" type="radio" name="stockCategory" id="stockCategory{{ loop.index }}" value="{{ category.value }}">
+          <label class="btn btn-outline-primary" for="stockCategory{{ loop.index }}">
+            {{ category.label }}
+            <span class="badge bg-light text-dark">{{ category.count }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="alert stock-action-alert d-none" id="stockActionAlert" role="alert"></div>
+
+        <div class="table-responsive">
+          <table class="table align-middle stock-table" id="stockTable">
+            <thead>
+              <tr>
+                <th scope="col">Başlık</th>
+                <th scope="col">Kategori</th>
+                <th scope="col">Miktar</th>
+                <th scope="col">Kaynak</th>
+                <th scope="col">Durum</th>
+                <th scope="col">Tarih</th>
+                <th scope="col" class="text-end">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in stock_items %}
+              <tr class="stock-row" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
+                <td>
+                  <div class="fw-semibold">{{ item.title }}</div>
+                  <div class="text-muted small">
+                    {% if item.reference_code %}{{ item.reference_code }}{% elif item.inventory_no %}{{ item.inventory_no }}{% else %}—{% endif %}
+                    {% if item.hardware_type %}
+                    · {{ item.hardware_type }}
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <span class="badge bg-soft-primary text-primary">{{ item.category_label }}</span>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ item.quantity }}</div>
+                  <div class="text-muted small">{{ item.unit }}</div>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ item.source_label }}</div>
+                  {% if item.metadata.factory %}
+                  <div class="text-muted small">{{ item.metadata.factory }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="stock-status-badge {{ item.status_class }}">{{ item.status_label }}</span>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ item.created_display }}</div>
+                  <div class="text-muted small">{{ item.updated_display }}</div>
+                </td>
+                <td class="text-end">
+                  <div class="d-inline-flex align-items-center gap-2">
+                    <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="{{ item.id }}">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <div class="dropdown">
+                      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        İşlemler
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Atama Yap</button></li>
+                        <li><button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Arızalı İşaretle</button></li>
+                        <li><button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Hurda</button></li>
+                      </ul>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td class="text-center text-muted" colspan="7">Stok kaydı bulunamadı.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-soft d-none mt-3" id="stockEmptyState">Aradığınız kriterlere uygun stok kaydı bulunamadı.</div>
+      </div>
+
+      <div class="tab-pane fade" id="stockLogPane" role="tabpanel" aria-labelledby="stock-log-tab">
+        <div class="table-responsive">
+          <table class="table align-middle" id="stockLogTable">
+            <thead>
+              <tr>
+                <th scope="col">İşlem</th>
+                <th scope="col">Stok</th>
+                <th scope="col">Durum</th>
+                <th scope="col">Tarih</th>
+                <th scope="col">Not</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in stock_logs %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ log.action }}</div>
+                  <div class="text-muted small">{{ log.performed_by }}</div>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ log.title or '—' }}</div>
+                  {% if log.metadata.inventory_no %}
+                  <div class="text-muted small">{{ log.metadata.inventory_no }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="stock-status-badge {{ log.status_class }}">{{ log.status_label }}</span>
+                </td>
+                <td>{{ log.created_display }}</td>
+                <td>{{ log.note or '—' }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td class="text-center text-muted" colspan="5">Henüz log kaydı bulunmuyor.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal fade" id="stockDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" data-stock-detail="title">Stok Detayı</h5>
+          <p class="text-muted mb-0 small" data-stock-detail="subtitle">Seçili stok kaydının özet bilgileri.</p>
+        </div>
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="stock-detail-card">
+              <h6 class="text-uppercase text-muted small mb-3">Temel Bilgiler</h6>
+              <dl class="row mb-0">
+                <dt class="col-sm-5 text-muted small">Başlık</dt>
+                <dd class="col-sm-7 fw-semibold" data-stock-detail="title-value">—</dd>
+                <dt class="col-sm-5 text-muted small">Kategori</dt>
+                <dd class="col-sm-7" data-stock-detail="category">—</dd>
+                <dt class="col-sm-5 text-muted small">Miktar</dt>
+                <dd class="col-sm-7" data-stock-detail="quantity">—</dd>
+                <dt class="col-sm-5 text-muted small">Durum</dt>
+                <dd class="col-sm-7"><span class="stock-status-badge" data-stock-detail="status">—</span></dd>
+              </dl>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="stock-detail-card">
+              <h6 class="text-uppercase text-muted small mb-3">Kaynak Bilgisi</h6>
+              <dl class="row mb-0">
+                <dt class="col-sm-5 text-muted small">Kaynak</dt>
+                <dd class="col-sm-7" data-stock-detail="source">—</dd>
+                <dt class="col-sm-5 text-muted small">Envanter No</dt>
+                <dd class="col-sm-7" data-stock-detail="inventory">—</dd>
+                <dt class="col-sm-5 text-muted small">Departman</dt>
+                <dd class="col-sm-7" data-stock-detail="department">—</dd>
+                <dt class="col-sm-5 text-muted small">Not</dt>
+                <dd class="col-sm-7" data-stock-detail="note">—</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="stockCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="stockCreateForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Yeni Stok Kaydı</h5>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="stockCreateTitle">Başlık</label>
+          <input class="form-control" id="stockCreateTitle" name="title" type="text" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="stockCreateCategory">Kategori</label>
+          <select class="form-select" id="stockCreateCategory" name="category">
+            {% for category in stock_categories %}
+            <option value="{{ category.value }}">{{ category.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label" for="stockCreateQuantity">Miktar</label>
+            <input class="form-control" id="stockCreateQuantity" name="quantity" type="number" min="1" value="1">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="stockCreateUnit">Birim</label>
+            <input class="form-control" id="stockCreateUnit" name="unit" type="text" placeholder="adet">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label" for="stockCreateNote">Not</label>
+          <textarea class="form-control" id="stockCreateNote" name="note" rows="2" placeholder="Opsiyonel açıklama"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="submit">Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="stockActionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="stockActionForm">
+      <div class="modal-header">
+        <h5 class="modal-title" data-stock-action="title">Stok İşlemi</h5>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" data-stock-action="message">Seçili stok kaydı üzerinde işlem yapacaksınız.</p>
+        <div class="mb-0">
+          <label class="form-label" for="stockActionNote">Not (opsiyonel)</label>
+          <textarea class="form-control" id="stockActionNote" name="note" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="submit" data-stock-action="confirm">Onayla</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  const stockItems = {{ stock_items | tojson }};
+  const stockLogs = {{ stock_logs | tojson }};
+  const stockStatusSummary = {{ stock_status_summary | tojson }};
+  const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
+
+  const bootstrapLib = window.bootstrap;
+  const stockTableBody = document.querySelector('#stockTable tbody');
+  const stockLogTableBody = document.querySelector('#stockLogTable tbody');
+  const stockSearchInput = document.getElementById('stockSearchInput');
+  const stockCategoryFilters = document.getElementById('stockCategoryFilters');
+  const stockEmptyState = document.getElementById('stockEmptyState');
+  const stockActionAlert = document.getElementById('stockActionAlert');
+  const faultyButton = document.querySelector('.stock-faulty-button');
+  const faultyCounter = document.querySelector('.stock-faulty-counter');
+
+  const detailModalEl = document.getElementById('stockDetailModal');
+  const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
+  const detailFields = detailModalEl
+    ? {
+        title: detailModalEl.querySelector('[data-stock-detail="title-value"]'),
+        category: detailModalEl.querySelector('[data-stock-detail="category"]'),
+        quantity: detailModalEl.querySelector('[data-stock-detail="quantity"]'),
+        status: detailModalEl.querySelector('[data-stock-detail="status"]'),
+        source: detailModalEl.querySelector('[data-stock-detail="source"]'),
+        inventory: detailModalEl.querySelector('[data-stock-detail="inventory"]'),
+        department: detailModalEl.querySelector('[data-stock-detail="department"]'),
+        note: detailModalEl.querySelector('[data-stock-detail="note"]'),
+        subtitle: detailModalEl.querySelector('[data-stock-detail="subtitle"]'),
+        titleLabel: detailModalEl.querySelector('[data-stock-detail="title"]'),
+      }
+    : {};
+
+  const actionModalEl = document.getElementById('stockActionModal');
+  const actionModal = actionModalEl && bootstrapLib ? new bootstrapLib.Modal(actionModalEl) : null;
+  const actionForm = document.getElementById('stockActionForm');
+  const actionTitle = actionModalEl?.querySelector('[data-stock-action="title"]');
+  const actionMessage = actionModalEl?.querySelector('[data-stock-action="message"]');
+  const actionConfirmButton = actionModalEl?.querySelector('[data-stock-action="confirm"]');
+  const actionNoteInput = document.getElementById('stockActionNote');
+
+  const createModalEl = document.getElementById('stockCreateModal');
+  const createForm = document.getElementById('stockCreateForm');
+  const createTitleInput = document.getElementById('stockCreateTitle');
+  const createCategorySelect = document.getElementById('stockCreateCategory');
+  const createQuantityInput = document.getElementById('stockCreateQuantity');
+  const createUnitInput = document.getElementById('stockCreateUnit');
+  const createNoteInput = document.getElementById('stockCreateNote');
+
+  const stockMap = new Map(stockItems.map((item) => [item.id, item]));
+  let activeStockId = null;
+  let showOnlyFaulty = false;
+  let alertTimeoutId;
+
+  function safeText(value) {
+    return value && String(value).trim() ? String(value) : '—';
+  }
+
+  function updateFaultyCounter() {
+    if (!faultyCounter) return;
+    const faultyTotal = Array.from(stockMap.values()).filter((item) => item.status === 'arizali').length;
+    faultyCounter.textContent = faultyTotal;
+  }
+
+  function showActionAlert(message, variant = 'success') {
+    if (!stockActionAlert) return;
+    stockActionAlert.textContent = message;
+    stockActionAlert.className = `alert stock-action-alert alert-${variant}`;
+    stockActionAlert.classList.remove('d-none');
+    if (alertTimeoutId) {
+      clearTimeout(alertTimeoutId);
+    }
+    alertTimeoutId = window.setTimeout(() => stockActionAlert.classList.add('d-none'), 3500);
+  }
+
+  function buildStockRow(item) {
+    const row = document.createElement('tr');
+    row.className = 'stock-row';
+    row.dataset.stockId = String(item.id);
+    row.dataset.category = item.category;
+    row.dataset.status = item.status;
+    row.dataset.search = item.search_index || '';
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold">${safeText(item.title)}</div>
+        <div class="text-muted small">${safeText(item.reference_code || item.inventory_no)}</div>
+      </td>
+      <td><span class="badge bg-soft-primary text-primary">${safeText(item.category_label)}</span></td>
+      <td>
+        <div class="fw-semibold">${safeText(item.quantity)}</div>
+        <div class="text-muted small">${safeText(item.unit)}</div>
+      </td>
+      <td>
+        <div class="fw-semibold">${safeText(item.source_label)}</div>
+        <div class="text-muted small">${safeText(item.metadata?.factory || '')}</div>
+      </td>
+      <td><span class="stock-status-badge ${safeText(item.status_class)}">${safeText(item.status_label)}</span></td>
+      <td>
+        <div class="fw-semibold">${safeText(item.created_display)}</div>
+        <div class="text-muted small">${safeText(item.updated_display)}</div>
+      </td>
+      <td class="text-end">
+        <div class="d-inline-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="${item.id}">
+            <i class="bi bi-eye"></i>
+          </button>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">İşlemler</button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Atama Yap</button></li>
+              <li><button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Arızalı İşaretle</button></li>
+              <li><button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Hurda</button></li>
+            </ul>
+          </div>
+        </div>
+      </td>
+    `;
+    attachRowEvents(row);
+    return row;
+  }
+
+  function attachRowEvents(row) {
+    const detailButton = row.querySelector('.stock-detail-trigger');
+    if (detailButton) {
+      detailButton.addEventListener('click', () => {
+        const id = Number(row.dataset.stockId);
+        const item = stockMap.get(id);
+        if (!item || !detailModal) return;
+        activeStockId = id;
+        detailFields.title.textContent = safeText(item.title);
+        detailFields.category.textContent = safeText(item.category_label);
+        detailFields.quantity.textContent = `${safeText(item.quantity)} ${safeText(item.unit)}`;
+        detailFields.status.textContent = safeText(item.status_label);
+        detailFields.status.className = `stock-status-badge ${item.status_class}`;
+        detailFields.source.textContent = safeText(item.source_label);
+        detailFields.inventory.textContent = safeText(item.inventory_no || item.reference_code);
+        detailFields.department.textContent = safeText(item.metadata?.department || '');
+        detailFields.note.textContent = safeText(item.note);
+        detailFields.subtitle.textContent = `${safeText(item.created_display)} · ${safeText(item.updated_display)}`;
+        detailModal.show();
+      });
+    }
+
+    row.querySelectorAll('.stock-action').forEach((button) => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.action;
+        const id = Number(button.dataset.stockId);
+        const item = stockMap.get(id);
+        if (!item || !actionModal) {
+          return;
+        }
+        activeStockId = id;
+        const titles = {
+          assign: 'Atama Yap',
+          faulty: 'Arızalı İşaretle',
+          scrap: 'Hurda İşlemi',
+        };
+        const messages = {
+          assign: 'Seçili stok kaydı envantere geri kazandırılacak.',
+          faulty: 'Stok kaydı arızalı olarak işaretlenecek.',
+          scrap: 'Bu stok kaydı hurda listesine taşınacak.',
+        };
+        actionModalEl.dataset.action = action;
+        if (actionTitle) actionTitle.textContent = `${titles[action] || 'İşlem'} · ${safeText(item.title)}`;
+        if (actionMessage) actionMessage.textContent = messages[action] || '';
+        if (actionConfirmButton) {
+          actionConfirmButton.textContent = titles[action] || 'Onayla';
+          actionConfirmButton.classList.toggle('btn-danger', action === 'scrap');
+          actionConfirmButton.classList.toggle('btn-primary', action !== 'scrap');
+        }
+        if (actionNoteInput) actionNoteInput.value = '';
+        actionModal.show();
+      });
+    });
+  }
+
+  function renderStockTable() {
+    if (!stockTableBody) return;
+    stockTableBody.innerHTML = '';
+    if (!stockMap.size) {
+      stockTableBody.innerHTML = '<tr><td class="text-center text-muted" colspan="7">Stok kaydı bulunamadı.</td></tr>';
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    Array.from(stockMap.values())
+      .sort((a, b) => b.id - a.id)
+      .forEach((item) => fragment.appendChild(buildStockRow(item)));
+    stockTableBody.appendChild(fragment);
+  }
+
+  function renderLogTable() {
+    if (!stockLogTableBody) return;
+    stockLogTableBody.innerHTML = '';
+    if (!stockLogs.length) {
+      stockLogTableBody.innerHTML = '<tr><td class="text-center text-muted" colspan="5">Henüz log kaydı bulunmuyor.</td></tr>';
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    stockLogs.forEach((log) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>
+          <div class="fw-semibold">${safeText(log.action)}</div>
+          <div class="text-muted small">${safeText(log.performed_by)}</div>
+        </td>
+        <td>
+          <div class="fw-semibold">${safeText(log.title)}</div>
+          <div class="text-muted small">${safeText(log.metadata?.inventory_no || '')}</div>
+        </td>
+        <td><span class="stock-status-badge ${safeText(log.status_class || '')}">${safeText(log.status_label)}</span></td>
+        <td>${safeText(log.created_display)}</td>
+        <td>${safeText(log.note)}</td>
+      `;
+      fragment.appendChild(row);
+    });
+    stockLogTableBody.appendChild(fragment);
+  }
+
+  function filterStock() {
+    if (!stockTableBody) return;
+    const query = stockSearchInput ? stockSearchInput.value.trim().toLowerCase() : '';
+    const categoryInput = stockCategoryFilters?.querySelector('input[name="stockCategory"]:checked');
+    const category = categoryInput ? categoryInput.value : 'all';
+    let visibleCount = 0;
+    stockTableBody.querySelectorAll('.stock-row').forEach((row) => {
+      const item = stockMap.get(Number(row.dataset.stockId));
+      if (!item) {
+        row.classList.add('d-none');
+        return;
+      }
+      const matchesQuery = !query || (row.dataset.search || '').includes(query);
+      const matchesCategory = category === 'all' || row.dataset.category === category;
+      const matchesFaulty = !showOnlyFaulty || row.dataset.status === 'arizali';
+      const shouldShow = matchesQuery && matchesCategory && matchesFaulty;
+      row.classList.toggle('d-none', !shouldShow);
+      if (shouldShow) visibleCount += 1;
+    });
+    if (stockEmptyState) {
+      stockEmptyState.classList.toggle('d-none', visibleCount > 0);
+    }
+  }
+
+  async function sendStockRequest(url, { method = 'POST', body = null } = {}) {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body && method !== 'GET') {
+      options.body = JSON.stringify(body);
+    }
+    try {
+      const response = await fetch(url, options);
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || 'İşlem tamamlanamadı.');
+      }
+      return payload;
+    } catch (error) {
+      showActionAlert(error.message || 'Sunucuya ulaşılamadı.', 'danger');
+      throw error;
+    }
+  }
+
+  function applyStockDetail(item) {
+    stockMap.set(item.id, item);
+    renderStockTable();
+    updateFaultyCounter();
+    filterStock();
+  }
+
+  function appendStockLog(log) {
+    if (!log) return;
+    stockLogs.unshift(log);
+    if (stockLogs.length > 40) {
+      stockLogs.pop();
+    }
+    renderLogTable();
+  }
+
+  if (faultyButton) {
+    faultyButton.addEventListener('click', () => {
+      showOnlyFaulty = !showOnlyFaulty;
+      faultyButton.classList.toggle('btn-warning', !showOnlyFaulty);
+      faultyButton.classList.toggle('btn-danger', showOnlyFaulty);
+      filterStock();
+    });
+  }
+
+  if (stockCategoryFilters) {
+    stockCategoryFilters.addEventListener('change', filterStock);
+  }
+
+  if (stockSearchInput) {
+    stockSearchInput.addEventListener('input', filterStock);
+  }
+
+  if (actionForm && actionModalEl) {
+    actionForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const action = actionModalEl.dataset.action;
+      const item = stockMap.get(activeStockId);
+      if (!action || !item) {
+        return;
+      }
+      const note = actionNoteInput ? actionNoteInput.value.trim() : '';
+      const endpoints = {
+        assign: `/api/stock/${item.id}/assign`,
+        faulty: `/api/stock/${item.id}/mark-faulty`,
+        scrap: `/api/stock/${item.id}/scrap`,
+      };
+      const url = endpoints[action];
+      if (!url) {
+        return;
+      }
+      try {
+        const payload = await sendStockRequest(url, {
+          body: { note, performed_by: defaultActor },
+        });
+        if (payload?.stock_item) {
+          stockMap.set(payload.stock_item.id, payload.stock_item);
+          renderStockTable();
+          updateFaultyCounter();
+          filterStock();
+        }
+        if (payload?.log) {
+          appendStockLog(payload.log);
+        }
+        showActionAlert('İşlem başarıyla kaydedildi.', 'success');
+        actionModal?.hide();
+      } catch (error) {
+        // alert already shown
+      }
+    });
+  }
+
+  if (createForm) {
+    createForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = {
+        title: createTitleInput?.value.trim(),
+        category: createCategorySelect?.value,
+        quantity: Number(createQuantityInput?.value || 1),
+        unit: createUnitInput?.value.trim(),
+        note: createNoteInput?.value.trim(),
+        performed_by: defaultActor,
+      };
+      if (!payload.title) {
+        createTitleInput?.reportValidity();
+        return;
+      }
+      try {
+        const response = await sendStockRequest('/api/stock', { body: payload });
+        if (response?.stock_item) {
+          stockMap.set(response.stock_item.id, response.stock_item);
+          renderStockTable();
+          updateFaultyCounter();
+          filterStock();
+        }
+        if (response?.log) {
+          appendStockLog(response.log);
+        }
+        showActionAlert('Yeni stok kaydı oluşturuldu.', 'success');
+        createForm.reset();
+        if (createModalEl && bootstrapLib) {
+          bootstrapLib.Modal.getInstance(createModalEl)?.hide();
+        }
+      } catch (error) {
+        // error shown
+      }
+    });
+  }
+
+  renderStockTable();
+  renderLogTable();
+  filterStock();
+  updateFaultyCounter();
+</script>
+{% endblock %}

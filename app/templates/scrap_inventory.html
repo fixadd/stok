@@ -1,0 +1,271 @@
+{% extends "layout.html" %}
+
+{% block title %}Hurdalar{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <div class="content-card shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Hurdaya Ayrılan Cihazlar</h1>
+        <p class="text-muted mb-0">Envanterden hurdaya ayrılmış tüm cihazların kayıtlarını ve geçmişlerini görüntüleyin.</p>
+      </div>
+      <div class="d-flex flex-column text-end">
+        <span class="text-muted small">Toplam kayıt</span>
+        <span class="display-6 fw-semibold mb-0">{{ scrap_count }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card shadow-sm">
+    <div class="inventory-search mb-4">
+      <label class="form-label" for="scrapSearch">Hurda kayıtlarında ara</label>
+      <div class="input-group search-input">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input class="form-control" id="scrapSearch" type="search" placeholder="Envanter no, sorumlu, marka veya modele göre ara">
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table align-middle" id="scrapTable">
+        <thead>
+          <tr>
+            <th scope="col">Envanter</th>
+            <th scope="col">Lokasyon</th>
+            <th scope="col">Sorumlu</th>
+            <th scope="col">Marka / Model</th>
+            <th scope="col" class="text-end">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in scrap_items %}
+          <tr data-item-id="{{ item.id }}" data-search="{{ item.search_index }}">
+            <td>
+              <div class="fw-semibold">{{ item.inventory_no }}</div>
+              <div class="text-muted small">{{ item.hardware_type or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ item.factory or '—' }}</div>
+              <div class="text-muted small">{{ item.department or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ item.responsible or '—' }}</div>
+              <div class="text-muted small">{{ item.computer_name or '—' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ item.brand or '—' }}</div>
+              <div class="text-muted small">{{ item.model or '—' }}</div>
+            </td>
+            <td class="text-end">
+              <button class="btn btn-outline-secondary btn-sm icon-button scrap-detail-trigger" type="button" data-item-id="{{ item.id }}">
+                <i class="bi bi-eye"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-soft mt-3{% if scrap_items %} d-none{% endif %}" id="scrapEmptyState">
+      Aradığınız kriterlere uygun hurda kaydı bulunamadı.
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="scrapDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title mb-1" data-scrap-detail="title">Hurda Detayı</h5>
+          <p class="text-muted mb-0 small" data-scrap-detail="subtitle">Seçilen envantere ait temel bilgiler ve işlem geçmişi.</p>
+        </div>
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="inventory-detail-card mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <p class="text-muted small mb-1">Envanter No</p>
+              <h5 class="mb-0" data-scrap-field="inventory_no">—</h5>
+            </div>
+            <span class="inventory-status-badge status-hurda">Hurdaya Ayrıldı</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Bilgisayar Adı</span>
+              <span class="detail-value" data-scrap-field="computer_name">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Fabrika</span>
+              <span class="detail-value" data-scrap-field="factory">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Departman</span>
+              <span class="detail-value" data-scrap-field="department">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Donanım Tipi</span>
+              <span class="detail-value" data-scrap-field="hardware_type">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Marka</span>
+              <span class="detail-value" data-scrap-field="brand">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Model</span>
+              <span class="detail-value" data-scrap-field="model">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Sorumlu</span>
+              <span class="detail-value" data-scrap-field="responsible">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Seri No</span>
+              <span class="detail-value" data-scrap-field="serial_no">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">IFS No</span>
+              <span class="detail-value" data-scrap-field="ifs_no">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Bağlı Makina No</span>
+              <span class="detail-value" data-scrap-field="related_machine_no">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Makina No</span>
+              <span class="detail-value" data-scrap-field="machine_no">—</span>
+            </div>
+            <div class="detail-item detail-item-note">
+              <span class="detail-label">Not</span>
+              <span class="detail-value" data-scrap-field="note">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="inventory-detail-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">İşlem Geçmişi</h6>
+          </div>
+          <div class="inventory-history" id="scrapHistory"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  const scrapItems = {{ scrap_items | tojson }};
+  const bootstrapLib = window.bootstrap;
+
+  const scrapTableBody = document.querySelector('#scrapTable tbody');
+  const scrapRows = scrapTableBody ? Array.from(scrapTableBody.querySelectorAll('tr')) : [];
+  const scrapSearchInput = document.getElementById('scrapSearch');
+  const scrapEmptyState = document.getElementById('scrapEmptyState');
+
+  const scrapMap = new Map(scrapItems.map((item) => [String(item.id), item]));
+
+  const detailModalEl = document.getElementById('scrapDetailModal');
+  const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
+  const detailFields = detailModalEl ? detailModalEl.querySelectorAll('[data-scrap-field]') : [];
+  const detailTitleEl = detailModalEl ? detailModalEl.querySelector('[data-scrap-detail="title"]') : null;
+  const detailSubtitleEl = detailModalEl ? detailModalEl.querySelector('[data-scrap-detail="subtitle"]') : null;
+  const historyContainer = document.getElementById('scrapHistory');
+
+  function safeText(value) {
+    return value && String(value).trim() ? String(value) : '—';
+  }
+
+  function updateEmptyState(visibleRows) {
+    if (!scrapEmptyState) {
+      return;
+    }
+    scrapEmptyState.classList.toggle('d-none', visibleRows > 0);
+  }
+
+  function filterRows() {
+    if (!scrapSearchInput) {
+      return;
+    }
+    const query = scrapSearchInput.value.trim().toLowerCase();
+    let visibleCount = 0;
+    scrapRows.forEach((row) => {
+      const matches = !query || (row.dataset.search || '').includes(query);
+      row.classList.toggle('d-none', !matches);
+      if (matches) {
+        visibleCount += 1;
+      }
+    });
+    updateEmptyState(visibleCount);
+  }
+
+  function renderHistory(history) {
+    if (!historyContainer) {
+      return;
+    }
+    historyContainer.innerHTML = '';
+    if (!Array.isArray(history) || history.length === 0) {
+      historyContainer.innerHTML = '<div class="text-muted small">İşlem kaydı bulunamadı.</div>';
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'timeline';
+    history.forEach((event) => {
+      const item = document.createElement('div');
+      item.className = 'timeline-item';
+      item.innerHTML = `
+        <div class="timeline-marker bg-danger-subtle border-0"></div>
+        <div class="timeline-content">
+          <div class="d-flex justify-content-between">
+            <h6 class="mb-1">${safeText(event.event_type)}</h6>
+            <span class="text-muted small">${safeText(event.performed_at)}</span>
+          </div>
+          <p class="mb-1 small text-muted">${safeText(event.performed_by)}</p>
+          ${event.note ? `<p class="mb-0 small">${event.note}</p>` : ''}
+        </div>
+      `;
+      list.appendChild(item);
+    });
+    historyContainer.appendChild(list);
+  }
+
+  function openDetail(itemId) {
+    const detail = scrapMap.get(String(itemId));
+    if (!detail || !detailModalEl) {
+      return;
+    }
+    detailFields.forEach((field) => {
+      const key = field.dataset.scrapField;
+      field.textContent = safeText(detail[key]);
+    });
+    if (detailTitleEl) {
+      detailTitleEl.textContent = `${safeText(detail.inventory_no)} • ${safeText(detail.brand || detail.hardware_type)}`;
+    }
+    if (detailSubtitleEl) {
+      detailSubtitleEl.textContent = `${safeText(detail.factory)} • ${safeText(detail.department)}`;
+    }
+    renderHistory(detail.history);
+    detailModal && detailModal.show();
+  }
+
+  if (scrapSearchInput) {
+    scrapSearchInput.addEventListener('input', filterRows);
+  }
+
+  if (scrapTableBody) {
+    scrapTableBody.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.scrap-detail-trigger');
+      if (!trigger) {
+        return;
+      }
+      const itemId = trigger.dataset.itemId;
+      openDetail(itemId);
+    });
+  }
+
+  updateEmptyState(scrapRows.length);
+</script>
+{% endblock %}

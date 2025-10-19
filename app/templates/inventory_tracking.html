@@ -632,6 +632,7 @@
   const statusLabels = { aktif: "Aktif", beklemede: "Beklemede", arizali: "Arızalı", hurda: "Hurdaya Ayrıldı" };
   const statusClasses = { aktif: "status-aktif", beklemede: "status-beklemede", arizali: "status-arizali", hurda: "status-hurda" };
   const licenseStatusLabels = { aktif: "Aktif", pasif: "Pasif", beklemede: "Beklemede" };
+  const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
 
   const bootstrapLib = window.bootstrap;
 
@@ -815,6 +816,9 @@
   async function sendInventoryRequest(url, { method = "POST", body = null } = {}) {
     const options = { method, headers: { "Content-Type": "application/json" } };
     if (body && method !== "GET") {
+      if (typeof body === 'object' && body !== null && !('performed_by' in body)) {
+        body.performed_by = defaultActor;
+      }
       options.body = JSON.stringify(body);
     }
     try {
