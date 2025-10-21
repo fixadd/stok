@@ -2,6 +2,16 @@
 
 Bootstrap 5 tasarımına sahip, Docker ile 5001 portunda ayağa kaldırılabilen basit bir stok yönetim arayüzü.
 
+## Varsayılan Yönetici Hesabı
+
+Uygulama ilk kez başlatıldığında sisteme giriş yapabilmek için varsayılan olarak şu yönetici hesabı oluşturulur:
+
+| Kullanıcı Adı | Şifre |
+| ------------- | ----- |
+| `admin`       | `admin` |
+
+İlk girişte bu hesap için yeni ve güçlü bir şifre belirlemeniz istenir. Şifre değişikliğini tamamladıktan sonra panelin tüm özelliklerine erişebilirsiniz.
+
 ## Kurulum
 
 Projeyi yerel ortamınızda çalıştırmak için Docker kullanabilirsiniz:
