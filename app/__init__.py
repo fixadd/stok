@@ -389,6 +389,15 @@ def ensure_user_profile_columns() -> None:
         )
         altered = True
 
+    if "must_change_password" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN"
+                " NOT NULL DEFAULT 0"
+            )
+        )
+        altered = True
+
     if altered:
         db.session.commit()
 
@@ -486,13 +495,32 @@ def create_app() -> Flask:
     @app.before_request
     def enforce_login():
         endpoint = request.endpoint or ""
-        if endpoint in {"login", "static"}:
+        if endpoint in {"login", "static", "force_password_change"}:
             return
         if endpoint.startswith("static"):
             return
 
         user = get_active_user()
         if user is not None:
+            if user.must_change_password:
+                allowed = {"force_password_change", "logout"}
+                if endpoint not in allowed:
+                    if request.path.startswith("/api/"):
+                        return (
+                            jsonify(
+                                {
+                                    "error": "Devam etmek için lütfen ilk giriş şifrenizi güncelleyin.",
+                                }
+                            ),
+                            403,
+                        )
+                    if request.method == "GET":
+                        next_url = request.full_path or request.path
+                        if next_url.endswith("?"):
+                            next_url = next_url[:-1]
+                        if is_safe_redirect_target(next_url):
+                            session["post_password_change_redirect"] = next_url
+                    return redirect(url_for("force_password_change"))
             return
 
         if request.path.startswith("/api/"):
@@ -559,6 +587,12 @@ def create_app() -> Flask:
                 )
                 db.session.commit()
                 target = next_param if is_safe_redirect_target(next_param) else None
+                if user.must_change_password:
+                    session.pop("post_password_change_redirect", None)
+                    if target:
+                        session["post_password_change_redirect"] = target
+                    return redirect(url_for("force_password_change"))
+                session.pop("post_password_change_redirect", None)
                 return redirect(target or url_for("index"))
 
             error = "Kullanıcı adı veya şifre hatalı."
@@ -567,6 +601,66 @@ def create_app() -> Flask:
             "login.html",
             error=error,
             next_target=next_param if is_safe_redirect_target(next_param) else "",
+        )
+
+    @app.route("/ilk-giris-sifre", methods=["GET", "POST"])
+    def force_password_change():
+        user = get_active_user()
+        if user is None:
+            flash("Lütfen önce oturum açın.", "warning")
+            return redirect(url_for("login"))
+
+        if not user.must_change_password:
+            target = session.pop("post_password_change_redirect", None)
+            if target and is_safe_redirect_target(target):
+                return redirect(target)
+            target = None
+        else:
+            query_target = request.args.get("next")
+            if query_target and is_safe_redirect_target(query_target):
+                session["post_password_change_redirect"] = query_target
+                target = query_target
+            else:
+                target = session.get("post_password_change_redirect")
+
+        error: str | None = None
+
+        if request.method == "POST":
+            new_password = (request.form.get("new_password") or "").strip()
+            confirm_password = (request.form.get("confirm_password") or "").strip()
+            form_target = request.form.get("next")
+            if form_target and is_safe_redirect_target(form_target):
+                session["post_password_change_redirect"] = form_target
+                target = form_target
+
+            if not new_password or not confirm_password:
+                error = "Lütfen yeni şifrenizi iki alana da yazın."
+            elif new_password != confirm_password:
+                error = "Yeni şifre ve doğrulama alanı eşleşmiyor."
+            elif len(new_password) < 8:
+                error = "Şifre en az 8 karakter olmalıdır."
+            elif new_password.lower() == user.username.lower():
+                error = "Şifreniz kullanıcı adınızla aynı olamaz."
+            else:
+                user.password_hash = generate_password_hash(new_password)
+                user.must_change_password = False
+                record_activity(
+                    area="auth",
+                    action="İlk giriş şifresi güncellendi",
+                    actor=current_actor_name(),
+                    metadata={"user_id": user.id, "username": user.username},
+                )
+                db.session.commit()
+                flash("Yeni şifreniz kaydedildi.", "success")
+                session.pop("post_password_change_redirect", None)
+                if target and is_safe_redirect_target(target):
+                    return redirect(target)
+                return redirect(url_for("index"))
+
+        return render_template(
+            "force_password_change.html",
+            error=error,
+            next_target=target if target and is_safe_redirect_target(target) else "",
         )
 
     @app.route("/cikis")
@@ -723,6 +817,7 @@ def create_app() -> Flask:
             return redirect(url_for("profile"))
 
         user.password_hash = generate_password_hash(new_password)
+        user.must_change_password = False
 
         record_activity(
             area="profil",
@@ -948,6 +1043,7 @@ def create_app() -> Flask:
             department="",
             password_hash=generate_password_hash(password),
             system_role=system_role,
+            must_change_password=True,
         )
         db.session.add(user)
         db.session.flush()
@@ -3255,6 +3351,7 @@ def seed_simple_users() -> None:
             department="Bilgi Teknolojileri",
             password_hash=admin_password,
             system_role="superadmin",
+            must_change_password=True,
         ),
         User(
             username="m.cetin",
