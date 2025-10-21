@@ -2,23 +2,44 @@
 
 {% block title %}İşlem Kayıtları{% endblock %}
 
+{% set activity_area_labels = {
+  'kullanici': 'Kullanıcı',
+  'talep': 'Talep',
+  'envanter': 'Envanter',
+  'stok': 'Stok',
+  'lisans': 'Lisans',
+  'auth': 'Oturum'
+} %}
+
 {% block main %}
 <div class="d-flex flex-column gap-4">
   <div class="content-card shadow-sm">
-    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-      <div>
-        <h1 class="h3 fw-bold mb-1">İşlem Kayıtları</h1>
-        <p class="text-muted mb-0">Talep, envanter, ürün ve kullanıcı işlemlerinin tam geçmişini görüntüleyin.</p>
-      </div>
-      <div class="search-container mb-0">
-        <label class="form-label" for="activitySearch">Kayıtlarda ara</label>
-        <div class="input-group search-input">
-          <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input class="form-control" id="activitySearch" type="search" placeholder="Alan, işlem veya kullanıcıya göre ara">
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        <div>
+          <h1 class="h3 fw-bold mb-1">İşlem Kayıtları</h1>
+          <p class="text-muted mb-0">Talep, envanter, ürün ve kullanıcı işlemlerinin tam geçmişini görüntüleyin.</p>
+        </div>
+        <div class="search-container mb-0">
+          <label class="form-label" for="activitySearch">Kayıtlarda ara</label>
+          <div class="input-group search-input">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input class="form-control" id="activitySearch" type="search" placeholder="Alan, işlem veya kullanıcıya göre ara">
+          </div>
         </div>
       </div>
+      {% if log_areas %}
+      <div class="d-flex flex-wrap gap-2 mt-3" id="activityAreaFilters" data-default-area="{{ default_activity_area or 'all' }}">
+        <button class="btn btn-outline-secondary btn-sm{% if (default_activity_area or 'all') == 'all' %} active{% endif %}" type="button" data-area="all">
+          Tümü
+        </button>
+        {% for area in log_areas %}
+        <button class="btn btn-outline-secondary btn-sm{% if (default_activity_area or 'all') == area %} active{% endif %}" type="button" data-area="{{ area }}">
+          {{ activity_area_labels.get(area, area|capitalize) }}
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-  </div>
 
   <div class="content-card shadow-sm">
     <div class="table-responsive">
@@ -35,9 +56,9 @@
         <tbody>
           {% if logs %}
             {% for log in logs %}
-            <tr data-search="{{ (log.area ~ ' ' ~ log.action ~ ' ' ~ (log.description or '') ~ ' ' ~ log.actor ~ ' ' ~ log.created_display)|lower }}">
+            <tr data-search="{{ (log.area ~ ' ' ~ log.action ~ ' ' ~ (log.description or '') ~ ' ' ~ log.actor ~ ' ' ~ log.created_display)|lower }}" data-area="{{ log.area }}">
               <td>
-                <span class="badge rounded-pill bg-light text-dark text-capitalize">{{ log.area }}</span>
+                <span class="badge rounded-pill bg-light text-dark text-capitalize">{{ activity_area_labels.get(log.area, log.area|capitalize) }}</span>
               </td>
               <td class="fw-semibold">{{ log.action }}</td>
               <td class="text-muted">{{ log.description or '—' }}</td>
@@ -63,18 +84,39 @@
   document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('activitySearch');
     const rows = Array.from(document.querySelectorAll('#activityTable tbody tr'));
+    const areaFilters = document.getElementById('activityAreaFilters');
+    let activeArea = areaFilters?.dataset?.defaultArea || 'all';
 
     function filterRows() {
       const query = (searchInput?.value ?? '').trim().toLowerCase();
       rows.forEach((row) => {
         const haystack = row.dataset.search || '';
-        row.classList.toggle('d-none', Boolean(query) && !haystack.includes(query));
+        const rowArea = row.dataset.area || '';
+        const matchesSearch = !query || haystack.includes(query);
+        const matchesArea = activeArea === 'all' || rowArea === activeArea;
+        row.classList.toggle('d-none', !(matchesSearch && matchesArea));
       });
     }
 
     if (searchInput) {
       searchInput.addEventListener('input', filterRows);
     }
+
+    if (areaFilters) {
+      areaFilters.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-area]');
+        if (!button) {
+          return;
+        }
+        activeArea = button.dataset.area || 'all';
+        Array.from(areaFilters.querySelectorAll('[data-area]')).forEach((filterButton) => {
+          filterButton.classList.toggle('active', filterButton === button);
+        });
+        filterRows();
+      });
+    }
+
+    filterRows();
   });
 </script>
 {% endblock %}

@@ -91,6 +91,7 @@
                         <thead>
                           <tr>
                             <th scope="col">Donanım Tipi</th>
+                            <th scope="col">Kategori</th>
                             <th scope="col">Marka</th>
                             <th scope="col">Model</th>
                             <th scope="col" class="text-center">Miktar</th>
@@ -103,6 +104,7 @@
                           {% for item in order.lines %}
                           <tr>
                             <td class="fw-semibold">{{ item.hardware_type }}</td>
+                            <td><span class="badge bg-light text-dark">{{ item.category_label }}</span></td>
                             <td>{{ item.brand }}</td>
                             <td>{{ item.model }}</td>
                             <td class="text-center">
@@ -126,6 +128,7 @@
                                       data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-category="{{ item.category }}"
                                       data-line-id="{{ item.id }}"
                                       data-max-quantity="{{ item.quantity }}"
                                       data-requester="{{ order.requested_by }}"
@@ -147,6 +150,7 @@
                                       data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-category="{{ item.category }}"
                                       data-line-id="{{ item.id }}"
                                       data-max-quantity="{{ item.quantity }}"
                                       data-requester="{{ order.requested_by }}"
@@ -214,23 +218,32 @@
                   <div class="request-rows" data-rows-container>
                     <div class="request-row" data-request-row>
                       <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
+                        <div class="col-md-4 col-lg-2">
+                          <label class="form-label">Ürün Tipi</label>
+                          <select class="form-select" name="category[]" required>
+                            <option value="cevre_birimi">Çevre Birimi</option>
+                            <option value="envanter">Envanter</option>
+                            <option value="yazici">IP Yazıcı</option>
+                            <option value="lisans">Lisans</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4 col-lg-3">
                           <label class="form-label">Donanım Tipi</label>
                           <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Örn. Laptop" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4 col-lg-1">
                           <label class="form-label">Miktar</label>
                           <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4 col-lg-2">
                           <label class="form-label">Marka</label>
-                          <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell" required>
+                          <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4 col-lg-2">
                           <label class="form-label">Model</label>
-                          <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı" required>
+                          <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı">
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-8 col-lg-2">
                           <label class="form-label">Açıklama</label>
                           <input class="form-control" name="note[]" placeholder="Not ekleyin">
                         </div>
@@ -261,23 +274,32 @@
         <template id="request-row-template">
           <div class="request-row" data-request-row>
             <div class="row g-3 align-items-end">
-              <div class="col-md-3">
+              <div class="col-md-4 col-lg-2">
+                <label class="form-label">Ürün Tipi</label>
+                <select class="form-select" name="category[]" required>
+                  <option value="cevre_birimi">Çevre Birimi</option>
+                  <option value="envanter">Envanter</option>
+                  <option value="yazici">IP Yazıcı</option>
+                  <option value="lisans">Lisans</option>
+                </select>
+              </div>
+              <div class="col-md-4 col-lg-3">
                 <label class="form-label">Donanım Tipi</label>
                 <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Örn. Laptop" required>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4 col-lg-1">
                 <label class="form-label">Miktar</label>
                 <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4 col-lg-2">
                 <label class="form-label">Marka</label>
-                <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell" required>
+                <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Örn. Dell">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4 col-lg-2">
                 <label class="form-label">Model</label>
-                <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı" required>
+                <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adı">
               </div>
-              <div class="col-md-2">
+              <div class="col-md-8 col-lg-2">
                 <label class="form-label">Açıklama</label>
                 <input class="form-control" name="note[]" placeholder="Not ekleyin">
               </div>
@@ -326,8 +348,9 @@
                 <div class="mb-3 d-none" data-action-metadata-section>
                   <label class="form-label" for="action-category">Stok Kategorisi</label>
                   <select class="form-select" id="action-category" data-action-category>
+                    <option value="cevre_birimi">Çevre Birimi</option>
                     <option value="envanter">Envanter</option>
-                    <option value="yazici">Yazıcı</option>
+                    <option value="yazici">IP Yazıcı</option>
                     <option value="lisans">Lisans</option>
                   </select>
                   <div class="form-text">Kategoriye göre zorunlu bilgileri doldurun.</div>
@@ -361,6 +384,8 @@
     let feedbackTimer;
     const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
     const stockMetadataConfig = {{ stock_metadata_config | tojson }};
+    const stockSupportOptions = {{ stock_support_options | tojson }};
+    const metadataOptionLists = new Map();
 
     let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
 
@@ -405,19 +430,52 @@
       return values;
     }
 
-    function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false } = {}) {
+    function ensureMetadataOptions(key) {
+      if (!key) {
+        return null;
+      }
+      if (!metadataOptionLists.has(key)) {
+        const datalist = document.createElement('datalist');
+        datalist.id = `request-metadata-options-${key}`;
+        metadataOptionLists.set(key, datalist);
+        document.body.appendChild(datalist);
+      }
+      const datalist = metadataOptionLists.get(key);
+      const options = stockSupportOptions?.[key];
+      if (datalist && Array.isArray(options)) {
+        datalist.innerHTML = '';
+        options.forEach((optionValue) => {
+          const option = document.createElement('option');
+          option.value = optionValue;
+          datalist.appendChild(option);
+        });
+      }
+      return datalist;
+    }
+
+    function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false, mode = 'entry' } = {}) {
       if (!sectionEl || !containerEl) {
         return;
       }
       containerEl.innerHTML = '';
-      if (!Array.isArray(schema) || !schema.length) {
-        sectionEl.classList.add('d-none');
+      const filteredSchema = Array.isArray(schema)
+        ? schema.filter((field) => {
+            const assignmentOnly = Boolean(field.assignment_only);
+            if (assignmentOnly && mode !== 'assignment') {
+              return false;
+            }
+            return true;
+          })
+        : [];
+      if (!filteredSchema.length) {
+        sectionEl.classList.remove('d-none');
         containerEl.classList.add('d-none');
+        containerEl.innerHTML = '';
         return;
       }
       sectionEl.classList.remove('d-none');
       containerEl.classList.remove('d-none');
-      schema.forEach((field) => {
+      filteredSchema.forEach((field) => {
         const key = field.key;
         const label = field.label || key;
         const placeholder = field.placeholder || '';
@@ -448,6 +506,12 @@
           input.placeholder = placeholder;
           input.value = currentValue;
           input.autocomplete = 'off';
+          if (field.options_key) {
+            const datalist = ensureMetadataOptions(field.options_key);
+            if (datalist) {
+              input.setAttribute('list', datalist.id);
+            }
+          }
           if (required) {
             input.required = true;
           }
@@ -488,6 +552,9 @@
         return explicit;
       }
       const hardwareType = (trigger?.getAttribute('data-hardware-type') || '').toLowerCase();
+      if (hardwareType.includes('çevre') || hardwareType.includes('cevre')) {
+        return 'cevre_birimi';
+      }
       if (hardwareType.includes('yazıcı')) {
         return 'yazici';
       }
@@ -537,6 +604,7 @@
           return `
             <tr>
               <td class="fw-semibold">${escapeHtml(line.hardware_type)}</td>
+              <td><span class="badge bg-light text-dark">${escapeHtml(line.category_label)}</span></td>
               <td>${escapeHtml(line.brand)}</td>
               <td>${escapeHtml(line.model)}</td>
               <td class="text-center">
@@ -553,12 +621,12 @@
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
                         <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
                       </button>
                     </li>
                     <li>
-                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
                         <i class="bi bi-x-circle me-2"></i>İptal Et
                       </button>
                     </li>
@@ -586,6 +654,7 @@
             <thead>
               <tr>
                 <th scope="col">Donanım Tipi</th>
+                <th scope="col">Kategori</th>
                 <th scope="col">Marka</th>
                 <th scope="col">Model</th>
                 <th scope="col" class="text-center">Miktar</th>
@@ -778,25 +847,33 @@
         const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
         const lines = [];
         for (const [index, row] of rows.entries()) {
+          const categorySelect = row.querySelector('select[name="category[]"]');
           const hardwareInput = row.querySelector('input[name="hardware_type[]"]');
           const quantityInput = row.querySelector('input[name="quantity[]"]');
           const brandInput = row.querySelector('input[name="brand[]"]');
           const modelInput = row.querySelector('input[name="model[]"]');
           const noteInput = row.querySelector('input[name="note[]"]');
 
+          const category = categorySelect?.value.trim() || '';
           const hardware = hardwareInput?.value.trim() || '';
           const brand = brandInput?.value.trim() || '';
           const model = modelInput?.value.trim() || '';
           const quantity = Number.parseInt(quantityInput?.value ?? '0', 10);
           const note = noteInput?.value.trim();
 
-          if (!hardware || !brand || !model || !Number.isFinite(quantity) || quantity <= 0) {
-            showFeedback(`${index + 1}. satır için tüm alanları doldurun ve geçerli bir miktar girin.`, 'danger');
+          if (!category) {
+            showFeedback(`${index + 1}. satır için ürün tipini seçin.`, 'danger');
+            categorySelect?.focus();
+            return;
+          }
+          if (!hardware || !Number.isFinite(quantity) || quantity <= 0) {
+            showFeedback(`${index + 1}. satır için donanım tipini ve geçerli bir miktarı girin.`, 'danger');
             hardwareInput?.focus();
             return;
           }
 
           lines.push({
+            category,
             hardware_type: hardware,
             brand,
             model,
@@ -887,14 +964,18 @@
       if (!actionMetadataSection || !actionMetadataContainer || !actionMetadataSelect) {
         return;
       }
+      actionMetadataSection.classList.remove('d-none');
       const category = actionMetadataSelect.value || '';
       const schema = getMetadataSchema(category);
       const defaults = pendingAction?.metadataDefaults || {};
       const existing = readMetadataValues(actionMetadataContainer);
       const values = { ...defaults, ...existing };
-      buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, { hidePrefilled });
+      buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, { hidePrefilled, mode: 'entry' });
       if (!schema.length) {
         actionMetadataContainer.classList.add('d-none');
+      }
+      else {
+        actionMetadataContainer.classList.remove('d-none');
       }
       if (actionMetadataError) {
         actionMetadataError.classList.add('d-none');
@@ -920,6 +1001,7 @@
           brand: trigger.getAttribute('data-brand') || '',
           model: trigger.getAttribute('data-model') || '',
           department: trigger.getAttribute('data-department') || '',
+          category: trigger.getAttribute('data-category') || '',
         };
 
         pendingAction = {

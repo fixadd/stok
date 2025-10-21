@@ -121,26 +121,38 @@
               <span data-field="license-email">{{ license.email or '—' }}</span>
             </td>
             <td class="text-end">
-              <div class="d-inline-flex align-items-center gap-2">
-                <button class="btn btn-outline-secondary btn-sm icon-button license-detail-trigger" type="button" data-license-id="{{ license.id }}">
+              <div class="table-actions">
+                <button class="btn btn-outline-secondary btn-sm icon-button license-detail-trigger" type="button" data-license-id="{{ license.id }}" aria-label="Lisans detayını görüntüle">
                   <i class="bi bi-eye"></i>
                 </button>
-                <div class="dropdown">
-                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                <div class="dropdown action-dropdown">
+                  <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     Seçiniz…
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li>
-                      <button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">Atama Yap</button>
+                      <button class="dropdown-item license-action" type="button" data-action="assign" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseAssignModal">
+                        <i class="bi bi-person-plus"></i>
+                        Atama Yap
+                      </button>
                     </li>
                     <li>
-                      <button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+                      <button class="dropdown-item license-action" type="button" data-action="edit" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseEditModal">
+                        <i class="bi bi-pencil-square"></i>
+                        Düzenle
+                      </button>
                     </li>
                     <li>
-                      <button class="dropdown-item license-action" type="button" data-action="stock" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseStockModal">Stok Girişi</button>
+                      <button class="dropdown-item license-action" type="button" data-action="stock" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#licenseStockModal">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                        Stok Girişi
+                      </button>
                     </li>
                     <li>
-                      <button class="dropdown-item license-action" type="button" data-action="passive" data-license-id="{{ license.id }}">Pasif</button>
+                      <button class="dropdown-item text-danger license-action" type="button" data-action="passive" data-license-id="{{ license.id }}">
+                        <i class="bi bi-calendar-x"></i>
+                        Tarihten Ayır
+                      </button>
                     </li>
                   </ul>
                 </div>

@@ -221,6 +221,7 @@ class RequestLine(db.Model):
     model = db.Column(db.String(128), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
     note = db.Column(db.String(256), nullable=True)
+    category = db.Column(db.String(32), nullable=False, default="envanter")
 
     order_id = db.Column(db.Integer, db.ForeignKey("request_orders.id", ondelete="CASCADE"), nullable=False)
     order = db.relationship("RequestOrder", back_populates="lines")

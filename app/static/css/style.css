@@ -333,6 +333,21 @@ body.theme-okyanus .section-title {
   box-shadow: 0 10px 24px rgba(29, 78, 216, 0.25);
 }
 
+.status-pill.disabled,
+.status-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.status-pill.disabled:hover,
+.status-pill.disabled:focus,
+.status-pill:disabled:hover,
+.status-pill:disabled:focus {
+  background: transparent;
+  color: var(--primary-color);
+}
+
 .search-container .form-label {
   font-size: 0.85rem;
   font-weight: 600;
@@ -745,6 +760,95 @@ body.theme-okyanus .section-title {
   border-radius: 999px;
 }
 
+.table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-actions .icon-button {
+  border-color: rgba(148, 163, 184, 0.45);
+  transition: all 0.2s ease;
+}
+
+.table-actions .icon-button:hover,
+.table-actions .icon-button:focus {
+  border-color: rgba(76, 110, 245, 0.45);
+  color: var(--primary-color);
+}
+
+.action-dropdown {
+  position: relative;
+}
+
+.action-dropdown .action-dropdown-toggle {
+  border-radius: 12px;
+  padding: 0.45rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.action-dropdown .action-dropdown-toggle:hover,
+.action-dropdown .action-dropdown-toggle:focus {
+  background: #eef2ff;
+  color: var(--primary-color);
+  border-color: rgba(76, 110, 245, 0.5);
+}
+
+.action-dropdown .dropdown-menu {
+  border-radius: 16px;
+  padding: 0.35rem;
+  min-width: 200px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.18);
+  z-index: 2000;
+}
+
+.action-dropdown .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-weight: 500;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.action-dropdown .dropdown-item i {
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.action-dropdown .dropdown-item:hover,
+.action-dropdown .dropdown-item:focus {
+  background: rgba(76, 110, 245, 0.1);
+  color: var(--primary-color);
+}
+
+.action-dropdown .dropdown-item.text-danger {
+  color: #dc2626;
+}
+
+.action-dropdown .dropdown-item.text-danger i {
+  color: #dc2626;
+}
+
+.table .dropdown.show {
+  position: relative;
+  z-index: 2100;
+}
+
+.table .dropdown-menu {
+  z-index: 2000;
+}
+
 .dropdown-menu .dropdown-item {
   display: flex;
   align-items: center;
@@ -787,6 +891,44 @@ body.theme-okyanus .section-title {
 
 .admin-section.active {
   display: block;
+}
+
+.admin-data-grid {
+  align-items: stretch;
+}
+
+.data-action-card {
+  border-radius: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.data-action-card .icon-bubble {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.data-action-card .card-title {
+  margin-bottom: 0.75rem;
+}
+
+.data-action-card .card-text {
+  font-size: 0.95rem;
+}
+
+.data-action-card .btn {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.data-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
 }
 
 .printer-hero-card {
