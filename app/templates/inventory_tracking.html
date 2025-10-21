@@ -97,20 +97,45 @@
               <span class="inventory-status-badge status-{{ item.status }}" data-field="status">{{ status_labels.get(item.status, item.status|capitalize) }}</span>
             </td>
             <td class="text-end">
-              <div class="d-inline-flex align-items-center gap-2">
-                <button class="btn btn-outline-secondary btn-sm icon-button inventory-detail-trigger" type="button" data-item-id="{{ item.id }}">
+              <div class="table-actions">
+                <button class="btn btn-outline-secondary btn-sm icon-button inventory-detail-trigger" type="button" data-item-id="{{ item.id }}" aria-label="Envanter detayını görüntüle">
                   <i class="bi bi-eye"></i>
                 </button>
-                <div class="dropdown">
-                  <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                <div class="dropdown action-dropdown">
+                  <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     Seçiniz…
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><button class="dropdown-item inventory-action" type="button" data-action="mark-faulty" data-item-id="{{ item.id }}">Arızalı İşaretle</button></li>
-                    <li><button class="dropdown-item inventory-action" type="button" data-action="assign" data-item-id="{{ item.id }}">Atama Yap</button></li>
-                    <li><button class="dropdown-item inventory-action" type="button" data-action="edit" data-item-id="{{ item.id }}">Düzenle</button></li>
-                    <li><button class="dropdown-item inventory-action" type="button" data-action="stock" data-item-id="{{ item.id }}">Stok Girişi</button></li>
-                    <li><button class="dropdown-item text-danger inventory-action" type="button" data-action="scrap" data-item-id="{{ item.id }}">Hurdaya Ayır</button></li>
+                    <li>
+                      <button class="dropdown-item inventory-action" type="button" data-action="mark-faulty" data-item-id="{{ item.id }}">
+                        <i class="bi bi-bandaid"></i>
+                        Arızalı İşaretle
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item inventory-action" type="button" data-action="assign" data-item-id="{{ item.id }}">
+                        <i class="bi bi-person-plus"></i>
+                        Atama Yap
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item inventory-action" type="button" data-action="edit" data-item-id="{{ item.id }}">
+                        <i class="bi bi-pencil-square"></i>
+                        Düzenle
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item inventory-action" type="button" data-action="stock" data-item-id="{{ item.id }}">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                        Stok Girişi
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item text-danger inventory-action" type="button" data-action="scrap" data-item-id="{{ item.id }}">
+                        <i class="bi bi-calendar-x"></i>
+                        Tarihten Ayır
+                      </button>
+                    </li>
                   </ul>
                 </div>
               </div>

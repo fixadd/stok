@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Yazıcı Takip · Stok Yönetimi{% endblock %}
+{% block title %}IP Yazıcı Takip · Stok Yönetimi{% endblock %}
 
 {% block main %}
 <div class="printer-page d-flex flex-column gap-4">
@@ -11,15 +11,15 @@
             <i class="bi bi-printer-fill"></i>
           </div>
           <div>
-            <h1 class="mb-1">Yazıcı Takip</h1>
+            <h1 class="mb-1">IP Yazıcı Takip</h1>
             <p class="text-muted mb-0">
-              Organizasyonunuzdaki yazıcıları tek ekran üzerinden takip edin, arıza süreçlerini yönetin ve atamaları hızlandırın.
+              Organizasyonunuzdaki IP yazıcıları tek ekran üzerinden takip edin, arıza süreçlerini yönetin ve atamaları hızlandırın.
             </p>
           </div>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
           <button class="btn btn-primary px-4" type="button" data-bs-toggle="modal" data-bs-target="#printerCreateModal">
-            <i class="bi bi-plus-lg me-2"></i>Yeni Yazıcı Ekle
+            <i class="bi bi-plus-lg me-2"></i>Yeni IP Yazıcı Ekle
           </button>
           <button class="btn btn-warning d-flex align-items-center gap-2 printer-faulty-toggle" type="button" data-toggle-faulty>
             <i class="bi bi-exclamation-triangle-fill"></i>
@@ -39,13 +39,13 @@
       </div>
       <div class="col-lg-4">
         <div class="printer-hero-visual text-lg-end text-center">
-          <img src="{{ url_for('static', filename='img/printer-hero.svg') }}" alt="Yazıcı yönetimi görseli" class="img-fluid">
+          <img src="{{ url_for('static', filename='img/printer-hero.svg') }}" alt="IP yazıcı yönetimi görseli" class="img-fluid">
         </div>
         <div class="printer-hero-search mt-3">
           <label for="printer-search" class="form-label text-muted small">Sayfa içi arama</label>
           <div class="input-group search-input">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="search" class="form-control" id="printer-search" placeholder="Yazıcı, seri numarası veya sorumlu ara...">
+            <input type="search" class="form-control" id="printer-search" placeholder="IP yazıcı, seri numarası veya sorumlu ara...">
           </div>
         </div>
       </div>
@@ -63,8 +63,8 @@
   <div class="content-card printer-table-card shadow-sm">
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
       <div>
-        <h2 class="h4 mb-1">Yazıcı Envanteri</h2>
-        <p class="text-muted mb-0">Toplam <span data-total-count>{{ printers|length }}</span> yazıcı listeleniyor.</p>
+        <h2 class="h4 mb-1">IP Yazıcı Envanteri</h2>
+        <p class="text-muted mb-0">Toplam <span data-total-count>{{ printers|length }}</span> IP yazıcı listeleniyor.</p>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <button class="btn btn-outline-secondary btn-sm" type="button" data-reset-filters>
@@ -119,7 +119,7 @@
               </td>
               <td class="text-end">
                 <div class="d-inline-flex align-items-center gap-2">
-                  <button class="btn btn-icon btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#printerDetailsModal" data-printer-id="{{ printer.id }}" aria-label="Yazıcı detaylarını görüntüle">
+                  <button class="btn btn-icon btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#printerDetailsModal" data-printer-id="{{ printer.id }}" aria-label="IP yazıcı detaylarını görüntüle">
                     <i class="bi bi-eye"></i>
                   </button>
                   <div class="dropdown">
@@ -164,7 +164,7 @@
     <div class="modal-content shadow-lg">
       <div class="modal-header border-0 pb-0">
         <div>
-          <h5 class="modal-title" data-detail-title>Yazıcı Detayı</h5>
+          <h5 class="modal-title" data-detail-title>IP Yazıcı Detayı</h5>
           <p class="text-muted mb-0" data-detail-subtitle></p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -232,8 +232,8 @@
     <div class="modal-content">
       <div class="modal-header gradient-header text-white">
         <div>
-          <h5 class="modal-title" data-assign-title>Yazıcıyı Ata</h5>
-          <p class="mb-0 small opacity-75" data-assign-subtitle>Yazıcı için fabrika, kullanım alanı ve sorumlu bilgilerini güncelleyin.</p>
+          <h5 class="modal-title" data-assign-title>IP Yazıcıyı Ata</h5>
+          <p class="mb-0 small opacity-75" data-assign-subtitle>IP yazıcı için fabrika, kullanım alanı ve sorumlu bilgilerini güncelleyin.</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
@@ -290,15 +290,15 @@
     <div class="modal-content">
       <div class="modal-header gradient-header gradient-secondary text-white">
         <div>
-          <h5 class="modal-title">Yazıcı Bilgilerini Düzenleyin</h5>
-          <p class="mb-0 small opacity-75">Yazıcı envanteri kayıtlarını güncel tutarak bakım ve takibi kolaylaştırın.</p>
+          <h5 class="modal-title">IP Yazıcı Bilgilerini Düzenleyin</h5>
+          <p class="mb-0 small opacity-75">IP yazıcı envanteri kayıtlarını güncel tutarak bakım ve takibi kolaylaştırın.</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
       <div class="modal-body">
         <form class="row g-3">
           <div class="col-md-6">
-            <label class="form-label" for="edit-brand">Yazıcı Markası</label>
+            <label class="form-label" for="edit-brand">IP Yazıcı Markası</label>
             <select class="form-select" id="edit-brand">
               <option value="">Seçiniz</option>
               {% for brand in brand_models %}
@@ -307,7 +307,7 @@
             </select>
           </div>
           <div class="col-md-6">
-            <label class="form-label" for="edit-model">Yazıcı Modeli</label>
+            <label class="form-label" for="edit-model">IP Yazıcı Modeli</label>
             <select class="form-select" id="edit-model">
               <option value="">Seçiniz</option>
               {% for brand in brand_models %}
@@ -362,14 +362,14 @@
   </div>
 </div>
 
-<!-- Yeni Yazıcı Modalı -->
+<!-- Yeni IP Yazıcı Modalı -->
 <div class="modal fade" id="printerCreateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header bg-white border-0 pb-0">
         <div>
-          <h5 class="modal-title">Yeni Yazıcı Ekleyin</h5>
-          <p class="text-muted mb-0">Yeni bir yazıcıyı envantere ekleyin ve yapılandırmasını belirleyin.</p>
+          <h5 class="modal-title">Yeni IP Yazıcı Ekleyin</h5>
+          <p class="text-muted mb-0">Yeni bir IP yazıcıyı envantere ekleyin ve yapılandırmasını belirleyin.</p>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
@@ -389,7 +389,7 @@
             </select>
           </div>
           <div class="col-md-6">
-            <label class="form-label" for="create-brand">Yazıcı Markası</label>
+            <label class="form-label" for="create-brand">IP Yazıcı Markası</label>
             <select class="form-select" id="create-brand">
               <option value="">Seçiniz</option>
               {% for brand in brand_models %}
@@ -398,7 +398,7 @@
             </select>
           </div>
           <div class="col-md-6">
-            <label class="form-label" for="create-model">Yazıcı Modeli</label>
+            <label class="form-label" for="create-model">IP Yazıcı Modeli</label>
             <select class="form-select" id="create-model">
               <option value="">Seçiniz</option>
               {% for brand in brand_models %}
@@ -537,7 +537,7 @@
 
       if (titleEl) {
         const brandModel = [printer.brand, printer.model].filter(Boolean).join(' ');
-        titleEl.textContent = brandModel ? `${brandModel} — ${printer.inventory_no}` : `Yazıcı ${printer.inventory_no}`;
+        titleEl.textContent = brandModel ? `${brandModel} — ${printer.inventory_no}` : `IP Yazıcı ${printer.inventory_no}`;
       }
       if (subtitleEl) {
         const subtitleParts = [printer.factory, printer.department, statusLabelMap.get(printer.status) || printer.status];
@@ -640,8 +640,8 @@
     const populateAssignModal = (printer) => {
       if (!assignModalEl || !printer) return;
       assignModalEl.dataset.printerId = String(printer.id);
-      assignModalEl.querySelector('[data-assign-title]').textContent = `Yazıcıyı Ata — ${printer.inventory_no}`;
-      assignModalEl.querySelector('[data-assign-subtitle]').textContent = `${printer.brand || 'Yazıcı'} için fabrika ve sorumlu bilgilerini güncelleyin.`;
+      assignModalEl.querySelector('[data-assign-title]').textContent = `IP Yazıcıyı Ata — ${printer.inventory_no}`;
+      assignModalEl.querySelector('[data-assign-subtitle]').textContent = `${printer.brand || 'IP Yazıcı'} için fabrika ve sorumlu bilgilerini güncelleyin.`;
 
       const factorySelect = assignModalEl.querySelector('#assign-factory');
       const usageInput = assignModalEl.querySelector('#assign-usage');

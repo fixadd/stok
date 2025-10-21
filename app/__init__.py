@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from collections import Counter
 from uuid import uuid4
 
+import shutil
+import sqlite3
+import tempfile
+
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -17,6 +21,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -65,7 +70,8 @@ LICENSE_STATUS_LABELS = {
 
 STOCK_CATEGORY_LABELS = {
     "envanter": "Envanter",
-    "yazici": "Yazıcı",
+    "cevre_birimi": "Çevre Birimi",
+    "yazici": "IP Yazıcı",
     "lisans": "Lisans",
     "talep": "Talep",
     "manuel": "Manuel",
@@ -115,24 +121,6 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": True,
         },
         {
-            "key": "computer_name",
-            "label": "Cihaz Adı",
-            "placeholder": "Örn. IT-LAPTOP-01",
-            "required": False,
-        },
-        {
-            "key": "factory",
-            "label": "Fabrika",
-            "placeholder": "Fabrika adı",
-            "required": True,
-        },
-        {
-            "key": "department",
-            "label": "Departman",
-            "placeholder": "Departman",
-            "required": True,
-        },
-        {
             "key": "hardware_type",
             "label": "Donanım Tipi",
             "placeholder": "Örn. Dizüstü Bilgisayar",
@@ -157,36 +145,105 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": False,
         },
         {
-            "key": "ifs_no",
-            "label": "IFS No",
-            "placeholder": "IFS-00001",
+            "key": "computer_name",
+            "label": "Cihaz Adı",
+            "placeholder": "Örn. IT-LAPTOP-01",
             "required": False,
-        },
-        {
-            "key": "responsible",
-            "label": "Sorumlu",
-            "placeholder": "Sorumlu kişi",
-            "required": False,
-        },
-    ],
-    "yazici": [
-        {
-            "key": "inventory_no",
-            "label": "Envanter No",
-            "placeholder": "PRN-001",
-            "required": True,
         },
         {
             "key": "factory",
             "label": "Fabrika",
             "placeholder": "Fabrika adı",
             "required": True,
+            "assignment_only": True,
+            "options_key": "factories",
         },
         {
             "key": "department",
-            "label": "Kullanım Alanı",
-            "placeholder": "Örn. Finans",
+            "label": "Departman",
+            "placeholder": "Departman",
+            "required": True,
+            "assignment_only": True,
+            "options_key": "departments",
+        },
+        {
+            "key": "responsible",
+            "label": "Sorumlu",
+            "placeholder": "Sorumlu kişi",
+            "required": True,
+            "assignment_only": True,
+            "options_key": "responsibles",
+        },
+        {
+            "key": "ifs_no",
+            "label": "IFS No",
+            "placeholder": "IFS-00001",
             "required": False,
+            "assignment_only": True,
+        },
+    ],
+    "cevre_birimi": [
+        {
+            "key": "hardware_type",
+            "label": "Ürün Tipi",
+            "placeholder": "Örn. Klavye",
+            "required": True,
+        },
+        {
+            "key": "brand",
+            "label": "Marka",
+            "placeholder": "Marka",
+            "required": False,
+        },
+        {
+            "key": "model",
+            "label": "Model",
+            "placeholder": "Model",
+            "required": False,
+        },
+        {
+            "key": "serial_no",
+            "label": "Seri No",
+            "placeholder": "Seri numarası",
+            "required": False,
+        },
+        {
+            "key": "reference",
+            "label": "Referans",
+            "placeholder": "ENV-0001 veya stok kodu",
+            "required": False,
+        },
+        {
+            "key": "factory",
+            "label": "Fabrika",
+            "placeholder": "Fabrika adı",
+            "required": False,
+            "assignment_only": True,
+            "options_key": "factories",
+        },
+        {
+            "key": "department",
+            "label": "Departman",
+            "placeholder": "Departman",
+            "required": False,
+            "assignment_only": True,
+            "options_key": "departments",
+        },
+        {
+            "key": "responsible",
+            "label": "Sorumlu",
+            "placeholder": "Teslim edilen kişi",
+            "required": True,
+            "assignment_only": True,
+            "options_key": "responsibles",
+        },
+    ],
+    "yazici": [
+        {
+            "key": "inventory_no",
+            "label": "Envanter No",
+            "placeholder": "IPY-001",
+            "required": True,
         },
         {
             "key": "brand",
@@ -201,34 +258,55 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": True,
         },
         {
+            "key": "serial_no",
+            "label": "Seri No",
+            "placeholder": "Seri numarası",
+            "required": False,
+        },
+        {
+            "key": "usage_area",
+            "label": "Kullanım Alanı",
+            "placeholder": "Örn. Finans",
+            "required": False,
+            "assignment_only": True,
+            "options_key": "usage_areas",
+        },
+        {
+            "key": "factory",
+            "label": "Fabrika",
+            "placeholder": "Fabrika adı",
+            "required": True,
+            "assignment_only": True,
+            "options_key": "factories",
+        },
+        {
             "key": "hostname",
             "label": "Hostname",
             "placeholder": "PRN-OFIS-01",
             "required": False,
+            "assignment_only": True,
         },
         {
             "key": "ip_address",
             "label": "IP Adresi",
             "placeholder": "10.0.0.10",
             "required": False,
+            "assignment_only": True,
         },
         {
             "key": "mac_address",
             "label": "MAC Adresi",
             "placeholder": "AA:BB:CC:DD:EE:FF",
             "required": False,
-        },
-        {
-            "key": "ifs_no",
-            "label": "IFS No",
-            "placeholder": "IFS-00000",
-            "required": False,
+            "assignment_only": True,
         },
         {
             "key": "responsible",
             "label": "Sorumlu",
             "placeholder": "Sorumlu kişi",
-            "required": False,
+            "required": True,
+            "assignment_only": True,
+            "options_key": "responsibles",
         },
     ],
     "lisans": [
@@ -237,6 +315,7 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "label": "Lisans Adı",
             "placeholder": "Ürün adı",
             "required": True,
+            "options_key": "license_names",
         },
         {
             "key": "license_key",
@@ -249,24 +328,31 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "label": "Bağlı Envanter",
             "placeholder": "ENV-001",
             "required": False,
+            "options_key": "inventory_numbers",
         },
         {
             "key": "factory",
             "label": "Fabrika",
             "placeholder": "Fabrika adı",
             "required": False,
+            "assignment_only": True,
+            "options_key": "factories",
         },
         {
             "key": "department",
             "label": "Departman",
             "placeholder": "Departman",
             "required": False,
+            "assignment_only": True,
+            "options_key": "departments",
         },
         {
             "key": "responsible",
             "label": "Sorumlu",
-            "placeholder": "Sorumlu kişi",
+            "placeholder": "Teslim edilen kişi",
             "required": False,
+            "assignment_only": True,
+            "options_key": "responsibles",
         },
     ],
     "talep": [
@@ -280,13 +366,13 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "key": "brand",
             "label": "Marka",
             "placeholder": "Marka",
-            "required": True,
+            "required": False,
         },
         {
             "key": "model",
             "label": "Model",
             "placeholder": "Model",
-            "required": True,
+            "required": False,
         },
         {
             "key": "department",
@@ -402,6 +488,27 @@ def ensure_user_profile_columns() -> None:
         db.session.commit()
 
 
+def ensure_request_line_category_column() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(request_lines)")).fetchall()
+    }
+    if "category" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE request_lines ADD COLUMN category VARCHAR(32)"
+                " NOT NULL DEFAULT 'envanter'"
+            )
+        )
+        db.session.execute(
+            text(
+                "UPDATE request_lines SET category = 'envanter'"
+                " WHERE category IS NULL OR TRIM(category) = ''"
+            )
+        )
+        db.session.commit()
+
+
 def get_active_user() -> User | None:
     user_id = session.get("active_user_id")
     if user_id is None:
@@ -483,6 +590,7 @@ def create_app() -> Flask:
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
     app.config["INFO_UPLOAD_DIR"] = info_upload_dir
+    app.config["DATABASE_PATH"] = database_path
     app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
@@ -490,6 +598,7 @@ def create_app() -> Flask:
     with app.app_context():
         db.create_all()
         ensure_user_profile_columns()
+        ensure_request_line_category_column()
         seed_initial_data()
 
     @app.before_request
@@ -996,12 +1105,146 @@ def create_app() -> Flask:
             "admin_panel.html",
             active_page="admin_panel",
             can_manage_users=has_system_role(user, "superadmin"),
+            can_manage_data=has_system_role(user, "superadmin"),
             system_role_choices=[
                 {"value": key, "label": SYSTEM_ROLE_LABELS[key]}
                 for key in ("user", "admin")
             ],
             **admin_payload,
         )
+
+    @app.get("/admin-panel/data/export")
+    def export_database():
+        user = get_active_user()
+        if not has_system_role(user, "superadmin"):
+            flash("Veri dışa aktarma işlemi için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        database_path = get_database_path()
+        if not database_path.exists():
+            flash("Veritabanı dosyası bulunamadı.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        record_activity(
+            area="sistem",
+            action="Veritabanı yedeği indirildi",
+            description="Sistem yöneticisi mevcut veritabanını indirdi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return send_file(
+            database_path,
+            as_attachment=True,
+            download_name=f"stok-veritabani-{timestamp}.db",
+            mimetype="application/x-sqlite3",
+        )
+
+    @app.post("/admin-panel/data/import")
+    def import_database_backup():
+        user = get_active_user()
+        if not has_system_role(user, "superadmin"):
+            flash("Veri içe aktarma işlemi için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        file: FileStorage | None = request.files.get("data_file")
+        if file is None or not file.filename:
+            flash("Lütfen bir veritabanı yedeği seçin.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        filename = secure_filename(file.filename)
+        extension = Path(filename).suffix.lower()
+        if extension not in {".db", ".sqlite", ".sqlite3"}:
+            flash("Yalnızca SQLite veritabanı dosyaları içe aktarılabilir.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
+                file.save(tmp.name)
+                temp_path = Path(tmp.name)
+        except Exception:
+            flash("Yüklenen dosya kaydedilirken bir hata oluştu.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        try:
+            connection = sqlite3.connect(temp_path)
+            connection.execute("PRAGMA schema_version;")
+            connection.close()
+        except sqlite3.Error:
+            temp_path.unlink(missing_ok=True)
+            flash("Yüklenen dosya geçerli bir SQLite veritabanı değil.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        database_path = get_database_path()
+        backup_path = database_path.with_suffix(".bak")
+
+        try:
+            if database_path.exists():
+                shutil.copy2(database_path, backup_path)
+
+            db.session.remove()
+            db.engine.dispose()
+
+            shutil.copy2(temp_path, database_path)
+
+            db.create_all()
+            ensure_user_profile_columns()
+            ensure_request_line_category_column()
+        except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
+            current_app.logger.exception("Veritabanı içe aktarılamadı")
+            if backup_path.exists():
+                shutil.copy2(backup_path, database_path)
+            flash("Veritabanı içe aktarılırken bir hata oluştu.", "danger")
+            temp_path.unlink(missing_ok=True)
+            return redirect(url_for("admin_panel", section="data-section"))
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+        record_activity(
+            area="sistem",
+            action="Veritabanı yedeği içe aktarıldı",
+            description="Sistem verileri yeni bir yedekten geri yüklendi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
+
+        flash("Veritabanı yedeği başarıyla içe aktarıldı.", "success")
+        return redirect(url_for("admin_panel", section="data-section"))
+
+    @app.post("/admin-panel/data/reset")
+    def reset_database_view():
+        user = get_active_user()
+        if not has_system_role(user, "superadmin"):
+            flash("Veritabanını sıfırlamak için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        info_upload_dir = Path(current_app.config.get("INFO_UPLOAD_DIR", Path("/data/info_uploads")))
+
+        try:
+            db.session.remove()
+            db.drop_all()
+            db.create_all()
+            ensure_user_profile_columns()
+            ensure_request_line_category_column()
+            if info_upload_dir.exists():
+                shutil.rmtree(info_upload_dir, ignore_errors=True)
+            info_upload_dir.mkdir(parents=True, exist_ok=True)
+            seed_initial_data()
+            record_activity(
+                area="sistem",
+                action="Veritabanı sıfırlandı",
+                description="Sistem varsayılan başlangıç verileriyle yeniden oluşturuldu.",
+                actor=current_actor_name(),
+            )
+            db.session.commit()
+        except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
+            current_app.logger.exception("Veritabanı sıfırlanamadı")
+            flash("Veritabanı sıfırlanırken bir hata oluştu.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        flash("Veritabanı varsayılan verilerle yeniden oluşturuldu.", "success")
+        return redirect(url_for("admin_panel", section="data-section"))
 
     @app.post("/admin-panel/users")
     def create_user():
@@ -1572,7 +1815,11 @@ def create_app() -> Flask:
         unit = (data.get("unit") or "").strip() or None
 
         try:
-            metadata_payload = prepare_stock_metadata(category, data.get("metadata"))
+            metadata_payload = prepare_stock_metadata(
+                category,
+                data.get("metadata"),
+                include_assignment_fields=False,
+            )
         except ValueError as exc:
             return json_error(str(exc)), 400
 
@@ -1630,6 +1877,42 @@ def create_app() -> Flask:
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
+        category_value = normalize_stock_category(stock_item.category)
+        metadata_defaults: dict[str, Any] = {}
+        if stock_item.metadata_payload:
+            metadata_defaults.update(stock_item.metadata_payload)
+        if stock_item.inventory_item:
+            metadata_defaults.update(
+                {
+                    k: v
+                    for k, v in build_inventory_stock_metadata(stock_item.inventory_item).items()
+                    if v
+                }
+            )
+
+        try:
+            assignment_metadata = prepare_stock_metadata(
+                category_value,
+                data.get("metadata"),
+                defaults=metadata_defaults,
+            )
+        except ValueError as exc:
+            return json_error(str(exc)), 400
+
+        def sanitize(values: dict[str, Any]) -> dict[str, str]:
+            cleaned: dict[str, str] = {}
+            for key, raw in values.items():
+                if raw is None:
+                    continue
+                text = str(raw).strip()
+                if text:
+                    cleaned[key] = text
+            return cleaned
+
+        combined_metadata = sanitize(metadata_defaults)
+        combined_metadata.update(sanitize(assignment_metadata))
+        stock_item.metadata_payload = combined_metadata or None
+
         stock_item.status = "devredildi"
         if note:
             stock_item.note = note
@@ -1651,7 +1934,23 @@ def create_app() -> Flask:
             performed_by=actor,
             quantity_change=-max(1, stock_item.quantity),
             note=note,
+            metadata=assignment_metadata or None,
         )
+
+        responsible_name = (stock_item.metadata_payload or {}).get("responsible")
+        if responsible_name:
+            record_activity(
+                area="kullanici",
+                action="Stok ataması",
+                description=f"{stock_item.title} → {responsible_name}",
+                actor=actor,
+                metadata={
+                    "stock_item_id": stock_item.id,
+                    "category": category_value,
+                    "responsible": responsible_name,
+                    "inventory_no": (stock_item.metadata_payload or {}).get("inventory_no"),
+                },
+            )
 
         db.session.commit()
 
@@ -1831,9 +2130,13 @@ def create_app() -> Flask:
             model = (raw_line.get("model") or "").strip()
             quantity = parse_int_or_none(raw_line.get("quantity")) or 0
             note = (raw_line.get("note") or "").strip() or None
+            category_value = normalize_stock_category(
+                raw_line.get("category"),
+                fallback="envanter",
+            )
 
-            if not hardware_type or not brand or not model:
-                return json_error(f"{index}. satır için tüm alanlar zorunludur."), 400
+            if not hardware_type:
+                return json_error(f"{index}. satır için donanım tipi zorunludur."), 400
             if quantity <= 0:
                 return json_error(f"{index}. satır için geçerli bir miktar girin."), 400
 
@@ -1844,6 +2147,7 @@ def create_app() -> Flask:
                     model=model,
                     quantity=quantity,
                     note=note,
+                    category=category_value,
                 )
             )
 
@@ -1937,6 +2241,7 @@ def create_app() -> Flask:
                     category_override,
                     data.get("metadata"),
                     defaults=metadata_defaults,
+                    include_assignment_fields=False,
                 )
             except ValueError as exc:
                 return json_error(str(exc)), 400
@@ -2131,13 +2436,29 @@ def create_app() -> Flask:
             flash("İşlem kayıtlarını görüntülemek için yetkiniz yok.", "danger")
             return redirect(url_for("index"))
         logs = load_activity_logs()
+        unique_areas = sorted({log.get("area", "") for log in logs if log.get("area")})
+        default_area = "kullanici" if any(log.get("area") == "kullanici" for log in logs) else "all"
         return render_template(
             "activity_logs.html",
             active_page="activity_logs",
             logs=logs,
+            log_areas=unique_areas,
+            default_activity_area=default_area,
         )
 
     return app
+
+
+def get_database_path() -> Path:
+    configured = current_app.config.get("DATABASE_PATH")
+    if configured:
+        return Path(configured)
+
+    database_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if database_uri.startswith("sqlite:///"):
+        return Path(database_uri.replace("sqlite:///", "", 1))
+
+    raise RuntimeError("Veritabanı yolu yapılandırmada bulunamadı.")
 
 
 def load_inventory_payload() -> dict:
@@ -2371,11 +2692,7 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
     if license_record:
         search_tokens.extend([license_record.name, license_record.status])
 
-    allow_operations = bool(
-        item
-        and item.hardware_type
-        and "yazıcı" in (item.hardware_type.name or "").lower()
-    )
+    allow_operations = status_value == "stokta"
 
     return {
         "id": stock_item.id,
@@ -2474,6 +2791,8 @@ def load_stock_payload() -> dict[str, Any]:
         .all()
     )
 
+    support_options = build_stock_support_options()
+
     return {
         "stock_items": stock_items,
         "stock_logs": [serialize_stock_log(log) for log in logs],
@@ -2481,6 +2800,7 @@ def load_stock_payload() -> dict[str, Any]:
         "stock_status_summary": status_summary,
         "stock_faulty_count": faulty_count,
         "stock_metadata_config": STOCK_METADATA_FIELDS,
+        "stock_support_options": support_options,
     }
 
 
@@ -2785,6 +3105,7 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
     search_tokens = [order.order_no, order.requested_by, order.department, opened_display]
 
     for line in order.lines:
+        category_value = normalize_stock_category(line.category, fallback="envanter")
         line_payload = {
             "id": line.id,
             "hardware_type": line.hardware_type,
@@ -2793,6 +3114,10 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
             "quantity": line.quantity,
             "note": line.note,
             "opened_display": opened_display,
+            "category": category_value,
+            "category_label": STOCK_CATEGORY_LABELS.get(
+                category_value, category_value.capitalize()
+            ),
         }
         lines_payload.append(line_payload)
         search_tokens.extend(
@@ -2800,6 +3125,7 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
                 line_payload["hardware_type"],
                 line_payload["brand"],
                 line_payload["model"],
+                line_payload["category_label"],
                 line_payload.get("note"),
             ]
         )
@@ -2885,6 +3211,7 @@ def load_request_groups() -> dict[str, Any]:
         "request_groups": request_groups_payload,
         "hardware_catalog": hardware_catalog,
         "stock_metadata_config": STOCK_METADATA_FIELDS,
+        "stock_support_options": build_stock_support_options(),
         "request_users": request_users,
     }
 
@@ -3114,7 +3441,10 @@ def create_stock_item_from_request_line(
 ) -> StockItem:
     title_parts = [line.brand, line.model]
     title = " ".join(part for part in title_parts if part).strip() or line.hardware_type
-    category_value = normalize_stock_category(category, fallback="talep")
+    category_value = normalize_stock_category(
+        category or line.category,
+        fallback="talep",
+    )
     metadata_payload = {
         "request_no": order.order_no,
         "department": order.department,
@@ -3172,8 +3502,13 @@ def prepare_stock_metadata(
     payload: Any,
     *,
     defaults: dict[str, Any] | None = None,
+    include_assignment_fields: bool = True,
 ) -> dict[str, str]:
     schema = STOCK_METADATA_FIELDS.get(category, [])
+    if not include_assignment_fields:
+        schema = [
+            field for field in schema if not field.get("assignment_only")
+        ]
     provided: dict[str, Any]
     if isinstance(payload, dict):
         provided = payload
@@ -3242,6 +3577,48 @@ def load_activity_logs(limit: int | None = None) -> list[dict[str, Any]]:
 
 def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
     return load_activity_logs(limit)
+
+
+def build_stock_support_options() -> dict[str, list[str]]:
+    factory_names = [factory.name for factory in Factory.query.order_by(Factory.name)]
+
+    department_values: set[str] = set()
+    for (department,) in db.session.query(InventoryItem.department).distinct():
+        if department:
+            department_values.add(department)
+    for (department,) in db.session.query(User.department).distinct():
+        if department:
+            department_values.add(department)
+    department_names = sorted(department_values)
+
+    responsible_names = [
+        f"{user.first_name} {user.last_name}".strip()
+        for user in User.query.order_by(User.first_name, User.last_name)
+        if (user.first_name or user.last_name)
+    ]
+
+    usage_area_names = [
+        usage_area.name for usage_area in UsageArea.query.order_by(UsageArea.name)
+    ]
+    license_name_values = [
+        license_name.name for license_name in LicenseName.query.order_by(LicenseName.name)
+    ]
+
+    inventory_numbers = [
+        inventory_no
+        for (inventory_no,) in db.session.query(InventoryItem.inventory_no)
+        .filter(InventoryItem.inventory_no.isnot(None))
+        .distinct()
+        .order_by(InventoryItem.inventory_no)
+    ]
+    return {
+        "factories": factory_names,
+        "departments": department_names,
+        "responsibles": responsible_names,
+        "usage_areas": usage_area_names,
+        "license_names": license_name_values,
+        "inventory_numbers": inventory_numbers,
+    }
 
 
 def load_admin_panel_payload() -> dict:

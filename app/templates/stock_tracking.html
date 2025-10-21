@@ -139,18 +139,33 @@
                   <div class="text-muted small">{{ item.updated_display }}</div>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex align-items-center gap-2">
-                    <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="{{ item.id }}">
+                  <div class="table-actions">
+                    <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="{{ item.id }}" aria-label="Stok detayını görüntüle">
                       <i class="bi bi-eye"></i>
                     </button>
-                    <div class="dropdown">
-                      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="dropdown action-dropdown">
+                      <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         İşlemler
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                        <li><button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Atama Yap</button></li>
-                        <li><button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Arızalı İşaretle</button></li>
-                        <li><button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>Hurda</button></li>
+                        <li>
+                          <button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
+                            <i class="bi bi-person-plus"></i>
+                            Atama Yap
+                          </button>
+                        </li>
+                        <li>
+                          <button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
+                            <i class="bi bi-bandaid"></i>
+                            Arızalı İşaretle
+                          </button>
+                        </li>
+                        <li>
+                          <button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
+                            <i class="bi bi-calendar-x"></i>
+                            Tarihten Ayır
+                          </button>
+                        </li>
                       </ul>
                     </div>
                   </div>
@@ -324,6 +339,14 @@
       </div>
       <div class="modal-body">
         <p class="mb-3" data-stock-action="message">Seçili stok kaydı üzerinde işlem yapacaksınız.</p>
+        <div class="mb-3 d-none" data-stock-action-metadata-section>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label mb-0">Atama Bilgileri</label>
+            <span class="badge bg-light text-dark" data-stock-action="category"></span>
+          </div>
+          <div class="row g-3" data-stock-action-metadata-container></div>
+          <div class="alert alert-danger d-none mt-3" data-stock-action-metadata-error></div>
+        </div>
         <div class="mb-0">
           <label class="form-label" for="stockActionNote">Not (opsiyonel)</label>
           <textarea class="form-control" id="stockActionNote" name="note" rows="2"></textarea>
@@ -345,6 +368,7 @@
   const stockLogs = {{ stock_logs | tojson }};
   const stockStatusSummary = {{ stock_status_summary | tojson }};
   const stockMetadataConfig = {{ stock_metadata_config | tojson }};
+  const stockSupportOptions = {{ stock_support_options | tojson }};
   const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
 
   const bootstrapLib = window.bootstrap;
@@ -383,6 +407,10 @@
   const actionMessage = actionModalEl?.querySelector('[data-stock-action="message"]');
   const actionConfirmButton = actionModalEl?.querySelector('[data-stock-action="confirm"]');
   const actionNoteInput = document.getElementById('stockActionNote');
+  const actionMetadataSection = actionModalEl?.querySelector('[data-stock-action-metadata-section]');
+  const actionMetadataContainer = actionModalEl?.querySelector('[data-stock-action-metadata-container]');
+  const actionMetadataError = actionModalEl?.querySelector('[data-stock-action-metadata-error]');
+  const actionCategoryBadge = actionModalEl?.querySelector('[data-stock-action="category"]');
 
   const createModalEl = document.getElementById('stockCreateModal');
   const createForm = document.getElementById('stockCreateForm');
@@ -399,6 +427,8 @@
   let activeStockId = null;
   let showOnlyFaulty = false;
   let alertTimeoutId;
+  const metadataOptionLists = new Map();
+  let pendingStockAction = null;
 
   function safeText(value) {
     return value && String(value).trim() ? String(value) : '—';
@@ -424,17 +454,49 @@
     return values;
   }
 
-  function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false } = {}) {
+  function ensureMetadataOptions(key) {
+    if (!key) {
+      return null;
+    }
+    if (!metadataOptionLists.has(key)) {
+      const datalist = document.createElement('datalist');
+      datalist.id = `metadata-options-${key}`;
+      metadataOptionLists.set(key, datalist);
+      document.body.appendChild(datalist);
+    }
+    const datalist = metadataOptionLists.get(key);
+    const options = stockSupportOptions?.[key];
+    if (datalist && Array.isArray(options)) {
+      datalist.innerHTML = '';
+      options.forEach((optionValue) => {
+        const option = document.createElement('option');
+        option.value = optionValue;
+        datalist.appendChild(option);
+      });
+    }
+    return datalist;
+  }
+
+  function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false, mode = 'entry' } = {}) {
     if (!sectionEl || !containerEl) {
       return;
     }
     containerEl.innerHTML = '';
-    if (!Array.isArray(schema) || !schema.length) {
+    const filteredSchema = Array.isArray(schema)
+      ? schema.filter((field) => {
+          const assignmentOnly = Boolean(field.assignment_only);
+          if (assignmentOnly && mode !== 'assignment') {
+            return false;
+          }
+          return true;
+        })
+      : [];
+    if (!filteredSchema.length) {
       sectionEl.classList.add('d-none');
       return;
     }
     sectionEl.classList.remove('d-none');
-    schema.forEach((field) => {
+    filteredSchema.forEach((field) => {
       const key = field.key;
       const label = field.label || key;
       const placeholder = field.placeholder || '';
@@ -465,6 +527,12 @@
         input.placeholder = placeholder;
         input.value = currentValue;
         input.autocomplete = 'off';
+        if (field.options_key) {
+          const datalist = ensureMetadataOptions(field.options_key);
+          if (datalist) {
+            input.setAttribute('list', datalist.id);
+          }
+        }
         if (required) {
           input.required = true;
         }
@@ -503,6 +571,34 @@
     if (!faultyCounter) return;
     const faultyTotal = Array.from(stockMap.values()).filter((item) => item.status === 'arizali').length;
     faultyCounter.textContent = faultyTotal;
+  }
+
+  function renderStockActionMetadata({ hidePrefilled = false } = {}) {
+    if (!actionMetadataSection || !actionMetadataContainer || !pendingStockAction) {
+      if (actionMetadataSection) {
+        actionMetadataSection.classList.add('d-none');
+      }
+      return;
+    }
+    const category = pendingStockAction.category || '';
+    const schema = getMetadataSchema(category);
+    const defaults = pendingStockAction.metadataDefaults || {};
+    const currentValues = readMetadataValues(actionMetadataContainer);
+    const values = { ...defaults, ...currentValues };
+    buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, {
+      hidePrefilled,
+      mode: 'assignment',
+    });
+    if (!Array.isArray(schema) || !schema.length) {
+      actionMetadataSection.classList.add('d-none');
+      actionMetadataContainer.classList.add('d-none');
+      return;
+    }
+    actionMetadataContainer.classList.remove('d-none');
+    if (actionMetadataError) {
+      actionMetadataError.classList.add('d-none');
+      actionMetadataError.textContent = '';
+    }
   }
 
   function showActionAlert(message, variant = 'success') {
@@ -649,6 +745,31 @@
           scrap: 'Bu stok kaydı hurda listesine taşınacak.',
         };
         actionModalEl.dataset.action = action;
+        const metadataDefaults = {
+          ...(item.metadata || {}),
+        };
+        if (!metadataDefaults.hardware_type && item.hardware_type) {
+          metadataDefaults.hardware_type = item.hardware_type;
+        }
+        if (!metadataDefaults.brand && item.brand) {
+          metadataDefaults.brand = item.brand;
+        }
+        if (!metadataDefaults.model && item.model) {
+          metadataDefaults.model = item.model;
+        }
+        if (!metadataDefaults.inventory_no && item.inventory_no) {
+          metadataDefaults.inventory_no = item.inventory_no;
+        }
+        if (!metadataDefaults.reference && item.reference_code) {
+          metadataDefaults.reference = item.reference_code;
+        }
+
+        pendingStockAction = {
+          action,
+          category: item.category || '',
+          metadataDefaults,
+        };
+
         if (actionTitle) actionTitle.textContent = `${titles[action] || 'İşlem'} · ${safeText(item.hardware_type || item.title)}`;
         if (actionMessage) actionMessage.textContent = messages[action] || '';
         if (actionConfirmButton) {
@@ -657,6 +778,27 @@
           actionConfirmButton.classList.toggle('btn-primary', action !== 'scrap');
         }
         if (actionNoteInput) actionNoteInput.value = '';
+        if (actionCategoryBadge) {
+          actionCategoryBadge.textContent = safeText(item.category_label || '');
+        }
+        if (action === 'assign') {
+          renderStockActionMetadata({ hidePrefilled: true });
+          if (actionMetadataSection) {
+            actionMetadataSection.classList.remove('d-none');
+          }
+        } else {
+          pendingStockAction = null;
+          if (actionMetadataSection) {
+            actionMetadataSection.classList.add('d-none');
+          }
+          if (actionMetadataContainer) {
+            actionMetadataContainer.innerHTML = '';
+          }
+          if (actionMetadataError) {
+            actionMetadataError.classList.add('d-none');
+            actionMetadataError.textContent = '';
+          }
+        }
         actionModal.show();
       });
     });
@@ -791,7 +933,7 @@
     const selectedCategory = createCategorySelect.value || '';
     const schema = getMetadataSchema(selectedCategory);
     const values = readMetadataValues(createMetadataFields);
-    buildMetadataForm(createMetadataSection, createMetadataFields, schema, values);
+    buildMetadataForm(createMetadataSection, createMetadataFields, schema, values, { mode: 'entry' });
     if (createMetadataError) {
       createMetadataError.classList.add('d-none');
       createMetadataError.textContent = '';
@@ -822,9 +964,28 @@
       if (!url) {
         return;
       }
+      const requestBody = { note, performed_by: defaultActor };
+      if (action === 'assign') {
+        const schema = getMetadataSchema(item.category);
+        const { metadata, missing } = collectMetadata(actionMetadataContainer, schema);
+        if (missing.length) {
+          if (actionMetadataError) {
+            actionMetadataError.textContent = `${missing.join(', ')} alanlarını doldurun.`;
+            actionMetadataError.classList.remove('d-none');
+          }
+          return;
+        }
+        if (actionMetadataError) {
+          actionMetadataError.classList.add('d-none');
+          actionMetadataError.textContent = '';
+        }
+        if (Object.keys(metadata).length) {
+          requestBody.metadata = metadata;
+        }
+      }
       try {
         const payload = await sendStockRequest(url, {
-          body: { note, performed_by: defaultActor },
+          body: requestBody,
         });
         if (payload?.stock_item) {
           stockMap.set(payload.stock_item.id, payload.stock_item);
@@ -839,6 +1000,25 @@
         actionModal?.hide();
       } catch (error) {
         // alert already shown
+      }
+    });
+  }
+
+  if (actionModalEl) {
+    actionModalEl.addEventListener('hidden.bs.modal', () => {
+      pendingStockAction = null;
+      if (actionMetadataContainer) {
+        actionMetadataContainer.innerHTML = '';
+      }
+      if (actionMetadataSection) {
+        actionMetadataSection.classList.add('d-none');
+      }
+      if (actionMetadataError) {
+        actionMetadataError.classList.add('d-none');
+        actionMetadataError.textContent = '';
+      }
+      if (actionCategoryBadge) {
+        actionCategoryBadge.textContent = '';
       }
     });
   }

@@ -20,6 +20,10 @@
         <button class="status-pill" type="button" data-target="integration-section">
           <span>Bağlantılar</span>
         </button>
+        <button class="status-pill{% if not can_manage_data %} disabled{% endif %}" type="button"
+          data-target="data-section" {% if not can_manage_data %}disabled aria-disabled="true"{% endif %}>
+          <span>Veriler</span>
+        </button>
       </div>
     </div>
   </div>
@@ -288,6 +292,80 @@
       </div>
     </div>
   </section>
+  <section id="data-section" class="content-card shadow-sm admin-section">
+    <div class="mb-4">
+      <h2 class="h4 fw-semibold mb-1">Veriler</h2>
+      <p class="text-muted mb-0">Sistem verilerini dışa aktarın, içe aktarın veya veritabanını varsayılan içerikle
+        yeniden oluşturun.</p>
+    </div>
+
+    {% if can_manage_data %}
+    <div class="row g-4 align-items-stretch admin-data-grid">
+      <div class="col-xl-4 col-lg-6">
+        <div class="data-action-card card border-0 shadow-sm h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="icon-bubble bg-primary-subtle text-primary mb-3">
+              <i class="bi bi-cloud-arrow-down"></i>
+            </div>
+            <h3 class="card-title h5 fw-semibold">Veritabanını dışa aktar</h3>
+            <p class="card-text text-muted flex-grow-1">Tüm kayıtların bulunduğu mevcut veritabanını yedekleyin ve yerel
+              olarak saklayın.</p>
+            <a class="btn btn-outline-primary mt-3 align-self-start" href="{{ url_for('export_database') }}">
+              <i class="bi bi-download"></i>
+              Yedeği indir
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-4 col-lg-6">
+        <form class="data-action-card card border-0 shadow-sm h-100" method="post"
+          action="{{ url_for('import_database_backup') }}" enctype="multipart/form-data">
+          <div class="card-body d-flex flex-column">
+            <div class="icon-bubble bg-success-subtle text-success mb-3">
+              <i class="bi bi-cloud-arrow-up"></i>
+            </div>
+            <h3 class="card-title h5 fw-semibold">Veritabanı yedeği içe aktar</h3>
+            <p class="card-text text-muted">Dışarı aktardığınız bir SQLite dosyasını yükleyerek tüm verileri geri
+              yükleyin.</p>
+            <div class="mb-3">
+              <label class="form-label" for="dataFile">Yedek dosyası</label>
+              <input class="form-control" id="dataFile" name="data_file" type="file" accept=".db,.sqlite,.sqlite3"
+                required>
+              <div class="form-text">Desteklenen uzantılar: .db, .sqlite, .sqlite3</div>
+            </div>
+            <button class="btn btn-success align-self-start mt-auto" type="submit">
+              <i class="bi bi-upload"></i>
+              Yedeği yükle
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="col-xl-4 col-lg-6">
+        <form class="data-action-card card border-0 shadow-sm h-100" method="post"
+          action="{{ url_for('reset_database_view') }}"
+          onsubmit='return confirm("Tüm veriler silinip varsayılan içerik yüklenecek. Devam etmek istediğinize emin misiniz?");'>
+          <div class="card-body d-flex flex-column">
+            <div class="icon-bubble bg-danger-subtle text-danger mb-3">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </div>
+            <h3 class="card-title h5 fw-semibold">Veritabanını sıfırla</h3>
+            <p class="card-text text-muted flex-grow-1">Tüm kayıtları silin ve uygulamayı varsayılan demo verileriyle yeniden
+              başlatın.</p>
+            <button class="btn btn-outline-danger align-self-start mt-auto" type="submit">
+              <i class="bi bi-exclamation-octagon"></i>
+              Sıfırlamayı başlat
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-soft alert-warning d-flex align-items-center gap-2 mb-0">
+      <i class="bi bi-lock"></i>
+      <span>Bu bölümdeki işlemler yalnızca sistem yöneticileri tarafından gerçekleştirilebilir.</span>
+    </div>
+    {% endif %}
+  </section>
 </div>
 
 {% if can_manage_users %}
@@ -303,24 +381,59 @@
   const productCatalogEntries = {{ catalog_entries | tojson }};
 
   document.addEventListener("DOMContentLoaded", () => {
-    const sectionButtons = document.querySelectorAll(".admin-toggle .status-pill");
-    const sections = document.querySelectorAll(".admin-section");
+    const sectionButtons = Array.from(document.querySelectorAll(".admin-toggle .status-pill"));
+    const sections = Array.from(document.querySelectorAll(".admin-section"));
+
+    function activateSection(targetId, triggerButton, updateUrl = true) {
+      const resolvedButton =
+        triggerButton || sectionButtons.find((btn) => btn.dataset.target === targetId && !btn.disabled) || null;
+
+      sections.forEach((section) => {
+        section.classList.toggle("active", section.id === targetId);
+      });
+
+      sectionButtons.forEach((button) => {
+        button.classList.toggle("active", button === resolvedButton);
+      });
+
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("section", targetId);
+        window.history.replaceState({}, "", url);
+      }
+    }
 
     sectionButtons.forEach((button) => {
+      if (button.disabled) {
+        return;
+      }
       button.addEventListener("click", () => {
-        const targetId = button.dataset.target;
-        sectionButtons.forEach((btn) => btn.classList.remove("active"));
-        button.classList.add("active");
-
-        sections.forEach((section) => {
-          if (section.id === targetId) {
-            section.classList.add("active");
-          } else {
-            section.classList.remove("active");
-          }
-        });
+        activateSection(button.dataset.target, button);
       });
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedSection = params.get("section");
+    const requestedButton = requestedSection
+      ? sectionButtons.find((button) => button.dataset.target === requestedSection && !button.disabled)
+      : null;
+
+    if (requestedButton) {
+      activateSection(requestedButton.dataset.target, requestedButton, false);
+    } else {
+      const currentActive = sections.find((section) => section.classList.contains("active"));
+      if (currentActive) {
+        const currentButton = sectionButtons.find(
+          (button) => button.dataset.target === currentActive.id && !button.disabled,
+        );
+        activateSection(currentActive.id, currentButton || null, false);
+      } else if (sectionButtons.length) {
+        const firstAvailable = sectionButtons.find((button) => !button.disabled);
+        if (firstAvailable) {
+          activateSection(firstAvailable.dataset.target, firstAvailable, false);
+        }
+      }
+    }
 
     const userSearchInput = document.getElementById("userSearch");
     const userRows = Array.from(document.querySelectorAll("#userTable tbody tr"));
