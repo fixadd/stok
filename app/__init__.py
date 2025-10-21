@@ -3336,13 +3336,15 @@ def seed_initial_data() -> None:
 
 
 def seed_simple_users() -> None:
-    if User.query.count():
-        return
+    existing_user_count = User.query.count()
 
-    default_password = generate_password_hash("Parola123!")
     admin_password = generate_password_hash("admin")
-    users = [
-        User(
+    created_users: list[User] = []
+
+    admin_user = User.query.filter(func.lower(User.username) == "admin").first()
+
+    if admin_user is None:
+        admin_user = User(
             username="admin",
             first_name="Stok",
             last_name="Yöneticisi",
@@ -3352,7 +3354,35 @@ def seed_simple_users() -> None:
             password_hash=admin_password,
             system_role="superadmin",
             must_change_password=True,
-        ),
+        )
+        db.session.add(admin_user)
+        created_users.append(admin_user)
+    else:
+        updated = False
+        if not admin_user.password_hash:
+            admin_user.password_hash = admin_password
+            updated = True
+        if not admin_user.system_role or admin_user.system_role.lower() not in {"admin", "superadmin"}:
+            admin_user.system_role = "superadmin"
+            updated = True
+        if admin_user.must_change_password is None:
+            admin_user.must_change_password = True
+            updated = True
+        if updated:
+            created_users.append(admin_user)
+
+    if existing_user_count:
+        if created_users:
+            record_activity(
+                area="kullanici",
+                action="Varsayılan yönetici güncellendi",
+                description="Eksik yönetici hesabı oluşturuldu veya güncellendi.",
+                metadata={"count": len(created_users)},
+            )
+        return
+
+    default_password = generate_password_hash("Parola123!")
+    demo_users = [
         User(
             username="m.cetin",
             first_name="Merve",
@@ -3404,12 +3434,15 @@ def seed_simple_users() -> None:
             system_role="user",
         ),
     ]
-    db.session.add_all(users)
+
+    db.session.add_all(demo_users)
+    created_users.extend(demo_users)
+
     record_activity(
         area="kullanici",
         action="Varsayılan kullanıcılar eklendi",
         description="Sistem başlangıç kullanıcıları oluşturuldu.",
-        metadata={"count": len(users)},
+        metadata={"count": len(created_users)},
     )
 
 
