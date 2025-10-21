@@ -54,6 +54,21 @@
     <article class="info-detail-content">
       <p class="mb-0">{{ entry.content | replace('\n', '<br>') | safe }}</p>
     </article>
+    {% if entry.attachments %}
+    <div class="info-detail-attachments mt-4">
+      <h2 class="h6 fw-semibold mb-3">Ekler</h2>
+      <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+        {% for attachment in entry.attachments %}
+        <li>
+          <a class="d-inline-flex align-items-center gap-2" href="{{ url_for('info_uploads', filename=attachment.filename) }}" target="_blank">
+            <i class="bi bi-paperclip"></i>
+            <span>{{ attachment.original_name or attachment.filename }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </div>
   {% else %}
   <div class="content-card shadow-sm">
@@ -85,6 +100,30 @@
         </div>
         {% endif %}
       </div>
+      <div>
+        <label class="form-label" for="editInfoAttachments">Ek Dosya Ekle</label>
+        <input class="form-control" id="editInfoAttachments" name="attachments" type="file" multiple>
+        <div class="form-text">Birden fazla dosya seçebilirsiniz.</div>
+      </div>
+      {% if entry.attachments %}
+      <div>
+        <p class="form-label mb-2">Mevcut Ekler</p>
+        <div class="list-group shadow-sm">
+          {% for attachment in entry.attachments %}
+          <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-paperclip text-muted"></i>
+              <a href="{{ url_for('info_uploads', filename=attachment.filename) }}" target="_blank">{{ attachment.original_name or attachment.filename }}</a>
+            </div>
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" name="remove_attachments" value="{{ attachment.id }}" id="removeAttachment{{ attachment.id }}">
+              <label class="form-check-label" for="removeAttachment{{ attachment.id }}">Sil</label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </form>
   </div>
   {% endif %}

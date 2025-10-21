@@ -35,10 +35,17 @@
         <h3 class="h5 fw-semibold mb-1">Kullanıcı Yönetimi</h3>
         <p class="text-muted small mb-0">Sistemdeki kayıtları görüntüleyin veya yeni kullanıcı ekleyin.</p>
       </div>
+      {% if can_manage_users %}
       <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#userCreateModal">
         <i class="bi bi-person-plus"></i>
         Kullanıcı Ekle
       </button>
+      {% else %}
+      <span class="badge rounded-pill bg-warning-subtle text-warning d-flex align-items-center gap-2">
+        <i class="bi bi-lock"></i>
+        Yalnızca görüntüleme yetkisi
+      </span>
+      {% endif %}
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -75,17 +82,22 @@
             <th scope="col">Ad</th>
             <th scope="col">Soyad</th>
             <th scope="col">E-posta</th>
+            <th scope="col">Yetki</th>
             <th scope="col" class="text-end">İşlemler</th>
           </tr>
         </thead>
         <tbody>
           {% for user in users %}
-          <tr data-search="{{ (user.username ~ ' ' ~ user.first_name ~ ' ' ~ user.last_name ~ ' ' ~ user.email ~ ' ' ~ (user.role or '') ~ ' ' ~ (user.department or ''))|lower }}">
+          <tr data-search="{{ (user.username ~ ' ' ~ user.first_name ~ ' ' ~ user.last_name ~ ' ' ~ user.email ~ ' ' ~ (user.role or '') ~ ' ' ~ (user.department or '') ~ ' ' ~ system_role_labels.get(user.system_role, ''))|lower }}">
             <td class="fw-semibold">{{ user.username }}</td>
             <td>{{ user.first_name }}</td>
             <td>{{ user.last_name }}</td>
             <td class="text-muted">{{ user.email }}</td>
+            <td>
+              <span class="badge rounded-pill bg-primary-subtle text-primary">{{ system_role_labels.get(user.system_role, 'Kullanıcı') }}</span>
+            </td>
             <td class="text-end">
+              {% if can_manage_users and user.id != active_user.id %}
               <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline"
                 onsubmit='return confirm("{{ (user.first_name ~ ' ' ~ user.last_name ~ ' (' ~ user.username ~ ') kullanıcısını silmek istediğinize emin misiniz?')|escape }}");'>
                 <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" type="submit">
@@ -93,6 +105,11 @@
                   Sil
                 </button>
               </form>
+              {% elif can_manage_users %}
+              <span class="text-muted small">Aktif kullanıcı</span>
+              {% else %}
+              <span class="text-muted small">İzin yok</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -259,7 +276,9 @@
   </section>
 </div>
 
-{% include "admin_panel_modals.html" %}
+{% if can_manage_users %}
+  {% include "admin_panel_modals.html" %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

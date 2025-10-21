@@ -219,12 +219,6 @@
   </div>
 </div>
 
-<datalist id="licenseNameSuggestions">
-  {% for name in license_names %}
-  <option value="{{ name.name }}">{{ name.name }}</option>
-  {% endfor %}
-</datalist>
-
 <div class="modal fade" id="licenseCreateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
@@ -240,7 +234,12 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label" for="licenseCreateName">Lisans Adı</label>
-              <input class="form-control" id="licenseCreateName" name="name" list="licenseNameSuggestions" placeholder="Adobe Creative Cloud" required>
+              <select class="form-select" id="licenseCreateName" name="name" data-license-name-select required>
+                <option value="" selected disabled>Seçiniz</option>
+                {% for name in license_names %}
+                <option value="{{ name.name }}">{{ name.name }}</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label" for="licenseCreateKey">Lisans Anahtarı</label>
@@ -353,7 +352,12 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label" for="editLicenseName">Lisans Adı</label>
-              <input class="form-control" id="editLicenseName" name="edit_name" list="licenseNameSuggestions" required>
+              <select class="form-select" id="editLicenseName" name="edit_name" data-license-name-select required>
+                <option value="" disabled>Seçiniz</option>
+                {% for name in license_names %}
+                <option value="{{ name.name }}">{{ name.name }}</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label" for="editLicenseKey">Lisans Anahtarı</label>
@@ -448,7 +452,7 @@
 
     const editModalEl = document.getElementById('licenseEditModal');
     const editForm = document.getElementById('licenseEditForm');
-    const editNameInput = document.getElementById('editLicenseName');
+    const editNameSelect = document.getElementById('editLicenseName');
     const editKeyInput = document.getElementById('editLicenseKey');
     const editResponsibleSelect = document.getElementById('editResponsibleSelect');
     const editInventorySelect = document.getElementById('editInventorySelect');
@@ -459,9 +463,9 @@
 
     const createModalEl = document.getElementById('licenseCreateModal');
     const createForm = document.getElementById('licenseCreateForm');
-    const createNameInput = document.getElementById('licenseCreateName');
+    const createNameSelect = document.getElementById('licenseCreateName');
     const createKeyInput = document.getElementById('licenseCreateKey');
-    const licenseNameDatalist = document.getElementById('licenseNameSuggestions');
+    const licenseNameSelects = [createNameSelect, editNameSelect].filter(Boolean);
 
     let licenseNameOptionsLoaded = false;
     let licenseNameOptions = [];
@@ -494,13 +498,21 @@
 
     const rows = () => Array.from(tableBody.querySelectorAll('tr[data-license-id]'));
 
-    if (licenseNameDatalist) {
-      licenseNameOptions = Array.from(
-        licenseNameDatalist.querySelectorAll('option')
-      )
-        .map((option) => option.value)
-        .filter((value, index, array) => value && array.indexOf(value) === index);
+    if (licenseNameSelects.length) {
+      licenseNameOptions = licenseNameSelects
+        .reduce((values, select) => {
+          Array.from(select.options).forEach((option) => {
+            if (option.value) {
+              values.push(option.value);
+            }
+          });
+          return values;
+        }, [])
+        .filter((value, index, array) => array.indexOf(value) === index)
+        .sort((a, b) => a.localeCompare(b, 'tr-TR'));
     }
+
+    refreshLicenseNameSelects();
 
     function escapeHtml(value) {
       if (value === undefined || value === null) {
@@ -514,18 +526,43 @@
         .replace(/'/g, '&#39;');
     }
 
-    function refreshLicenseNameDatalist() {
-      if (!licenseNameDatalist) {
+    function refreshLicenseNameSelects() {
+      if (!licenseNameSelects.length) {
         return;
       }
-      licenseNameDatalist.innerHTML = '';
-      const fragment = document.createDocumentFragment();
-      licenseNameOptions.forEach((name) => {
-        const option = document.createElement('option');
-        option.value = name;
-        fragment.appendChild(option);
+      licenseNameSelects.forEach((select) => {
+        const currentValue = select.value;
+        if (currentValue && !licenseNameOptions.includes(currentValue)) {
+          licenseNameOptions.push(currentValue);
+        }
       });
-      licenseNameDatalist.appendChild(fragment);
+      licenseNameOptions = licenseNameOptions
+        .filter((value, index, array) => value && array.indexOf(value) === index)
+        .sort((a, b) => a.localeCompare(b, 'tr-TR'));
+      licenseNameSelects.forEach((select) => {
+        const currentValue = select.value;
+        const fragment = document.createDocumentFragment();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Seçiniz';
+        placeholder.disabled = true;
+        placeholder.selected = !currentValue;
+        fragment.appendChild(placeholder);
+        licenseNameOptions.forEach((name) => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          if (name === currentValue) {
+            option.selected = true;
+          }
+          fragment.appendChild(option);
+        });
+        select.innerHTML = '';
+        select.appendChild(fragment);
+        if (currentValue && !licenseNameOptions.includes(currentValue)) {
+          select.value = '';
+        }
+      });
     }
 
     async function ensureLicenseNameOptions() {
@@ -545,7 +582,7 @@
           .map((item) => item?.name)
           .filter((name, index, array) => name && array.indexOf(name) === index);
         licenseNameOptionsLoaded = true;
-        refreshLicenseNameDatalist();
+        refreshLicenseNameSelects();
       } catch (error) {
         console.warn('Lisans adları yüklenemedi.', error);
       }
@@ -1023,7 +1060,10 @@
         if (!data) {
           return;
         }
-        editNameInput.value = data.display_name || '';
+        if (editNameSelect) {
+          refreshLicenseNameSelects();
+          editNameSelect.value = data.display_name || '';
+        }
         editKeyInput.value = data.key || '';
         editResponsibleSelect.value = data.responsible_id ? String(data.responsible_id) : '';
         editInventorySelect.value = data.inventory_id ? String(data.inventory_id) : '';
@@ -1035,6 +1075,7 @@
         if (editForm) {
           editForm.reset();
         }
+        refreshLicenseNameSelects();
         editStatusSelect.value = 'aktif';
         editHistoryToggle.checked = true;
       });
@@ -1132,11 +1173,11 @@
         if (!data) {
           return;
         }
-        if (!editNameInput.value.trim()) {
-          editNameInput.reportValidity();
+        if (!editNameSelect.value) {
+          editNameSelect.reportValidity();
           return;
         }
-        data.display_name = editNameInput.value.trim();
+        data.display_name = editNameSelect.value;
         data.key = editKeyInput.value.trim();
         data.raw_name = data.key ? `${data.display_name} - ${data.key}` : data.display_name;
 
@@ -1155,11 +1196,8 @@
 
         if (data.display_name && !licenseNameOptions.includes(data.display_name)) {
           licenseNameOptions.push(data.display_name);
-          licenseNameOptions = licenseNameOptions
-            .filter((value, index, array) => array.indexOf(value) === index)
-            .sort((a, b) => a.localeCompare(b, 'tr-TR'));
           licenseNameOptionsLoaded = true;
-          refreshLicenseNameDatalist();
+          refreshLicenseNameSelects();
         }
 
         refreshLicenseRecord(data);
@@ -1183,12 +1221,12 @@
     const createSubmitButton = document.getElementById('licenseCreateSubmit');
     if (createSubmitButton) {
       createSubmitButton.addEventListener('click', () => {
-        if (!createNameInput.value.trim() || !createKeyInput.value.trim()) {
-          createNameInput.reportValidity();
+        if (!createNameSelect.value || !createKeyInput.value.trim()) {
+          createNameSelect.reportValidity();
           createKeyInput.reportValidity();
           return;
         }
-        const displayName = createNameInput.value.trim();
+        const displayName = createNameSelect.value;
         const keyValue = createKeyInput.value.trim();
         const newId = nextLicenseId++;
         const newData = {
@@ -1219,15 +1257,12 @@
         showFeedback('Yeni lisans kaydı eklendi. Atama yapılana kadar pasif durumdadır.', 'success');
         const modalInstance = bootstrap.Modal.getInstance(createModalEl);
         modalInstance?.hide();
-        createForm.reset();
         if (!licenseNameOptions.includes(displayName)) {
           licenseNameOptions.push(displayName);
-          licenseNameOptions = licenseNameOptions
-            .filter((value, index, array) => array.indexOf(value) === index)
-            .sort((a, b) => a.localeCompare(b, 'tr-TR'));
           licenseNameOptionsLoaded = true;
-          refreshLicenseNameDatalist();
         }
+        createForm.reset();
+        refreshLicenseNameSelects();
         applySearch();
         refreshCounters();
       });
