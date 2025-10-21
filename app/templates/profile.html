@@ -49,11 +49,14 @@
               <dd class="col-7 fw-semibold">{{ profile_user.last_name }}</dd>
               <dt class="col-5 text-muted">E-posta</dt>
               <dd class="col-7 fw-semibold text-break">{{ profile_user.email }}</dd>
+              <dt class="col-5 text-muted">Yetki</dt>
+              <dd class="col-7 fw-semibold">{{ system_role_labels.get(profile_user.system_role, 'Kullanıcı') }}</dd>
             </dl>
           {% else %}
             <p class="text-muted mb-0">Henüz kullanıcı oluşturulmadı.</p>
           {% endif %}
         </div>
+        {% if can_switch_users %}
         <div class="card-footer bg-transparent border-0 pt-0">
           <form method="post" action="{{ url_for('profile_switch_user') }}">
             <label for="profileUserSelect" class="form-label text-muted small">Farklı kullanıcı seç</label>
@@ -72,6 +75,7 @@
             </div>
           </form>
         </div>
+        {% endif %}
       </div>
     </div>
 

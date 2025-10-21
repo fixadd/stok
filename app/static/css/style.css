@@ -199,6 +199,102 @@ body.theme-okyanus .section-title {
   box-shadow: 0 16px 32px rgba(76, 110, 245, 0.25);
 }
 
+.account-bar {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid rgba(76, 110, 245, 0.08);
+  box-shadow: 0 10px 30px rgba(76, 110, 245, 0.12);
+}
+
+.account-bar .btn {
+  border-radius: 999px;
+  padding-inline: 1.25rem;
+}
+
+.auth-body {
+  background: linear-gradient(135deg, #4c6ef5 0%, #9fb4ff 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.auth-card {
+  max-width: 960px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.auth-illustration {
+  position: relative;
+  background: linear-gradient(180deg, rgba(76, 110, 245, 0.95) 0%, rgba(109, 144, 255, 0.85) 100%);
+  color: #fff;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.auth-illustration::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.4), transparent 55%);
+  pointer-events: none;
+}
+
+.auth-illustration h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.auth-illustration p {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.auth-form {
+  padding: 2.5rem 2rem;
+}
+
+.auth-form .form-control {
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+}
+
+.auth-form .btn-primary {
+  border-radius: 12px;
+  padding: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 12px 24px rgba(76, 110, 245, 0.3);
+}
+
+.auth-form .form-text {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 767.98px) {
+  .auth-card {
+    border-radius: 20px;
+  }
+
+  .auth-illustration {
+    padding: 2rem 1.5rem;
+  }
+
+  .auth-form {
+    padding: 2rem 1.5rem;
+  }
+}
+
 .sidebar .nav-link.active .sidebar-card span,
 .sidebar .nav-link.active .sidebar-card .icon-wrapper {
   color: #ffffff;

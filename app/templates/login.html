@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stok Yönetimi · Giriş</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  </head>
+  <body class="auth-body">
+    <div class="auth-card">
+      <section class="auth-illustration">
+        <div>
+          <span class="badge bg-light text-primary mb-3">Stok Yönetimi</span>
+          <h1>Kontrol Sizde</h1>
+          <p>Envanter, lisans ve talepleri tek bir panelden yönetin. Güvenli giriş ile tüm kayıtlarınıza erişin.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-4">
+          <i class="bi bi-shield-lock fs-4"></i>
+          <span class="fw-semibold">Yetkisiz erişim engellenir.</span>
+        </div>
+      </section>
+      <section class="auth-form bg-white">
+        <div class="mb-4">
+          <h2 class="h4 fw-bold mb-1">Panele Giriş Yapın</h2>
+          <p class="text-muted mb-0">Devam etmek için kullanıcı adınızı ve şifrenizi girin.</p>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="mb-3">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        {% if error %}
+          <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-octagon me-2"></i>{{ error }}
+          </div>
+        {% endif %}
+        <form method="post" class="d-flex flex-column gap-3">
+          <input type="hidden" name="next" value="{{ next_target }}">
+          <div>
+            <label class="form-label" for="loginUsername">Kullanıcı Adı</label>
+            <input class="form-control" id="loginUsername" name="username" placeholder="kullanici.adi" autocomplete="username" required>
+          </div>
+          <div>
+            <label class="form-label" for="loginPassword">Şifre</label>
+            <input class="form-control" id="loginPassword" name="password" type="password" placeholder="Şifreniz" autocomplete="current-password" required>
+          </div>
+          <div class="form-text d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle text-primary"></i>
+            <span>Varsayılan yönetici: <code>admin / admin</code></span>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Giriş Yap
+          </button>
+        </form>
+      </section>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

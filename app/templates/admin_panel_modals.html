@@ -28,7 +28,15 @@
             <label class="form-label" for="modalUserEmail">E-posta</label>
             <input class="form-control" id="modalUserEmail" name="email" type="email" placeholder="ornek@firma.com" required>
           </div>
-          <div class="col-12">
+          <div class="col-sm-6">
+            <label class="form-label" for="modalUserSystemRole">Yetki</label>
+            <select class="form-select" id="modalUserSystemRole" name="system_role">
+              {% for choice in system_role_choices %}
+                <option value="{{ choice.value }}">{{ choice.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6 d-flex align-items-end">
             <div class="form-text">İlk girişte kullanıcıdan şifresini güncellemesi istenecektir.</div>
           </div>
           <div class="col-12 d-flex justify-content-end gap-2">

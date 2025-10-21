@@ -29,6 +29,7 @@ class User(db.Model):
     department = db.Column(db.String(128), nullable=True)
     preferred_theme = db.Column(db.String(64), nullable=False, default="varsayilan")
     password_hash = db.Column(db.String(255), nullable=True)
+    system_role = db.Column(db.String(32), nullable=False, default="user")
 
     def to_dict(self) -> dict:
         return {
@@ -40,6 +41,7 @@ class User(db.Model):
             "role": self.role,
             "department": self.department,
             "preferred_theme": self.preferred_theme,
+            "system_role": self.system_role,
         }
 
 

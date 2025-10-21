@@ -12,7 +12,7 @@
       </div>
       <div class="d-flex flex-column text-end">
         <span class="text-muted small">Toplam kayıt</span>
-        <span class="display-6 fw-semibold mb-0">{{ scrap_count }}</span>
+        <span class="display-6 fw-semibold mb-0" id="scrapCountValue">{{ scrap_count }}</span>
       </div>
     </div>
   </div>
@@ -57,15 +57,23 @@
               <div class="text-muted small">{{ item.model or '—' }}</div>
             </td>
             <td class="text-end">
-              <button class="btn btn-outline-secondary btn-sm icon-button scrap-detail-trigger" type="button" data-item-id="{{ item.id }}">
-                <i class="bi bi-eye"></i>
-              </button>
+              <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-outline-secondary btn-sm icon-button scrap-detail-trigger" type="button" data-item-id="{{ item.id }}">
+                  <i class="bi bi-eye"></i>
+                </button>
+                {% if can_restore_scrap %}
+                <button class="btn btn-outline-success btn-sm icon-button scrap-restore-trigger" type="button" data-item-id="{{ item.id }}" title="Stok durumuna döndür">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    <div class="alert alert-soft mt-3 d-none" id="scrapFeedback"></div>
     <div class="alert alert-soft mt-3{% if scrap_items %} d-none{% endif %}" id="scrapEmptyState">
       Aradığınız kriterlere uygun hurda kaydı bulunamadı.
     </div>
@@ -162,10 +170,13 @@
   const bootstrapLib = window.bootstrap;
 
   const scrapTableBody = document.querySelector('#scrapTable tbody');
-  const scrapRows = scrapTableBody ? Array.from(scrapTableBody.querySelectorAll('tr')) : [];
   const scrapSearchInput = document.getElementById('scrapSearch');
   const scrapEmptyState = document.getElementById('scrapEmptyState');
+  const scrapFeedback = document.getElementById('scrapFeedback');
+  const scrapCountValue = document.getElementById('scrapCountValue');
+  const canRestore = {{ 'true' if can_restore_scrap else 'false' }};
 
+  let scrapRows = scrapTableBody ? Array.from(scrapTableBody.querySelectorAll('tr')) : [];
   const scrapMap = new Map(scrapItems.map((item) => [String(item.id), item]));
 
   const detailModalEl = document.getElementById('scrapDetailModal');
@@ -179,6 +190,32 @@
     return value && String(value).trim() ? String(value) : '—';
   }
 
+  function updateScrapRows() {
+    scrapRows = scrapTableBody ? Array.from(scrapTableBody.querySelectorAll('tr')) : [];
+  }
+
+  function updateScrapCount() {
+    if (scrapCountValue) {
+      scrapCountValue.textContent = String(scrapRows.length);
+    }
+  }
+
+  function showScrapFeedback(message, variant = 'success', persist = false) {
+    if (!scrapFeedback) {
+      return;
+    }
+    scrapFeedback.textContent = message;
+    scrapFeedback.className = `alert alert-soft alert-${variant}`;
+    scrapFeedback.classList.remove('d-none');
+    if (!persist) {
+      setTimeout(() => {
+        if (scrapFeedback) {
+          scrapFeedback.classList.add('d-none');
+        }
+      }, 3200);
+    }
+  }
+
   function updateEmptyState(visibleRows) {
     if (!scrapEmptyState) {
       return;
@@ -187,10 +224,8 @@
   }
 
   function filterRows() {
-    if (!scrapSearchInput) {
-      return;
-    }
-    const query = scrapSearchInput.value.trim().toLowerCase();
+    updateScrapRows();
+    const query = ((scrapSearchInput && scrapSearchInput.value) || '').trim().toLowerCase();
     let visibleCount = 0;
     scrapRows.forEach((row) => {
       const matches = !query || (row.dataset.search || '').includes(query);
@@ -251,21 +286,65 @@
     detailModal && detailModal.show();
   }
 
+  function removeScrapRow(itemId) {
+    if (!scrapTableBody) {
+      return;
+    }
+    const row = scrapTableBody.querySelector(`tr[data-item-id="${itemId}"]`);
+    if (row) {
+      scrapTableBody.removeChild(row);
+    }
+    updateScrapRows();
+    updateScrapCount();
+    filterRows();
+  }
+
   if (scrapSearchInput) {
     scrapSearchInput.addEventListener('input', filterRows);
   }
 
   if (scrapTableBody) {
-    scrapTableBody.addEventListener('click', (event) => {
-      const trigger = event.target.closest('.scrap-detail-trigger');
-      if (!trigger) {
+    scrapTableBody.addEventListener('click', async (event) => {
+      const restoreTrigger = event.target.closest('.scrap-restore-trigger');
+      if (restoreTrigger) {
+        event.preventDefault();
+        if (!canRestore) {
+          showScrapFeedback('Bu işlem için yetkiniz yok.', 'danger');
+          return;
+        }
+        const itemId = restoreTrigger.dataset.itemId;
+        if (!itemId) {
+          return;
+        }
+        restoreTrigger.disabled = true;
+        try {
+          const response = await fetch(`/api/inventory/${itemId}/restore-from-scrap`, { method: 'POST' });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            showScrapFeedback(payload?.error || 'İşlem tamamlanamadı.', 'danger', true);
+            return;
+          }
+          scrapMap.delete(String(itemId));
+          removeScrapRow(itemId);
+          showScrapFeedback('Hurda kaydı yeniden stok durumuna alındı.', 'success');
+        } catch (error) {
+          console.error(error);
+          showScrapFeedback('Sunucuya ulaşılamadı.', 'danger', true);
+        } finally {
+          restoreTrigger.disabled = false;
+        }
         return;
       }
-      const itemId = trigger.dataset.itemId;
-      openDetail(itemId);
+
+      const detailTrigger = event.target.closest('.scrap-detail-trigger');
+      if (detailTrigger) {
+        openDetail(detailTrigger.dataset.itemId);
+      }
     });
   }
 
-  updateEmptyState(scrapRows.length);
+  updateScrapRows();
+  updateScrapCount();
+  filterRows();
 </script>
 {% endblock %}

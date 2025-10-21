@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -24,7 +25,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import (
     Brand,
@@ -89,6 +90,19 @@ STOCK_SOURCE_LABELS = {
     "license": "Lisans Takip",
     "request": "Talep Takip",
     "manual": "Manuel Kayıt",
+}
+
+
+SYSTEM_ROLE_LEVELS = {
+    "user": 0,
+    "admin": 1,
+    "superadmin": 2,
+}
+
+SYSTEM_ROLE_LABELS = {
+    "user": "Kullanıcı",
+    "admin": "Admin",
+    "superadmin": "Süper Admin",
 }
 
 
@@ -366,21 +380,27 @@ def ensure_user_profile_columns() -> None:
         )
         altered = True
 
+    if "system_role" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN system_role VARCHAR(32)"
+                " DEFAULT 'user'"
+            )
+        )
+        altered = True
+
     if altered:
         db.session.commit()
 
 
 def get_active_user() -> User | None:
     user_id = session.get("active_user_id")
-    user: User | None = None
-    if user_id is not None:
-        user = User.query.get(user_id)
+    if user_id is None:
+        return None
 
+    user: User | None = User.query.get(user_id)
     if user is None:
-        user = User.query.order_by(User.id).first()
-        if user is not None:
-            session["active_user_id"] = user.id
-
+        session.pop("active_user_id", None)
     return user
 
 
@@ -389,6 +409,45 @@ def set_active_user(user: User | None) -> None:
         session.pop("active_user_id", None)
     else:
         session["active_user_id"] = user.id
+
+
+def get_system_role(user: User | None) -> str:
+    if user is None:
+        return "user"
+    role = (user.system_role or "user").strip().lower()
+    return role if role in SYSTEM_ROLE_LEVELS else "user"
+
+
+def has_system_role(user: User | None, required: str) -> bool:
+    required_role = (required or "user").strip().lower()
+    if required_role not in SYSTEM_ROLE_LEVELS:
+        required_role = "user"
+    user_role = get_system_role(user)
+    return SYSTEM_ROLE_LEVELS[user_role] >= SYSTEM_ROLE_LEVELS[required_role]
+
+
+def current_actor_name() -> str:
+    user = get_active_user()
+    if not user:
+        return DEFAULT_EVENT_ACTOR
+    full_name = f"{user.first_name} {user.last_name}".strip()
+    return full_name or user.username or DEFAULT_EVENT_ACTOR
+
+
+def is_safe_redirect_target(target: str | None) -> bool:
+    if not target:
+        return False
+    target = target.strip()
+    if not target:
+        return False
+    if target.startswith("//"):
+        return False
+    parsed_target = urlparse(target)
+    if parsed_target.scheme and parsed_target.scheme not in {"http", "https"}:
+        return False
+    if parsed_target.netloc and parsed_target.netloc != urlparse(request.host_url).netloc:
+        return False
+    return True
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -415,6 +474,7 @@ def create_app() -> Flask:
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
     app.config["INFO_UPLOAD_DIR"] = info_upload_dir
+    app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
 
@@ -424,12 +484,27 @@ def create_app() -> Flask:
         seed_initial_data()
 
     @app.before_request
-    def ensure_profile_context() -> None:
-        if "active_user_id" in session:
+    def enforce_login():
+        endpoint = request.endpoint or ""
+        if endpoint in {"login", "static"}:
             return
-        user = User.query.order_by(User.id).first()
+        if endpoint.startswith("static"):
+            return
+
+        user = get_active_user()
         if user is not None:
-            set_active_user(user)
+            return
+
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Bu işlemi yapmak için oturum açın."}), 401
+
+        next_url = ""
+        if request.method == "GET":
+            next_url = request.full_path or request.path
+            if next_url.endswith("?"):
+                next_url = next_url[:-1]
+        target = next_url if is_safe_redirect_target(next_url) else None
+        return redirect(url_for("login", next=target))
 
     @app.context_processor
     def inject_profile_preferences() -> dict[str, Any]:
@@ -440,11 +515,74 @@ def create_app() -> Flask:
         theme_meta = THEME_OPTIONS.get(theme_key, THEME_OPTIONS["varsayilan"])
         return {
             "active_user": user,
+            "active_system_role": get_system_role(user),
             "active_theme": theme_key,
             "active_theme_meta": theme_meta,
             "active_theme_class": f"theme-{theme_key}",
             "theme_options": THEME_OPTIONS,
+            "system_role_labels": SYSTEM_ROLE_LABELS,
+            "is_admin_user": has_system_role(user, "admin"),
+            "is_super_admin": has_system_role(user, "superadmin"),
         }
+
+    @app.route("/giris", methods=["GET", "POST"])
+    def login():
+        if get_active_user():
+            next_param = request.args.get("next")
+            if next_param and is_safe_redirect_target(next_param):
+                return redirect(next_param)
+            return redirect(url_for("index"))
+
+        error: str | None = None
+        next_param = request.args.get("next")
+
+        if request.method == "POST":
+            username = (request.form.get("username") or "").strip()
+            password = (request.form.get("password") or "").strip()
+            next_param = request.form.get("next") or next_param
+
+            user = (
+                User.query.filter(func.lower(User.username) == username.lower()).first()
+                if username
+                else None
+            )
+
+            if user and user.password_hash and check_password_hash(user.password_hash, password):
+                session.clear()
+                session.permanent = True
+                set_active_user(user)
+                record_activity(
+                    area="auth",
+                    action="Oturum açıldı",
+                    actor=current_actor_name(),
+                    metadata={"user_id": user.id, "username": user.username},
+                )
+                db.session.commit()
+                target = next_param if is_safe_redirect_target(next_param) else None
+                return redirect(target or url_for("index"))
+
+            error = "Kullanıcı adı veya şifre hatalı."
+
+        return render_template(
+            "login.html",
+            error=error,
+            next_target=next_param if is_safe_redirect_target(next_param) else "",
+        )
+
+    @app.route("/cikis")
+    def logout():
+        user = get_active_user()
+        session.clear()
+        if user:
+            record_activity(
+                area="auth",
+                action="Oturum kapatıldı",
+                actor=f"{user.first_name} {user.last_name}".strip() or user.username,
+                metadata={"user_id": user.id, "username": user.username},
+            )
+            db.session.commit()
+        flash("Oturum kapatıldı.", "info")
+        return redirect(url_for("login"))
 
     @app.route("/")
     def index():
@@ -494,25 +632,38 @@ def create_app() -> Flask:
     @app.route("/hurdalar")
     def scrap_inventory_page():
         payload = load_scrap_inventory_payload()
+        can_restore = has_system_role(get_active_user(), "superadmin")
         return render_template(
             "scrap_inventory.html",
             active_page="scrap_inventory",
+            can_restore_scrap=can_restore,
             **payload,
         )
 
     @app.route("/profil")
     def profile():
-        users = User.query.order_by(User.first_name, User.last_name).all()
         profile_user = get_active_user()
+        can_switch_users = has_system_role(profile_user, "superadmin")
+        users = (
+            User.query.order_by(User.first_name, User.last_name).all()
+            if can_switch_users
+            else [profile_user] if profile_user else []
+        )
         return render_template(
             "profile.html",
             active_page="profile",
             users=users,
             profile_user=profile_user,
+            can_switch_users=can_switch_users,
         )
 
     @app.post("/profil/kullanici")
     def profile_switch_user():
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlemi gerçekleştirmek için yetkiniz yok.", "danger")
+            return redirect(url_for("profile"))
+
         user_id = parse_int_or_none(request.form.get("user_id"))
         user = User.query.get(user_id) if user_id is not None else None
 
@@ -542,6 +693,7 @@ def create_app() -> Flask:
             area="profil",
             action="Tema güncellendi",
             description=f"{user.first_name} {user.last_name}",
+            actor=current_actor_name(),
             metadata={"user_id": user.id, "theme": theme},
         )
         db.session.commit()
@@ -576,6 +728,7 @@ def create_app() -> Flask:
             area="profil",
             action="Şifre güncellendi",
             description=f"{user.first_name} {user.last_name}",
+            actor=current_actor_name(),
             metadata={"user_id": user.id},
         )
         db.session.commit()
@@ -739,19 +892,45 @@ def create_app() -> Flask:
 
     @app.route("/admin-panel")
     def admin_panel():
+        user = get_active_user()
+        if not has_system_role(user, "admin"):
+            flash("Admin paneline erişmek için yetkiniz yok.", "danger")
+            return redirect(url_for("index"))
         admin_payload = load_admin_panel_payload()
-        return render_template("admin_panel.html", active_page="admin_panel", **admin_payload)
+        return render_template(
+            "admin_panel.html",
+            active_page="admin_panel",
+            can_manage_users=has_system_role(user, "superadmin"),
+            system_role_choices=[
+                {"value": key, "label": SYSTEM_ROLE_LABELS[key]}
+                for key in ("user", "admin")
+            ],
+            **admin_payload,
+        )
 
     @app.post("/admin-panel/users")
     def create_user():
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Yeni kullanıcı oluşturmak için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
         username = (request.form.get("username") or "").strip()
-        password = (request.form.get("password") or "").strip()  # noqa: F841  # future integration
+        password = (request.form.get("password") or "").strip()
         first_name = (request.form.get("first_name") or "").strip()
         last_name = (request.form.get("last_name") or "").strip()
         email = (request.form.get("email") or "").strip()
+        system_role = (request.form.get("system_role") or "user").strip().lower() or "user"
+
+        if system_role not in {"user", "admin"}:
+            system_role = "user"
 
         if not all([username, first_name, last_name, email]):
             flash("Lütfen tüm alanları doldurun.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        if len(password) < 8:
+            flash("Şifre en az 8 karakter olmalıdır.", "warning")
             return redirect(url_for("admin_panel"))
 
         existing_username = User.query.filter_by(username=username).first()
@@ -767,6 +946,8 @@ def create_app() -> Flask:
             email=email,
             role="",  # roller ileride admin panelinden düzenlenecek
             department="",
+            password_hash=generate_password_hash(password),
+            system_role=system_role,
         )
         db.session.add(user)
         db.session.flush()
@@ -775,7 +956,12 @@ def create_app() -> Flask:
             area="kullanici",
             action="Kullanıcı oluşturuldu",
             description=f"{first_name} {last_name} ({username}) eklendi.",
-            metadata={"user_id": user.id, "email": email},
+            actor=current_actor_name(),
+            metadata={
+                "user_id": user.id,
+                "email": email,
+                "system_role": system_role,
+            },
         )
 
         db.session.commit()
@@ -785,6 +971,11 @@ def create_app() -> Flask:
 
     @app.post("/admin-panel/users/<int:user_id>/delete")
     def delete_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Kullanıcı silmek için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
         user = User.query.get(user_id)
         if user is None:
             flash("Silinmek istenen kullanıcı bulunamadı.", "danger")
@@ -801,17 +992,28 @@ def create_app() -> Flask:
 
         metadata = {"user_id": user.id, "email": user.email}
 
+        if user.system_role == "superadmin":
+            remaining_superadmins = (
+                User.query.filter(func.lower(User.system_role) == "superadmin")
+                .filter(User.id != user.id)
+                .count()
+            )
+            if remaining_superadmins == 0:
+                flash("Son süper admin kullanıcısı silinemez.", "warning")
+                return redirect(url_for("admin_panel"))
+
         db.session.delete(user)
         record_activity(
             area="kullanici",
             action="Kullanıcı silindi",
             description=description,
+            actor=current_actor_name(),
             metadata=metadata,
         )
         db.session.commit()
 
         if was_active_user:
-            set_active_user(None)
+            session.clear()
 
         flash("Kullanıcı başarıyla silindi.", "success")
         return redirect(url_for("admin_panel"))
@@ -1450,6 +1652,35 @@ def create_app() -> Flask:
             response_payload["log"] = serialize_stock_log(log_entry)
         return jsonify(response_payload)
 
+    @app.post("/api/inventory/<int:item_id>/restore-from-scrap")
+    def restore_inventory_from_scrap(item_id: int):
+        if not has_system_role(get_active_user(), "superadmin"):
+            return jsonify(json_error("Bu işlemi yapmak için yetkiniz yok.")), 403
+
+        item = get_inventory_item_with_relations(item_id)
+        if item is None:
+            return json_error("Envanter kaydı bulunamadı."), 404
+
+        if (item.status or "").lower() != "hurda":
+            return json_error("Bu kayıt hurda durumunda değil."), 400
+
+        note = (request.get_json(silent=True) or {}).get("note")
+        cleaned_note = (note or "").strip()
+
+        item.status = "stokta"
+        actor = current_actor_name()
+        add_inventory_event(
+            item,
+            "Hurda kaydı geri alındı",
+            cleaned_note or f"{item.inventory_no} kaydı stok durumuna döndürüldü.",
+            performed_by=actor,
+        )
+
+        db.session.commit()
+
+        fresh_item = get_inventory_item_with_relations(item.id)
+        return jsonify({"item": serialize_inventory_item(fresh_item)})
+
     @app.post("/api/requests")
     def create_request():
         data = request.get_json(silent=True) or {}
@@ -1800,6 +2031,9 @@ def create_app() -> Flask:
 
     @app.route("/islem-kayitlari")
     def activity_logs():
+        if not has_system_role(get_active_user(), "admin"):
+            flash("İşlem kayıtlarını görüntülemek için yetkiniz yok.", "danger")
+            return redirect(url_for("index"))
         logs = load_activity_logs()
         return render_template(
             "activity_logs.html",
@@ -3010,7 +3244,18 @@ def seed_simple_users() -> None:
         return
 
     default_password = generate_password_hash("Parola123!")
+    admin_password = generate_password_hash("admin")
     users = [
+        User(
+            username="admin",
+            first_name="Stok",
+            last_name="Yöneticisi",
+            email="admin@example.com",
+            role="Sistem Süper Yöneticisi",
+            department="Bilgi Teknolojileri",
+            password_hash=admin_password,
+            system_role="superadmin",
+        ),
         User(
             username="m.cetin",
             first_name="Merve",
@@ -3019,6 +3264,7 @@ def seed_simple_users() -> None:
             role="Yönetici",
             department="IT Operasyon",
             password_hash=default_password,
+            system_role="admin",
         ),
         User(
             username="a.kaya",
@@ -3028,6 +3274,7 @@ def seed_simple_users() -> None:
             role="Satın Alma Uzmanı",
             department="Satın Alma",
             password_hash=default_password,
+            system_role="user",
         ),
         User(
             username="z.ucar",
@@ -3037,6 +3284,7 @@ def seed_simple_users() -> None:
             role="Depo Sorumlusu",
             department="Lojistik",
             password_hash=default_password,
+            system_role="user",
         ),
         User(
             username="b.tan",
@@ -3046,6 +3294,7 @@ def seed_simple_users() -> None:
             role="Destek Uzmanı",
             department="Teknik Destek",
             password_hash=default_password,
+            system_role="user",
         ),
         User(
             username="e.sonmez",
@@ -3055,6 +3304,7 @@ def seed_simple_users() -> None:
             role="Finans Analisti",
             department="Finans",
             password_hash=default_password,
+            system_role="user",
         ),
     ]
     db.session.add_all(users)
