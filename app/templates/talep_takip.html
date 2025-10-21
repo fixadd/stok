@@ -126,8 +126,13 @@
                                       data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-line-id="{{ item.id }}"
                                       data-max-quantity="{{ item.quantity }}"
                                       data-requester="{{ order.requested_by }}"
+                                      data-hardware-type="{{ item.hardware_type }}"
+                                      data-brand="{{ item.brand }}"
+                                      data-model="{{ item.model }}"
+                                      data-department="{{ order.department }}"
                                       data-bs-toggle="modal"
                                       data-bs-target="#requestActionModal"
                                     >
@@ -142,6 +147,7 @@
                                       data-order-id="{{ order.id }}"
                                       data-order-no="{{ order.order_no }}"
                                       data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                      data-line-id="{{ item.id }}"
                                       data-max-quantity="{{ item.quantity }}"
                                       data-requester="{{ order.requested_by }}"
                                       data-bs-toggle="modal"
@@ -189,17 +195,19 @@
               <div class="modal-body">
                 <form id="new-request-form">
                   <div class="row g-3 mb-4">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                       <label class="form-label">Sipariş No</label>
                       <input type="text" class="form-control" name="order_no" placeholder="SIP-2024-020" required>
                     </div>
-                    <div class="col-md-4">
-                      <label class="form-label">Talep Sahibi</label>
-                      <input type="text" class="form-control" name="requested_by" placeholder="Ad Soyad" required>
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label">Departman</label>
-                      <input type="text" class="form-control" name="department" placeholder="Departman" required>
+                    <div class="col-md-6">
+                      <label class="form-label" for="requestOwnerSelect">Talep Sahibi</label>
+                      <select class="form-select" id="requestOwnerSelect" name="requested_by_id" data-request-owner-select required>
+                        <option value="" selected disabled>Seçiniz</option>
+                        {% for user in request_users %}
+                        <option value="{{ user.id }}" data-name="{{ user.name }}" data-department="{{ user.department or '' }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
+                        {% endfor %}
+                      </select>
+                      <div class="form-text text-muted" id="requestOwnerDepartmentHint">Departman: —</div>
                     </div>
                   </div>
 
@@ -315,6 +323,17 @@
                   <input type="number" class="form-control" id="action-quantity" min="1" value="1">
                   <div class="form-text" data-quantity-hint></div>
                 </div>
+                <div class="mb-3 d-none" data-action-metadata-section>
+                  <label class="form-label" for="action-category">Stok Kategorisi</label>
+                  <select class="form-select" id="action-category" data-action-category>
+                    <option value="envanter">Envanter</option>
+                    <option value="yazici">Yazıcı</option>
+                    <option value="lisans">Lisans</option>
+                  </select>
+                  <div class="form-text">Kategoriye göre zorunlu bilgileri doldurun.</div>
+                </div>
+                <div class="row g-3 d-none" data-action-metadata-container></div>
+                <div class="alert alert-danger d-none mt-3" data-action-metadata-error></div>
                 <div class="form-floating">
                   <textarea class="form-control" placeholder="Not ekleyin" id="action-note" style="height: 120px"></textarea>
                   <label for="action-note">Not / Açıklama</label>
@@ -341,6 +360,7 @@
     const feedback = document.querySelector('[data-feedback]');
     let feedbackTimer;
     const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
+    const stockMetadataConfig = {{ stock_metadata_config | tojson }};
 
     let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
 
@@ -363,6 +383,118 @@
       feedbackTimer = setTimeout(() => {
         feedback.classList.add('d-none');
       }, 5000);
+    }
+
+    function getMetadataSchema(category) {
+      if (!category) {
+        return [];
+      }
+      const schema = stockMetadataConfig?.[category];
+      return Array.isArray(schema) ? schema : [];
+    }
+
+    function readMetadataValues(container) {
+      if (!container) {
+        return {};
+      }
+      const values = {};
+      container.querySelectorAll('[name^="metadata_"]').forEach((input) => {
+        const key = input.name.replace(/^metadata_/, '');
+        values[key] = input.value || '';
+      });
+      return values;
+    }
+
+    function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false } = {}) {
+      if (!sectionEl || !containerEl) {
+        return;
+      }
+      containerEl.innerHTML = '';
+      if (!Array.isArray(schema) || !schema.length) {
+        sectionEl.classList.add('d-none');
+        containerEl.classList.add('d-none');
+        return;
+      }
+      sectionEl.classList.remove('d-none');
+      containerEl.classList.remove('d-none');
+      schema.forEach((field) => {
+        const key = field.key;
+        const label = field.label || key;
+        const placeholder = field.placeholder || '';
+        const required = Boolean(field.required);
+        const currentValue = (values[key] ?? '').toString();
+        const column = document.createElement('div');
+        column.className = 'col-12 col-md-6';
+
+        const labelEl = document.createElement('label');
+        labelEl.className = 'form-label';
+        labelEl.textContent = label;
+        column.append(labelEl);
+
+        if (hidePrefilled && currentValue) {
+          const display = document.createElement('div');
+          display.className = 'form-control-plaintext';
+          display.textContent = currentValue;
+          column.append(display);
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = `metadata_${key}`;
+          hiddenInput.value = currentValue;
+          column.append(hiddenInput);
+        } else {
+          const input = document.createElement('input');
+          input.className = 'form-control';
+          input.name = `metadata_${key}`;
+          input.placeholder = placeholder;
+          input.value = currentValue;
+          input.autocomplete = 'off';
+          if (required) {
+            input.required = true;
+          }
+          column.append(input);
+        }
+
+        containerEl.append(column);
+      });
+    }
+
+    function collectMetadata(containerEl, schema) {
+      const metadata = {};
+      const missing = [];
+      if (!containerEl || !Array.isArray(schema)) {
+        return { metadata, missing };
+      }
+      schema.forEach((field) => {
+        const key = field.key;
+        const label = field.label || key;
+        const input = containerEl.querySelector(`[name="metadata_${key}"]`);
+        if (!input) {
+          return;
+        }
+        const value = (input.value || '').trim();
+        if (!value && field.required) {
+          missing.push(label);
+        }
+        if (value) {
+          metadata[key] = value;
+        }
+      });
+      return { metadata, missing };
+    }
+
+    function guessCategoryFromTrigger(trigger) {
+      const explicit = trigger?.getAttribute('data-category');
+      if (explicit) {
+        return explicit;
+      }
+      const hardwareType = (trigger?.getAttribute('data-hardware-type') || '').toLowerCase();
+      if (hardwareType.includes('yazıcı')) {
+        return 'yazici';
+      }
+      if (hardwareType.includes('lisans')) {
+        return 'lisans';
+      }
+      return 'envanter';
     }
 
     function getGroup(status) {
@@ -421,12 +553,12 @@
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
                         <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
                       </button>
                     </li>
                     <li>
-                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
                         <i class="bi bi-x-circle me-2"></i>İptal Et
                       </button>
                     </li>
@@ -568,6 +700,22 @@
     const addRowButton = document.querySelector('[data-add-row]');
     const newRequestModal = document.getElementById('newRequestModal');
     const newRequestForm = document.getElementById('new-request-form');
+    const requestOwnerSelect = document.getElementById('requestOwnerSelect');
+    const requestOwnerDepartmentHint = document.getElementById('requestOwnerDepartmentHint');
+
+    function updateRequestOwnerHint() {
+      if (!requestOwnerDepartmentHint) {
+        return;
+      }
+      const selectedOption = requestOwnerSelect?.selectedOptions?.[0];
+      const department = selectedOption?.dataset?.department?.trim();
+      requestOwnerDepartmentHint.textContent = `Departman: ${department || '—'}`;
+    }
+
+    if (requestOwnerSelect) {
+      requestOwnerSelect.addEventListener('change', updateRequestOwnerHint);
+      updateRequestOwnerHint();
+    }
 
     function updateRowControls() {
       if (!rowsContainer) {
@@ -622,8 +770,10 @@
 
         const formData = new FormData(newRequestForm);
         const orderNo = (formData.get('order_no') || '').toString().trim();
-        const requestedBy = (formData.get('requested_by') || '').toString().trim();
-        const department = (formData.get('department') || '').toString().trim();
+        const requestedById = (formData.get('requested_by_id') || '').toString().trim();
+        const selectedOwnerOption = requestOwnerSelect?.selectedOptions?.[0] || null;
+        const requestedByName = selectedOwnerOption?.dataset?.name?.trim() || '';
+        const department = selectedOwnerOption?.dataset?.department?.trim() || '';
 
         const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
         const lines = [];
@@ -655,8 +805,13 @@
           });
         }
 
-        if (!orderNo || !requestedBy || !department) {
-          showFeedback('Sipariş numarası, talep sahibi ve departman alanları zorunludur.', 'danger');
+        if (!orderNo) {
+          showFeedback('Sipariş numarası zorunludur.', 'danger');
+          return;
+        }
+        if (!requestedById) {
+          showFeedback('Talep sahibi seçin.', 'danger');
+          requestOwnerSelect?.focus();
           return;
         }
 
@@ -664,7 +819,13 @@
           const response = await fetch('/api/requests', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_no: orderNo, requested_by: requestedBy, department, lines }),
+            body: JSON.stringify({
+              order_no: orderNo,
+              requested_by_id: requestedById,
+              requested_by: requestedByName,
+              department,
+              lines,
+            }),
           });
           let payload = {};
           try {
@@ -699,6 +860,7 @@
         if (newRequestForm) {
           newRequestForm.reset();
         }
+        updateRequestOwnerHint();
         if (rowsContainer) {
           const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
           rows.slice(1).forEach((row) => row.remove());
@@ -715,7 +877,30 @@
     const actionMessage = actionModal?.querySelector('[data-action-message]');
     const actionNoteInput = actionModal?.querySelector('#action-note');
     const confirmActionButton = actionModal?.querySelector('[data-confirm-action]');
+    const actionMetadataSection = actionModal?.querySelector('[data-action-metadata-section]');
+    const actionMetadataSelect = actionModal?.querySelector('[data-action-category]');
+    const actionMetadataContainer = actionModal?.querySelector('[data-action-metadata-container]');
+    const actionMetadataError = actionModal?.querySelector('[data-action-metadata-error]');
     let pendingAction;
+
+    function renderActionMetadataFields({ hidePrefilled = false } = {}) {
+      if (!actionMetadataSection || !actionMetadataContainer || !actionMetadataSelect) {
+        return;
+      }
+      const category = actionMetadataSelect.value || '';
+      const schema = getMetadataSchema(category);
+      const defaults = pendingAction?.metadataDefaults || {};
+      const existing = readMetadataValues(actionMetadataContainer);
+      const values = { ...defaults, ...existing };
+      buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, { hidePrefilled });
+      if (!schema.length) {
+        actionMetadataContainer.classList.add('d-none');
+      }
+      if (actionMetadataError) {
+        actionMetadataError.classList.add('d-none');
+        actionMetadataError.textContent = '';
+      }
+    }
 
     if (actionModal) {
       actionModal.addEventListener('show.bs.modal', (event) => {
@@ -727,7 +912,15 @@
         const orderId = Number.parseInt(trigger.getAttribute('data-order-id') ?? '0', 10) || 0;
         const orderNo = trigger.getAttribute('data-order-no');
         const itemLabel = trigger.getAttribute('data-item-label');
+        const lineId = Number.parseInt(trigger.getAttribute('data-line-id') ?? '0', 10) || 0;
         const maxQuantity = Number.parseInt(trigger.getAttribute('data-max-quantity') ?? '1', 10) || 1;
+
+        const metadataDefaults = {
+          hardware_type: trigger.getAttribute('data-hardware-type') || '',
+          brand: trigger.getAttribute('data-brand') || '',
+          model: trigger.getAttribute('data-model') || '',
+          department: trigger.getAttribute('data-department') || '',
+        };
 
         pendingAction = {
           orderId,
@@ -735,6 +928,8 @@
           orderNo,
           itemLabel,
           maxQuantity,
+          lineId,
+          metadataDefaults,
         };
 
         const modalTitle = actionModal.querySelector('.modal-title');
@@ -768,6 +963,24 @@
           confirmActionButton.classList.toggle('btn-primary', actionType === 'stok');
           confirmActionButton.disabled = false;
         }
+        if (actionType === 'stok') {
+          if (actionMetadataSelect) {
+            actionMetadataSelect.value = guessCategoryFromTrigger(trigger);
+          }
+          renderActionMetadataFields({ hidePrefilled: true });
+        } else {
+          if (actionMetadataSection) {
+            actionMetadataSection.classList.add('d-none');
+          }
+          if (actionMetadataContainer) {
+            actionMetadataContainer.classList.add('d-none');
+            actionMetadataContainer.innerHTML = '';
+          }
+          if (actionMetadataError) {
+            actionMetadataError.classList.add('d-none');
+            actionMetadataError.textContent = '';
+          }
+        }
       });
 
       actionModal.addEventListener('hidden.bs.modal', () => {
@@ -787,6 +1000,26 @@
         if (confirmActionButton) {
           confirmActionButton.disabled = false;
         }
+        if (actionMetadataSection) {
+          actionMetadataSection.classList.add('d-none');
+        }
+        if (actionMetadataContainer) {
+          actionMetadataContainer.classList.add('d-none');
+          actionMetadataContainer.innerHTML = '';
+        }
+        if (actionMetadataError) {
+          actionMetadataError.classList.add('d-none');
+          actionMetadataError.textContent = '';
+        }
+        if (actionMetadataSelect) {
+          actionMetadataSelect.value = 'envanter';
+        }
+      });
+    }
+
+    if (actionMetadataSelect) {
+      actionMetadataSelect.addEventListener('change', () => {
+        renderActionMetadataFields();
       });
     }
 
@@ -796,26 +1029,73 @@
           return;
         }
         let quantity = 1;
-        if (pendingAction.maxQuantity > 1 && actionQuantityInput) {
+        if (actionQuantityInput) {
           const parsed = Number.parseInt(actionQuantityInput.value, 10);
-          if (Number.isFinite(parsed) && parsed >= 1) {
-            quantity = Math.min(parsed, pendingAction.maxQuantity);
+          if (Number.isFinite(parsed)) {
+            quantity = parsed;
           }
+        }
+        if (!Number.isFinite(quantity) || quantity < 1) {
+          showFeedback('Miktar en az 1 olmalıdır.', 'danger');
+          confirmActionButton.disabled = false;
+          if (actionQuantityInput) {
+            actionQuantityInput.focus();
+          }
+          return;
+        }
+        if (quantity > pendingAction.maxQuantity) {
+          showFeedback(`En fazla ${pendingAction.maxQuantity} adet için işlem yapabilirsiniz.`, 'danger');
+          confirmActionButton.disabled = false;
+          if (actionQuantityInput) {
+            actionQuantityInput.focus();
+          }
+          return;
+        }
+        if (actionQuantityInput) {
           actionQuantityInput.value = String(quantity);
         }
         const noteValue = actionNoteInput ? actionNoteInput.value.trim() : '';
 
+        let metadataPayload;
+        let categoryValue;
+        if (pendingAction.actionType === 'stok') {
+          categoryValue = actionMetadataSelect?.value || 'envanter';
+          const schema = getMetadataSchema(categoryValue);
+          const { metadata, missing } = collectMetadata(actionMetadataContainer, schema);
+          if (missing.length) {
+            if (actionMetadataError) {
+              actionMetadataError.textContent = `${missing.join(', ')} alanlarını doldurun.`;
+              actionMetadataError.classList.remove('d-none');
+            }
+            confirmActionButton.disabled = false;
+            return;
+          }
+          if (actionMetadataError) {
+            actionMetadataError.classList.add('d-none');
+            actionMetadataError.textContent = '';
+          }
+          metadataPayload = metadata;
+        }
+
         confirmActionButton.disabled = true;
         try {
+        const requestBody = {
+          action: pendingAction.actionType,
+          quantity,
+          note: noteValue,
+          performed_by: defaultActor,
+        };
+        if (pendingAction.lineId) {
+          requestBody.line_id = pendingAction.lineId;
+        }
+          if (pendingAction.actionType === 'stok') {
+            requestBody.category = categoryValue;
+            requestBody.metadata = metadataPayload;
+          }
           const response = await fetch(`/api/requests/${pendingAction.orderId}/actions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: pendingAction.actionType,
-              quantity,
-              note: noteValue,
-              performed_by: defaultActor,
-            }),
+            body: JSON.stringify(requestBody),
           });
           let payload = {};
           try {

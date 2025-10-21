@@ -32,6 +32,7 @@ from .models import (
     HardwareModel,
     HardwareType,
     InfoCategory,
+    InfoAttachment,
     InfoEntry,
     InventoryEvent,
     InventoryItem,
@@ -52,7 +53,7 @@ from .models import (
 )
 
 
-INVENTORY_STATUSES = {"aktif", "beklemede", "arizali", "hurda"}
+INVENTORY_STATUSES = {"aktif", "beklemede", "arizali", "hurda", "stokta"}
 DEFAULT_EVENT_ACTOR = "Sistem"
 LICENSE_STATUS_LABELS = {
     "aktif": "Aktif",
@@ -88,6 +89,224 @@ STOCK_SOURCE_LABELS = {
     "license": "Lisans Takip",
     "request": "Talep Takip",
     "manual": "Manuel Kayıt",
+}
+
+
+STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
+    "envanter": [
+        {
+            "key": "inventory_no",
+            "label": "Envanter No",
+            "placeholder": "ENV-001",
+            "required": True,
+        },
+        {
+            "key": "computer_name",
+            "label": "Cihaz Adı",
+            "placeholder": "Örn. IT-LAPTOP-01",
+            "required": False,
+        },
+        {
+            "key": "factory",
+            "label": "Fabrika",
+            "placeholder": "Fabrika adı",
+            "required": True,
+        },
+        {
+            "key": "department",
+            "label": "Departman",
+            "placeholder": "Departman",
+            "required": True,
+        },
+        {
+            "key": "hardware_type",
+            "label": "Donanım Tipi",
+            "placeholder": "Örn. Dizüstü Bilgisayar",
+            "required": True,
+        },
+        {
+            "key": "brand",
+            "label": "Marka",
+            "placeholder": "Marka",
+            "required": True,
+        },
+        {
+            "key": "model",
+            "label": "Model",
+            "placeholder": "Model",
+            "required": True,
+        },
+        {
+            "key": "serial_no",
+            "label": "Seri No",
+            "placeholder": "Seri numarası",
+            "required": False,
+        },
+        {
+            "key": "ifs_no",
+            "label": "IFS No",
+            "placeholder": "IFS-00001",
+            "required": False,
+        },
+        {
+            "key": "responsible",
+            "label": "Sorumlu",
+            "placeholder": "Sorumlu kişi",
+            "required": False,
+        },
+    ],
+    "yazici": [
+        {
+            "key": "inventory_no",
+            "label": "Envanter No",
+            "placeholder": "PRN-001",
+            "required": True,
+        },
+        {
+            "key": "factory",
+            "label": "Fabrika",
+            "placeholder": "Fabrika adı",
+            "required": True,
+        },
+        {
+            "key": "department",
+            "label": "Kullanım Alanı",
+            "placeholder": "Örn. Finans",
+            "required": False,
+        },
+        {
+            "key": "brand",
+            "label": "Marka",
+            "placeholder": "Marka",
+            "required": True,
+        },
+        {
+            "key": "model",
+            "label": "Model",
+            "placeholder": "Model",
+            "required": True,
+        },
+        {
+            "key": "hostname",
+            "label": "Hostname",
+            "placeholder": "PRN-OFIS-01",
+            "required": False,
+        },
+        {
+            "key": "ip_address",
+            "label": "IP Adresi",
+            "placeholder": "10.0.0.10",
+            "required": False,
+        },
+        {
+            "key": "mac_address",
+            "label": "MAC Adresi",
+            "placeholder": "AA:BB:CC:DD:EE:FF",
+            "required": False,
+        },
+        {
+            "key": "ifs_no",
+            "label": "IFS No",
+            "placeholder": "IFS-00000",
+            "required": False,
+        },
+        {
+            "key": "responsible",
+            "label": "Sorumlu",
+            "placeholder": "Sorumlu kişi",
+            "required": False,
+        },
+    ],
+    "lisans": [
+        {
+            "key": "license_name",
+            "label": "Lisans Adı",
+            "placeholder": "Ürün adı",
+            "required": True,
+        },
+        {
+            "key": "license_key",
+            "label": "Lisans Anahtarı",
+            "placeholder": "XXXX-XXXX-XXXX",
+            "required": True,
+        },
+        {
+            "key": "inventory_no",
+            "label": "Bağlı Envanter",
+            "placeholder": "ENV-001",
+            "required": False,
+        },
+        {
+            "key": "factory",
+            "label": "Fabrika",
+            "placeholder": "Fabrika adı",
+            "required": False,
+        },
+        {
+            "key": "department",
+            "label": "Departman",
+            "placeholder": "Departman",
+            "required": False,
+        },
+        {
+            "key": "responsible",
+            "label": "Sorumlu",
+            "placeholder": "Sorumlu kişi",
+            "required": False,
+        },
+    ],
+    "talep": [
+        {
+            "key": "hardware_type",
+            "label": "Donanım Tipi",
+            "placeholder": "Donanım tipi",
+            "required": True,
+        },
+        {
+            "key": "brand",
+            "label": "Marka",
+            "placeholder": "Marka",
+            "required": True,
+        },
+        {
+            "key": "model",
+            "label": "Model",
+            "placeholder": "Model",
+            "required": True,
+        },
+        {
+            "key": "department",
+            "label": "Departman",
+            "placeholder": "Departman",
+            "required": False,
+        },
+    ],
+    "manuel": [
+        {
+            "key": "hardware_type",
+            "label": "Donanım Tipi",
+            "placeholder": "Donanım tipi",
+            "required": True,
+        },
+        {
+            "key": "brand",
+            "label": "Marka",
+            "placeholder": "Marka",
+            "required": False,
+        },
+        {
+            "key": "model",
+            "label": "Model",
+            "placeholder": "Model",
+            "required": False,
+        },
+        {
+            "key": "reference",
+            "label": "Referans",
+            "placeholder": "ENV-0001 veya stok kodu",
+            "required": False,
+        },
+    ],
 }
 
 
@@ -400,6 +619,19 @@ def create_app() -> Flask:
             content=content,
             image_filename=image_filename,
         )
+        attachments = request.files.getlist("attachments")
+        for file in attachments:
+            saved = save_information_file(file)
+            if not saved:
+                continue
+            stored_name, original_name = saved
+            entry.attachments.append(
+                InfoAttachment(
+                    filename=stored_name,
+                    original_name=original_name,
+                    content_type=file.mimetype,
+                )
+            )
         db.session.add(entry)
         db.session.flush()
 
@@ -458,6 +690,31 @@ def create_app() -> Flask:
             if new_filename:
                 remove_information_image(entry.image_filename)
                 entry.image_filename = new_filename
+
+            remove_ids = {
+                parse_int_or_none(raw)
+                for raw in request.form.getlist("remove_attachments")
+            }
+            remove_ids.discard(None)
+            if remove_ids:
+                for attachment in list(entry.attachments):
+                    if attachment.id in remove_ids:
+                        remove_information_file(attachment.filename)
+                        db.session.delete(attachment)
+
+            new_attachments = request.files.getlist("attachments")
+            for file in new_attachments:
+                saved = save_information_file(file)
+                if not saved:
+                    continue
+                stored_name, original_name = saved
+                entry.attachments.append(
+                    InfoAttachment(
+                        filename=stored_name,
+                        original_name=original_name,
+                        content_type=file.mimetype,
+                    )
+                )
 
             record_activity(
                 area="bilgi",
@@ -672,10 +929,6 @@ def create_app() -> Flask:
         if not department:
             return json_error("Departman alanı zorunludur."), 400
 
-        status = (data.get("status") or "aktif").strip().lower()
-        if status not in INVENTORY_STATUSES:
-            return json_error("Geçersiz durum değeri."), 400
-
         item = InventoryItem(
             inventory_no=inventory_no,
             computer_name=(data.get("computer_name") or "").strip() or None,
@@ -688,9 +941,7 @@ def create_app() -> Flask:
             serial_no=(data.get("serial_no") or "").strip() or None,
             ifs_no=(data.get("ifs_no") or "").strip() or None,
             related_machine_no=(data.get("related_machine_no") or "").strip() or None,
-            machine_no=(data.get("machine_no") or "").strip() or None,
             note=(data.get("note") or "").strip() or None,
-            status=status,
         )
         db.session.add(item)
         db.session.flush()
@@ -764,8 +1015,10 @@ def create_app() -> Flask:
         item.model = model
         item.serial_no = (data.get("serial_no") or "").strip() or None
         item.ifs_no = (data.get("ifs_no") or "").strip() or None
-        item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
-        item.machine_no = (data.get("machine_no") or "").strip() or None
+        if "related_machine_no" in data:
+            item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
+        if "machine_no" in data:
+            item.machine_no = (data.get("machine_no") or "").strip() or None
         item.note = (data.get("note") or "").strip() or None
         item.status = status
 
@@ -802,7 +1055,8 @@ def create_app() -> Flask:
         item.factory = factory
         item.department = department
         item.responsible_user = responsible_user
-        item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
+        if "related_machine_no" in data:
+            item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
 
         note_parts: list[str] = []
         note_parts.append(f"Fabrika: {factory.name}")
@@ -855,9 +1109,52 @@ def create_app() -> Flask:
 
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
-        item.status = "beklemede"
+
+        existing_stock = (
+            StockItem.query.options(
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
+                joinedload(StockItem.logs),
+            )
+            .filter(StockItem.inventory_item_id == item.id)
+            .order_by(StockItem.id.desc())
+            .first()
+        )
+
+        if existing_stock and existing_stock.status == "stokta":
+            return json_error("Bu envanter kaydı zaten stokta."), 409
+
+        item.status = "stokta"
         add_inventory_event(item, "Stok girişi", note, performed_by=actor)
-        stock_item = create_stock_item_from_inventory(item, note=note, actor=actor)
+
+        log_entry = None
+        if existing_stock:
+            metadata_payload = build_inventory_stock_metadata(item)
+            existing_stock.status = "stokta"
+            existing_stock.quantity = 1
+            existing_stock.reference_code = item.inventory_no
+            existing_stock.source_type = "inventory"
+            existing_stock.inventory_item = item
+            if note:
+                existing_stock.note = note
+            existing_stock.metadata_payload = {
+                key: value for key, value in metadata_payload.items() if value
+            }
+            log_entry = record_stock_log(
+                existing_stock,
+                "Envanter stoğa geri alındı",
+                action_type="in",
+                performed_by=actor,
+                quantity_change=0,
+                note=note,
+                metadata={"inventory_no": item.inventory_no},
+            )
+            stock_item = existing_stock
+        else:
+            stock_item = create_stock_item_from_inventory(item, note=note, actor=actor)
+
         db.session.commit()
 
         fresh_item = get_inventory_item_with_relations(item.id)
@@ -866,7 +1163,9 @@ def create_app() -> Flask:
             fresh_stock = get_stock_item_with_relations(stock_item.id)
             if fresh_stock:
                 payload["stock_item"] = serialize_stock_item(fresh_stock)
-                if fresh_stock.logs:
+                if log_entry:
+                    payload["log"] = serialize_stock_log(log_entry)
+                elif fresh_stock.logs:
                     payload["log"] = serialize_stock_log(fresh_stock.logs[0])
         return jsonify(payload)
 
@@ -964,28 +1263,42 @@ def create_app() -> Flask:
             return json_error("Stok adı zorunludur."), 400
 
         category = normalize_stock_category(data.get("category"))
-        quantity = parse_int_or_none(data.get("quantity")) or 1
+        quantity = parse_int_or_none(data.get("quantity"))
+        if quantity is None:
+            quantity = 1
+        if quantity < 1:
+            return json_error("Miktar en az 1 olmalıdır."), 400
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
         reference_code = (data.get("reference_code") or "").strip() or None
         unit = (data.get("unit") or "").strip() or None
 
+        try:
+            metadata_payload = prepare_stock_metadata(category, data.get("metadata"))
+        except ValueError as exc:
+            return json_error(str(exc)), 400
+
+        if not reference_code:
+            reference_code = (
+                metadata_payload.get("inventory_no")
+                or metadata_payload.get("license_key")
+                or metadata_payload.get("reference")
+                or None
+            )
+
         stock_item = StockItem(
             source_type="manual",
             title=title,
             category=category,
-            quantity=max(1, quantity),
+            quantity=quantity,
             status="stokta",
             reference_code=reference_code,
             unit=unit,
             note=note or None,
         )
-        metadata_payload = {
-            "unit": unit,
-            "department": (data.get("department") or "").strip() or None,
-            "factory": (data.get("factory") or "").strip() or None,
+        stock_item.metadata_payload = {
+            k: v for k, v in metadata_payload.items() if v
         }
-        stock_item.metadata_payload = {k: v for k, v in metadata_payload.items() if v}
         db.session.add(stock_item)
         db.session.flush()
 
@@ -1146,6 +1459,10 @@ def create_app() -> Flask:
         order_no = (data.get("order_no") or "").strip()
         requested_by = (data.get("requested_by") or "").strip()
         department = (data.get("department") or "").strip()
+        requested_by_id = parse_int_or_none(data.get("requested_by_id"))
+        requested_by_user = (
+            User.query.get(requested_by_id) if requested_by_id is not None else None
+        )
         group_key = (data.get("group_key") or "acik").strip().lower() or "acik"
         lines_payload = data.get("lines")
 
@@ -1153,8 +1470,17 @@ def create_app() -> Flask:
             return json_error("Sipariş numarası zorunludur."), 400
         if RequestOrder.query.filter_by(order_no=order_no).first():
             return json_error("Bu sipariş numarası zaten kayıtlı."), 409
-        if not requested_by or not department:
-            return json_error("Talep sahibi ve departman alanları zorunludur."), 400
+        if requested_by_id is not None and requested_by_user is None:
+            return json_error("Talep sahibi bulunamadı."), 404
+
+        if requested_by_user:
+            requested_by = f"{requested_by_user.first_name} {requested_by_user.last_name}"
+            department = requested_by_user.department or department or "Belirtilmedi"
+
+        if not requested_by:
+            return json_error("Talep sahibi seçin."), 400
+        if not department:
+            return json_error("Departman bilgisi zorunludur."), 400
         if not isinstance(lines_payload, list) or not lines_payload:
             return json_error("En az bir talep satırı ekleyin."), 400
 
@@ -1204,6 +1530,8 @@ def create_app() -> Flask:
                 "order_id": order.id,
                 "order_no": order.order_no,
                 "department": order.department,
+                "requested_by": requested_by,
+                "requested_by_id": requested_by_user.id if requested_by_user else None,
                 "line_count": len(order.lines),
             },
         )
@@ -1233,15 +1561,58 @@ def create_app() -> Flask:
             return json_error("Geçersiz JSON gövdesi."), 400
 
         action_key = (data.get("action") or "").strip().lower()
-        quantity = parse_int_or_none(data.get("quantity")) or 1
+        quantity = parse_int_or_none(data.get("quantity"))
+        if quantity is None:
+            quantity = 1
         note = (data.get("note") or "").strip() or None
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+
+        target_line_id = parse_int_or_none(data.get("line_id"))
+        if target_line_id:
+            target_lines = [line for line in order.lines if line.id == target_line_id]
+            if not target_lines:
+                return json_error("Talep satırı bulunamadı."), 404
+        else:
+            target_lines = list(order.lines)
 
         if action_key not in {"stok", "cancel"}:
             return json_error("Geçersiz işlem tipi."), 400
 
-        total_quantity = sum(line.quantity for line in order.lines) or 1
-        quantity = max(1, min(quantity, total_quantity))
+        total_quantity = sum(line.quantity for line in target_lines)
+        if quantity < 1:
+            return json_error("Miktar en az 1 olmalıdır."), 400
+        if total_quantity <= 0:
+            return json_error("Talep satırları için geçerli miktar bulunamadı."), 400
+        if quantity > total_quantity:
+            return json_error("Maksimum işlem miktarı aşılamaz."), 400
+
+        category_override = None
+        validated_metadata: dict[str, str] | None = None
+        if action_key == "stok":
+            category_override = normalize_stock_category(
+                data.get("category"),
+                fallback="envanter",
+            )
+            first_line = target_lines[0] if target_lines else None
+            metadata_defaults = {}
+            if first_line:
+                metadata_defaults.update(
+                    {
+                        "hardware_type": first_line.hardware_type,
+                        "brand": first_line.brand,
+                        "model": first_line.model,
+                    }
+                )
+            if order.department:
+                metadata_defaults.setdefault("department", order.department)
+            try:
+                validated_metadata = prepare_stock_metadata(
+                    category_override,
+                    data.get("metadata"),
+                    defaults=metadata_defaults,
+                )
+            except ValueError as exc:
+                return json_error(str(exc)), 400
 
         if action_key == "stok":
             target_group_key = "kapandi"
@@ -1258,14 +1629,20 @@ def create_app() -> Flask:
 
         created_stock_items: list[StockItem] = []
         if action_key == "stok":
-            for line in order.lines:
+            processed_quantity = min(quantity, total_quantity)
+            for line in target_lines:
+                line_quantity = line.quantity
+                if len(target_lines) == 1:
+                    line_quantity = processed_quantity
                 created_stock_items.append(
                     create_stock_item_from_request_line(
                         order,
                         line,
-                        quantity=line.quantity,
+                        quantity=line_quantity,
                         note=note,
                         actor=actor,
+                        category=category_override,
+                        metadata=validated_metadata,
                     )
                 )
 
@@ -1449,9 +1826,10 @@ def load_inventory_payload() -> dict:
     )
 
     payload = [serialize_inventory_item(item) for item in items]
-    faulty_count = sum(1 for item in payload if item["status"] == "arizali")
+    visible_items = [item for item in payload if item.get("status") != "stokta"]
+    faulty_count = sum(1 for item in visible_items if item["status"] == "arizali")
     departments_set: set[str] = {
-        item["department"] for item in payload if item.get("department")
+        item["department"] for item in visible_items if item.get("department")
     }
 
     factories = [factory.to_dict() for factory in Factory.query.order_by(Factory.name)]
@@ -1479,7 +1857,7 @@ def load_inventory_payload() -> dict:
     ]
 
     return {
-        "inventory_items": payload,
+        "inventory_items": visible_items,
         "inventory_faulty_count": faulty_count,
         "factories": factories,
         "hardware_types": hardware_types,
@@ -1511,6 +1889,7 @@ def load_printer_payload() -> dict[str, Any]:
         items = query.filter(InventoryItem.hardware_type_id == printer_type.id).all()
 
     printers = [serialize_inventory_item(item) for item in items]
+    printers = [printer for printer in printers if printer.get("status") != "stokta"]
     faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
 
     status_choices = [
@@ -1563,6 +1942,7 @@ def load_printer_payload() -> dict[str, Any]:
         for item in InventoryItem.query.options(
             joinedload(InventoryItem.hardware_type)
         ).order_by(InventoryItem.inventory_no)
+        if (item.status or "").lower() != "stokta"
     ]
 
     return {
@@ -1625,7 +2005,9 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         else created_display
     )
 
-    hardware_type = item.hardware_type.name if item and item.hardware_type else ""
+    hardware_type = (
+        item.hardware_type.name if item and item.hardware_type else metadata.get("hardware_type", "")
+    )
     brand_name = item.brand.name if item and item.brand else metadata.get("brand", "")
     model_name = item.model.name if item and item.model else metadata.get("model", "")
 
@@ -1643,6 +2025,7 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         metadata.get("license_key"),
         metadata.get("request_no"),
         metadata.get("responsible"),
+        metadata.get("reference"),
     ]
     if item:
         search_tokens.extend(
@@ -1767,6 +2150,7 @@ def load_stock_payload() -> dict[str, Any]:
         "stock_categories": categories,
         "stock_status_summary": status_summary,
         "stock_faulty_count": faulty_count,
+        "stock_metadata_config": STOCK_METADATA_FIELDS,
     }
 
 
@@ -1802,7 +2186,10 @@ def load_scrap_inventory_payload() -> dict[str, Any]:
 
 def load_information_entry(entry_id: int) -> InfoEntry | None:
     return (
-        InfoEntry.query.options(joinedload(InfoEntry.category))
+        InfoEntry.query.options(
+            joinedload(InfoEntry.category),
+            joinedload(InfoEntry.attachments),
+        )
         .filter_by(id=entry_id)
         .first()
     )
@@ -1824,23 +2211,28 @@ def load_information_payload() -> dict[str, Any]:
     }
 
 
-def save_information_image(file: FileStorage | None) -> str | None:
+def save_information_file(file: FileStorage | None) -> tuple[str, str] | None:
     if file is None or not file.filename:
         return None
 
-    filename = secure_filename(file.filename)
-    if not filename:
+    original_name = secure_filename(file.filename)
+    if not original_name:
         return None
 
-    extension = Path(filename).suffix
+    extension = Path(original_name).suffix
     unique_name = f"{uuid4().hex}{extension}" if extension else uuid4().hex
     upload_dir: Path = current_app.config["INFO_UPLOAD_DIR"]
     target = upload_dir / unique_name
     file.save(target)
-    return unique_name
+    return unique_name, original_name
 
 
-def remove_information_image(filename: str | None) -> None:
+def save_information_image(file: FileStorage | None) -> str | None:
+    saved = save_information_file(file)
+    return saved[0] if saved else None
+
+
+def remove_information_file(filename: str | None) -> None:
     if not filename:
         return
 
@@ -1850,6 +2242,10 @@ def remove_information_image(filename: str | None) -> None:
         target.unlink()
     except FileNotFoundError:
         pass
+
+
+def remove_information_image(filename: str | None) -> None:
+    remove_information_file(filename)
 
 
 def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
@@ -2033,6 +2429,7 @@ def load_license_payload() -> dict[str, Any]:
         for item in InventoryItem.query.options(
             joinedload(InventoryItem.hardware_type)
         ).order_by(InventoryItem.inventory_no)
+        if (item.status or "").lower() != "stokta"
     ]
 
     status_counts = {
@@ -2145,7 +2542,21 @@ def load_request_groups() -> dict[str, Any]:
         "models": [model.name for model in HardwareModel.query.order_by(HardwareModel.name)],
     }
 
-    return {"request_groups": request_groups_payload, "hardware_catalog": hardware_catalog}
+    request_users = [
+        {
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "department": user.department or "",
+        }
+        for user in User.query.order_by(User.first_name, User.last_name)
+    ]
+
+    return {
+        "request_groups": request_groups_payload,
+        "hardware_catalog": hardware_catalog,
+        "stock_metadata_config": STOCK_METADATA_FIELDS,
+        "request_users": request_users,
+    }
 
 
 def get_inventory_item_with_relations(item_id: int) -> InventoryItem | None:
@@ -2259,6 +2670,28 @@ def record_stock_log(
     return log
 
 
+def build_inventory_stock_metadata(item: InventoryItem) -> dict[str, str]:
+    return {
+        "inventory_no": item.inventory_no or "",
+        "computer_name": item.computer_name or "",
+        "hostname": item.computer_name or "",
+        "factory": item.factory.name if item.factory else "",
+        "department": item.department or "",
+        "hardware_type": item.hardware_type.name if item.hardware_type else "",
+        "brand": item.brand.name if item.brand else "",
+        "model": item.model.name if item.model else "",
+        "serial_no": item.serial_no or "",
+        "ifs_no": item.ifs_no or "",
+        "ip_address": item.related_machine_no or "",
+        "mac_address": item.machine_no or "",
+        "responsible": (
+            f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
+            if item.responsible_user
+            else ""
+        ),
+    }
+
+
 def create_stock_item_from_inventory(
     item: InventoryItem,
     *,
@@ -2283,18 +2716,8 @@ def create_stock_item_from_inventory(
         status="stokta",
         note=note or None,
     )
-    stock_item.metadata_payload = {
-        "factory": item.factory.name if item.factory else "",
-        "department": item.department or "",
-        "hardware_type": item.hardware_type.name if item.hardware_type else "",
-        "brand": item.brand.name if item.brand else "",
-        "model": item.model.name if item.model else "",
-        "responsible": (
-            f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
-            if item.responsible_user
-            else ""
-        ),
-    }
+    metadata_payload = build_inventory_stock_metadata(item)
+    stock_item.metadata_payload = {key: value for key, value in metadata_payload.items() if value}
     db.session.add(stock_item)
     db.session.flush()
     record_stock_log(
@@ -2356,26 +2779,37 @@ def create_stock_item_from_request_line(
     quantity: int,
     note: str | None = None,
     actor: str = DEFAULT_EVENT_ACTOR,
+    category: str | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> StockItem:
     title_parts = [line.brand, line.model]
     title = " ".join(part for part in title_parts if part).strip() or line.hardware_type
-    stock_item = StockItem(
-        source_type="request",
-        source_id=order.id,
-        reference_code=order.order_no,
-        title=title or "Talep Öğesi",
-        category="talep",
-        quantity=max(1, quantity),
-        status="stokta",
-        note=note or None,
-    )
-    stock_item.metadata_payload = {
+    category_value = normalize_stock_category(category, fallback="talep")
+    metadata_payload = {
         "request_no": order.order_no,
         "department": order.department,
         "hardware_type": line.hardware_type,
         "brand": line.brand,
         "model": line.model,
     }
+    if metadata:
+        metadata_payload.update(metadata)
+    reference_code = (
+        metadata_payload.get("inventory_no")
+        or metadata_payload.get("license_key")
+        or order.order_no
+    )
+    stock_item = StockItem(
+        source_type="request",
+        source_id=order.id,
+        reference_code=reference_code,
+        title=title or "Talep Öğesi",
+        category=category_value,
+        quantity=max(1, quantity),
+        status="stokta",
+        note=note or None,
+    )
+    stock_item.metadata_payload = metadata_payload
     db.session.add(stock_item)
     db.session.flush()
     record_stock_log(
@@ -2401,6 +2835,49 @@ def parse_int_or_none(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def prepare_stock_metadata(
+    category: str,
+    payload: Any,
+    *,
+    defaults: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    schema = STOCK_METADATA_FIELDS.get(category, [])
+    provided: dict[str, Any]
+    if isinstance(payload, dict):
+        provided = payload
+    else:
+        provided = {}
+    defaults = defaults or {}
+    cleaned: dict[str, str] = {}
+
+    def normalize_value(raw: Any) -> str:
+        if raw is None:
+            return ""
+        if isinstance(raw, str):
+            return raw.strip()
+        return str(raw).strip()
+
+    for field in schema:
+        key = field["key"]
+        label = field.get("label", key.capitalize())
+        value = normalize_value(provided.get(key))
+        if not value:
+            value = normalize_value(defaults.get(key))
+        if not value and field.get("required"):
+            raise ValueError(f"{label} alanı zorunludur.")
+        if value:
+            cleaned[key] = value
+
+    for key, value in provided.items():
+        if key in cleaned:
+            continue
+        normalized = normalize_value(value)
+        if normalized:
+            cleaned[key] = normalized
+
+    return cleaned
 
 
 def json_error(message: str) -> dict[str, str]:

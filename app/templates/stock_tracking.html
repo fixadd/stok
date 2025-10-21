@@ -83,7 +83,7 @@
           <table class="table align-middle stock-table" id="stockTable">
             <thead>
               <tr>
-                <th scope="col">Başlık</th>
+                <th scope="col">Donanım Tipi</th>
                 <th scope="col">Kategori</th>
                 <th scope="col">Miktar</th>
                 <th scope="col">Kaynak</th>
@@ -96,11 +96,25 @@
               {% for item in stock_items %}
               <tr class="stock-row" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
                 <td>
-                  <div class="fw-semibold">{{ item.title }}</div>
+                  {% set hardware_label = item.hardware_type or item.title %}
+                  <div class="fw-semibold">{{ hardware_label }}</div>
+                  {% set details = namespace(values=[]) %}
+                  {% set brand_model = (item.brand ~ ' ' ~ item.model)|trim %}
+                  {% if brand_model %}
+                    {% set _ = details.values.append(brand_model) %}
+                  {% elif item.title and item.title != (item.hardware_type or '') %}
+                    {% set _ = details.values.append(item.title) %}
+                  {% endif %}
+                  {% if item.reference_code %}
+                    {% set _ = details.values.append(item.reference_code) %}
+                  {% elif item.inventory_no %}
+                    {% set _ = details.values.append(item.inventory_no) %}
+                  {% endif %}
                   <div class="text-muted small">
-                    {% if item.reference_code %}{{ item.reference_code }}{% elif item.inventory_no %}{{ item.inventory_no }}{% else %}—{% endif %}
-                    {% if item.hardware_type %}
-                    · {{ item.hardware_type }}
+                    {% if details.values %}
+                      {{ details.values | join(' • ') }}
+                    {% else %}
+                      —
                     {% endif %}
                   </div>
                 </td>
@@ -159,6 +173,7 @@
             <thead>
               <tr>
                 <th scope="col">İşlem</th>
+                <th scope="col">Kullanıcı</th>
                 <th scope="col">Stok</th>
                 <th scope="col">Durum</th>
                 <th scope="col">Tarih</th>
@@ -170,8 +185,8 @@
               <tr>
                 <td>
                   <div class="fw-semibold">{{ log.action }}</div>
-                  <div class="text-muted small">{{ log.performed_by }}</div>
                 </td>
+                <td>{{ log.performed_by or '—' }}</td>
                 <td>
                   <div class="fw-semibold">{{ log.title or '—' }}</div>
                   {% if log.metadata.inventory_no %}
@@ -186,7 +201,7 @@
               </tr>
               {% else %}
               <tr>
-                <td class="text-center text-muted" colspan="5">Henüz log kaydı bulunmuyor.</td>
+                <td class="text-center text-muted" colspan="6">Henüz log kaydı bulunmuyor.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -213,8 +228,10 @@
             <div class="stock-detail-card">
               <h6 class="text-uppercase text-muted small mb-3">Temel Bilgiler</h6>
               <dl class="row mb-0">
-                <dt class="col-sm-5 text-muted small">Başlık</dt>
-                <dd class="col-sm-7 fw-semibold" data-stock-detail="title-value">—</dd>
+                <dt class="col-sm-5 text-muted small">Donanım Tipi</dt>
+                <dd class="col-sm-7 fw-semibold" data-stock-detail="hardware">—</dd>
+                <dt class="col-sm-5 text-muted small">Marka / Model</dt>
+                <dd class="col-sm-7" data-stock-detail="brand-model">—</dd>
                 <dt class="col-sm-5 text-muted small">Kategori</dt>
                 <dd class="col-sm-7" data-stock-detail="category">—</dd>
                 <dt class="col-sm-5 text-muted small">Miktar</dt>
@@ -232,6 +249,8 @@
                 <dd class="col-sm-7" data-stock-detail="source">—</dd>
                 <dt class="col-sm-5 text-muted small">Envanter No</dt>
                 <dd class="col-sm-7" data-stock-detail="inventory">—</dd>
+                <dt class="col-sm-5 text-muted small">Referans</dt>
+                <dd class="col-sm-7" data-stock-detail="reference">—</dd>
                 <dt class="col-sm-5 text-muted small">Departman</dt>
                 <dd class="col-sm-7" data-stock-detail="department">—</dd>
                 <dt class="col-sm-5 text-muted small">Not</dt>
@@ -275,6 +294,14 @@
             <input class="form-control" id="stockCreateUnit" name="unit" type="text" placeholder="adet">
           </div>
         </div>
+        <div class="mt-3" id="stockCreateMetadataSection" data-metadata-section>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label mb-0" for="stockCreateMetadataFields">Detay Bilgileri</label>
+            <small class="text-muted">Kategoriye göre zorunlu alanlar</small>
+          </div>
+          <div class="row g-3" id="stockCreateMetadataFields"></div>
+          <div class="alert alert-danger d-none mt-3" id="stockCreateMetadataError"></div>
+        </div>
         <div class="mt-3">
           <label class="form-label" for="stockCreateNote">Not</label>
           <textarea class="form-control" id="stockCreateNote" name="note" rows="2" placeholder="Opsiyonel açıklama"></textarea>
@@ -317,6 +344,7 @@
   const stockItems = {{ stock_items | tojson }};
   const stockLogs = {{ stock_logs | tojson }};
   const stockStatusSummary = {{ stock_status_summary | tojson }};
+  const stockMetadataConfig = {{ stock_metadata_config | tojson }};
   const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
 
   const bootstrapLib = window.bootstrap;
@@ -333,12 +361,14 @@
   const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
   const detailFields = detailModalEl
     ? {
-        title: detailModalEl.querySelector('[data-stock-detail="title-value"]'),
+        hardware: detailModalEl.querySelector('[data-stock-detail="hardware"]'),
+        brandModel: detailModalEl.querySelector('[data-stock-detail="brand-model"]'),
         category: detailModalEl.querySelector('[data-stock-detail="category"]'),
         quantity: detailModalEl.querySelector('[data-stock-detail="quantity"]'),
         status: detailModalEl.querySelector('[data-stock-detail="status"]'),
         source: detailModalEl.querySelector('[data-stock-detail="source"]'),
         inventory: detailModalEl.querySelector('[data-stock-detail="inventory"]'),
+        reference: detailModalEl.querySelector('[data-stock-detail="reference"]'),
         department: detailModalEl.querySelector('[data-stock-detail="department"]'),
         note: detailModalEl.querySelector('[data-stock-detail="note"]'),
         subtitle: detailModalEl.querySelector('[data-stock-detail="subtitle"]'),
@@ -361,6 +391,9 @@
   const createQuantityInput = document.getElementById('stockCreateQuantity');
   const createUnitInput = document.getElementById('stockCreateUnit');
   const createNoteInput = document.getElementById('stockCreateNote');
+  const createMetadataSection = document.getElementById('stockCreateMetadataSection');
+  const createMetadataFields = document.getElementById('stockCreateMetadataFields');
+  const createMetadataError = document.getElementById('stockCreateMetadataError');
 
   const stockMap = new Map(stockItems.map((item) => [item.id, item]));
   let activeStockId = null;
@@ -369,6 +402,101 @@
 
   function safeText(value) {
     return value && String(value).trim() ? String(value) : '—';
+  }
+
+  function getMetadataSchema(category) {
+    if (!category) {
+      return [];
+    }
+    const schema = stockMetadataConfig?.[category];
+    return Array.isArray(schema) ? schema : [];
+  }
+
+  function readMetadataValues(container) {
+    if (!container) {
+      return {};
+    }
+    const values = {};
+    container.querySelectorAll('[name^="metadata_"]').forEach((input) => {
+      const key = input.name.replace(/^metadata_/, '');
+      values[key] = input.value || '';
+    });
+    return values;
+  }
+
+  function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false } = {}) {
+    if (!sectionEl || !containerEl) {
+      return;
+    }
+    containerEl.innerHTML = '';
+    if (!Array.isArray(schema) || !schema.length) {
+      sectionEl.classList.add('d-none');
+      return;
+    }
+    sectionEl.classList.remove('d-none');
+    schema.forEach((field) => {
+      const key = field.key;
+      const label = field.label || key;
+      const placeholder = field.placeholder || '';
+      const required = Boolean(field.required);
+      const currentValue = (values[key] ?? '').toString();
+      const column = document.createElement('div');
+      column.className = 'col-12 col-md-6';
+
+      const labelEl = document.createElement('label');
+      labelEl.className = 'form-label';
+      labelEl.textContent = label;
+      column.append(labelEl);
+
+      if (hidePrefilled && currentValue) {
+        const display = document.createElement('div');
+        display.className = 'form-control-plaintext';
+        display.textContent = currentValue;
+        column.append(display);
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = `metadata_${key}`;
+        hiddenInput.value = currentValue;
+        column.append(hiddenInput);
+      } else {
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.name = `metadata_${key}`;
+        input.placeholder = placeholder;
+        input.value = currentValue;
+        input.autocomplete = 'off';
+        if (required) {
+          input.required = true;
+        }
+        column.append(input);
+      }
+
+      containerEl.append(column);
+    });
+  }
+
+  function collectMetadata(containerEl, schema) {
+    const metadata = {};
+    const missing = [];
+    if (!containerEl || !Array.isArray(schema)) {
+      return { metadata, missing };
+    }
+    schema.forEach((field) => {
+      const key = field.key;
+      const label = field.label || key;
+      const input = containerEl.querySelector(`[name="metadata_${key}"]`);
+      if (!input) {
+        return;
+      }
+      const value = (input.value || '').trim();
+      if (!value && field.required) {
+        missing.push(label);
+      }
+      if (value) {
+        metadata[key] = value;
+      }
+    });
+    return { metadata, missing };
   }
 
   function updateFaultyCounter() {
@@ -395,10 +523,23 @@
     row.dataset.category = item.category;
     row.dataset.status = item.status;
     row.dataset.search = item.search_index || '';
+    const hardwareLabel = item.hardware_type || item.title;
+    const brandParts = [];
+    if (item.brand) brandParts.push(item.brand);
+    if (item.model) brandParts.push(item.model);
+    let brandLabel = brandParts.join(' ').trim();
+    if (!brandLabel && item.title && item.title !== hardwareLabel) {
+      brandLabel = item.title;
+    }
+    const referenceLabel = item.reference_code || item.inventory_no;
+    const detailParts = [];
+    if (brandLabel) detailParts.push(brandLabel);
+    if (referenceLabel) detailParts.push(referenceLabel);
+    const detailText = detailParts.length ? detailParts.join(' • ') : '—';
     row.innerHTML = `
       <td>
-        <div class="fw-semibold">${safeText(item.title)}</div>
-        <div class="text-muted small">${safeText(item.reference_code || item.inventory_no)}</div>
+        <div class="fw-semibold">${safeText(hardwareLabel)}</div>
+        <div class="text-muted small">${safeText(detailText)}</div>
       </td>
       <td><span class="badge bg-soft-primary text-primary">${safeText(item.category_label)}</span></td>
       <td>
@@ -442,16 +583,48 @@
         const item = stockMap.get(id);
         if (!item || !detailModal) return;
         activeStockId = id;
-        detailFields.title.textContent = safeText(item.title);
-        detailFields.category.textContent = safeText(item.category_label);
-        detailFields.quantity.textContent = `${safeText(item.quantity)} ${safeText(item.unit)}`;
-        detailFields.status.textContent = safeText(item.status_label);
-        detailFields.status.className = `stock-status-badge ${item.status_class}`;
-        detailFields.source.textContent = safeText(item.source_label);
-        detailFields.inventory.textContent = safeText(item.inventory_no || item.reference_code);
-        detailFields.department.textContent = safeText(item.metadata?.department || '');
-        detailFields.note.textContent = safeText(item.note);
-        detailFields.subtitle.textContent = `${safeText(item.created_display)} · ${safeText(item.updated_display)}`;
+        const hardwareLabel = item.hardware_type || item.title;
+        const brandParts = [];
+        if (item.brand) brandParts.push(item.brand);
+        if (item.model) brandParts.push(item.model);
+        let brandLabel = brandParts.join(' ').trim();
+        if (!brandLabel && item.title && item.title !== hardwareLabel) {
+          brandLabel = item.title;
+        }
+        if (detailFields.hardware) {
+          detailFields.hardware.textContent = safeText(hardwareLabel);
+        }
+        if (detailFields.brandModel) {
+          detailFields.brandModel.textContent = safeText(brandLabel);
+        }
+        if (detailFields.category) {
+          detailFields.category.textContent = safeText(item.category_label);
+        }
+        if (detailFields.quantity) {
+          detailFields.quantity.textContent = `${safeText(item.quantity)} ${safeText(item.unit)}`;
+        }
+        if (detailFields.status) {
+          detailFields.status.textContent = safeText(item.status_label);
+          detailFields.status.className = `stock-status-badge ${item.status_class}`;
+        }
+        if (detailFields.source) {
+          detailFields.source.textContent = safeText(item.source_label);
+        }
+        if (detailFields.inventory) {
+          detailFields.inventory.textContent = safeText(item.inventory_no);
+        }
+        if (detailFields.reference) {
+          detailFields.reference.textContent = safeText(item.reference_code || item.inventory_no);
+        }
+        if (detailFields.department) {
+          detailFields.department.textContent = safeText(item.metadata?.department || '');
+        }
+        if (detailFields.note) {
+          detailFields.note.textContent = safeText(item.note);
+        }
+        if (detailFields.subtitle) {
+          detailFields.subtitle.textContent = `${safeText(item.created_display)} · ${safeText(item.updated_display)}`;
+        }
         detailModal.show();
       });
     }
@@ -476,7 +649,7 @@
           scrap: 'Bu stok kaydı hurda listesine taşınacak.',
         };
         actionModalEl.dataset.action = action;
-        if (actionTitle) actionTitle.textContent = `${titles[action] || 'İşlem'} · ${safeText(item.title)}`;
+        if (actionTitle) actionTitle.textContent = `${titles[action] || 'İşlem'} · ${safeText(item.hardware_type || item.title)}`;
         if (actionMessage) actionMessage.textContent = messages[action] || '';
         if (actionConfirmButton) {
           actionConfirmButton.textContent = titles[action] || 'Onayla';
@@ -507,7 +680,7 @@
     if (!stockLogTableBody) return;
     stockLogTableBody.innerHTML = '';
     if (!stockLogs.length) {
-      stockLogTableBody.innerHTML = '<tr><td class="text-center text-muted" colspan="5">Henüz log kaydı bulunmuyor.</td></tr>';
+      stockLogTableBody.innerHTML = '<tr><td class="text-center text-muted" colspan="6">Henüz log kaydı bulunmuyor.</td></tr>';
       return;
     }
     const fragment = document.createDocumentFragment();
@@ -516,8 +689,8 @@
       row.innerHTML = `
         <td>
           <div class="fw-semibold">${safeText(log.action)}</div>
-          <div class="text-muted small">${safeText(log.performed_by)}</div>
         </td>
+        <td>${safeText(log.performed_by)}</td>
         <td>
           <div class="fw-semibold">${safeText(log.title)}</div>
           <div class="text-muted small">${safeText(log.metadata?.inventory_no || '')}</div>
@@ -611,6 +784,26 @@
     stockSearchInput.addEventListener('input', filterStock);
   }
 
+  function renderCreateMetadataFields() {
+    if (!createCategorySelect) {
+      return;
+    }
+    const selectedCategory = createCategorySelect.value || '';
+    const schema = getMetadataSchema(selectedCategory);
+    const values = readMetadataValues(createMetadataFields);
+    buildMetadataForm(createMetadataSection, createMetadataFields, schema, values);
+    if (createMetadataError) {
+      createMetadataError.classList.add('d-none');
+      createMetadataError.textContent = '';
+    }
+  }
+
+  if (createCategorySelect) {
+    createCategorySelect.addEventListener('change', () => {
+      renderCreateMetadataFields();
+    });
+  }
+
   if (actionForm && actionModalEl) {
     actionForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -665,6 +858,28 @@
         createTitleInput?.reportValidity();
         return;
       }
+      if (!Number.isFinite(payload.quantity) || payload.quantity < 1) {
+        if (createQuantityInput) {
+          createQuantityInput.value = '1';
+          createQuantityInput.focus();
+        }
+        showActionAlert('Miktar en az 1 olmalıdır.', 'danger');
+        return;
+      }
+      const schema = getMetadataSchema(payload.category);
+      const { metadata, missing } = collectMetadata(createMetadataFields, schema);
+      if (missing.length) {
+        if (createMetadataError) {
+          createMetadataError.textContent = `${missing.join(', ')} alanlarını doldurun.`;
+          createMetadataError.classList.remove('d-none');
+        }
+        return;
+      }
+      if (createMetadataError) {
+        createMetadataError.classList.add('d-none');
+        createMetadataError.textContent = '';
+      }
+      payload.metadata = metadata;
       try {
         const response = await sendStockRequest('/api/stock', { body: payload });
         if (response?.stock_item) {
@@ -678,6 +893,7 @@
         }
         showActionAlert('Yeni stok kaydı oluşturuldu.', 'success');
         createForm.reset();
+        renderCreateMetadataFields();
         if (createModalEl && bootstrapLib) {
           bootstrapLib.Modal.getInstance(createModalEl)?.hide();
         }
@@ -689,6 +905,7 @@
 
   renderStockTable();
   renderLogTable();
+  renderCreateMetadataFields();
   filterStock();
   updateFaultyCounter();
 </script>

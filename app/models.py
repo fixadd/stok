@@ -73,6 +73,12 @@ class InfoEntry(db.Model):
     )
 
     category = db.relationship("InfoCategory")
+    attachments = db.relationship(
+        "InfoAttachment",
+        cascade="all, delete-orphan",
+        back_populates="entry",
+        order_by="InfoAttachment.uploaded_at",
+    )
 
     def to_summary_dict(self) -> dict:
         return {
@@ -92,6 +98,23 @@ class InfoEntry(db.Model):
             }
         )
         return payload
+
+
+class InfoAttachment(db.Model):
+    __tablename__ = "info_attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    entry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("info_entries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    filename = db.Column(db.String(256), nullable=False)
+    original_name = db.Column(db.String(256), nullable=True)
+    content_type = db.Column(db.String(128), nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    entry = db.relationship("InfoEntry", back_populates="attachments")
 
 
 class Factory(NamedEntityMixin, db.Model):
