@@ -76,7 +76,7 @@
     <div class="alert alert-soft d-none" id="licenseActionAlert" role="alert"></div>
 
     <div class="table-responsive">
-      <table class="table align-middle license-table">
+      <table class="table align-middle license-table" data-paginate data-page-size="20" data-paginate-items="tbody tr">
         <thead>
           <tr>
             <th scope="col">No</th>
@@ -438,6 +438,8 @@
     if (!tableBody) {
       return;
     }
+    const pagination = window.Pagination || null;
+    const licenseTableEl = tableBody.closest('table');
 
     const bootstrapLib = window.bootstrap || null;
     const detailModalEl = document.getElementById('licenseDetailModal');
@@ -891,13 +893,19 @@
       let visibleCount = 0;
       rows().forEach((row) => {
         const matches = !query || (row.dataset.searchIndex || '').includes(query);
-        row.classList.toggle('d-none', !matches);
         if (matches) {
+          delete row.dataset.searchHidden;
           visibleCount += 1;
+        } else {
+          row.dataset.searchHidden = 'true';
         }
+        row.classList.toggle('d-none', !matches);
       });
       if (emptyState) {
         emptyState.classList.toggle('d-none', visibleCount > 0);
+      }
+      if (pagination && licenseTableEl) {
+        pagination.refresh(licenseTableEl);
       }
     }
 
@@ -978,7 +986,10 @@
             </div>
           </div>
         </td>`;
-      tableBody.appendChild(row);
+    tableBody.appendChild(row);
+    if (pagination && licenseTableEl) {
+      pagination.refresh(licenseTableEl);
+    }
       return row;
     }
 

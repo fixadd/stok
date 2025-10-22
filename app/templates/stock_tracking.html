@@ -20,6 +20,10 @@
           Arızalı Durum
           <span class="stock-faulty-counter">{{ stock_faulty_count }}</span>
         </button>
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" type="button" id="stockHistoryToggle">
+          <i class="bi bi-archive"></i>
+          Stok Dışı
+        </button>
         <div class="btn-group">
           <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-file-earmark-spreadsheet"></i>
@@ -48,6 +52,9 @@
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="stock-log-tab" data-bs-toggle="tab" data-bs-target="#stockLogPane" type="button" role="tab" aria-controls="stockLogPane" aria-selected="false">Log</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="stock-users-tab" data-bs-toggle="tab" data-bs-target="#stockUsersPane" type="button" role="tab" aria-controls="stockUsersPane" aria-selected="false">Kullanıcılar</button>
         </li>
       </ul>
       <div class="stock-status-summary d-flex flex-wrap gap-3">
@@ -80,7 +87,7 @@
         <div class="alert stock-action-alert d-none" id="stockActionAlert" role="alert"></div>
 
         <div class="table-responsive">
-          <table class="table align-middle stock-table" id="stockTable">
+          <table class="table align-middle stock-table" id="stockTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
             <thead>
               <tr>
                 <th scope="col">Donanım Tipi</th>
@@ -105,9 +112,7 @@
                   {% elif item.title and item.title != (item.hardware_type or '') %}
                     {% set _ = details.values.append(item.title) %}
                   {% endif %}
-                  {% if item.reference_code %}
-                    {% set _ = details.values.append(item.reference_code) %}
-                  {% elif item.inventory_no %}
+                  {% if item.inventory_no %}
                     {% set _ = details.values.append(item.inventory_no) %}
                   {% endif %}
                   <div class="text-muted small">
@@ -184,7 +189,7 @@
 
       <div class="tab-pane fade" id="stockLogPane" role="tabpanel" aria-labelledby="stock-log-tab">
         <div class="table-responsive">
-          <table class="table align-middle" id="stockLogTable">
+          <table class="table align-middle" id="stockLogTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
             <thead>
               <tr>
                 <th scope="col">İşlem</th>
@@ -219,6 +224,34 @@
                 <td class="text-center text-muted" colspan="6">Henüz log kaydı bulunmuyor.</td>
               </tr>
               {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="stockUsersPane" role="tabpanel" aria-labelledby="stock-users-tab">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label" for="stockUserSelect">Kullanıcı</label>
+            <select class="form-select" id="stockUserSelect">
+              <option value="">Kullanıcı seçin</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive mt-3">
+          <table class="table align-middle" id="stockUserTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
+            <thead>
+              <tr>
+                <th scope="col">Donanım Tipi</th>
+                <th scope="col">Kategori</th>
+                <th scope="col">Miktar</th>
+                <th scope="col">Durum</th>
+                <th scope="col">Güncelleme</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-empty-row>
+                <td class="text-muted text-center" colspan="5">Bir kullanıcı seçin.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -264,8 +297,6 @@
                 <dd class="col-sm-7" data-stock-detail="source">—</dd>
                 <dt class="col-sm-5 text-muted small">Envanter No</dt>
                 <dd class="col-sm-7" data-stock-detail="inventory">—</dd>
-                <dt class="col-sm-5 text-muted small">Referans</dt>
-                <dd class="col-sm-7" data-stock-detail="reference">—</dd>
                 <dt class="col-sm-5 text-muted small">Departman</dt>
                 <dd class="col-sm-7" data-stock-detail="department">—</dd>
                 <dt class="col-sm-5 text-muted small">Not</dt>
@@ -392,7 +423,6 @@
         status: detailModalEl.querySelector('[data-stock-detail="status"]'),
         source: detailModalEl.querySelector('[data-stock-detail="source"]'),
         inventory: detailModalEl.querySelector('[data-stock-detail="inventory"]'),
-        reference: detailModalEl.querySelector('[data-stock-detail="reference"]'),
         department: detailModalEl.querySelector('[data-stock-detail="department"]'),
         note: detailModalEl.querySelector('[data-stock-detail="note"]'),
         subtitle: detailModalEl.querySelector('[data-stock-detail="subtitle"]'),
@@ -426,9 +456,18 @@
   const stockMap = new Map(stockItems.map((item) => [item.id, item]));
   let activeStockId = null;
   let showOnlyFaulty = false;
+  let includeNonStock = false;
   let alertTimeoutId;
   const metadataOptionLists = new Map();
   let pendingStockAction = null;
+  const pagination = window.Pagination || null;
+  const stockTableEl = document.getElementById('stockTable');
+  const stockLogTableEl = document.getElementById('stockLogTable');
+  const historyToggle = document.getElementById('stockHistoryToggle');
+  const stockUserSelect = document.getElementById('stockUserSelect');
+  const stockUserTableBody = document.querySelector('#stockUserTable tbody');
+  const stockUserTableEl = document.getElementById('stockUserTable');
+  const userAssignments = new Map();
 
   function safeText(value) {
     return value && String(value).trim() ? String(value) : '—';
@@ -627,10 +666,9 @@
     if (!brandLabel && item.title && item.title !== hardwareLabel) {
       brandLabel = item.title;
     }
-    const referenceLabel = item.reference_code || item.inventory_no;
     const detailParts = [];
     if (brandLabel) detailParts.push(brandLabel);
-    if (referenceLabel) detailParts.push(referenceLabel);
+    if (item.inventory_no) detailParts.push(item.inventory_no);
     const detailText = detailParts.length ? detailParts.join(' • ') : '—';
     row.innerHTML = `
       <td>
@@ -709,9 +747,6 @@
         if (detailFields.inventory) {
           detailFields.inventory.textContent = safeText(item.inventory_no);
         }
-        if (detailFields.reference) {
-          detailFields.reference.textContent = safeText(item.reference_code || item.inventory_no);
-        }
         if (detailFields.department) {
           detailFields.department.textContent = safeText(item.metadata?.department || '');
         }
@@ -759,9 +794,6 @@
         }
         if (!metadataDefaults.inventory_no && item.inventory_no) {
           metadataDefaults.inventory_no = item.inventory_no;
-        }
-        if (!metadataDefaults.reference && item.reference_code) {
-          metadataDefaults.reference = item.reference_code;
         }
 
         pendingStockAction = {
@@ -816,6 +848,10 @@
       .sort((a, b) => b.id - a.id)
       .forEach((item) => fragment.appendChild(buildStockRow(item)));
     stockTableBody.appendChild(fragment);
+    rebuildUserAssignments();
+    if (pagination && stockTableEl) {
+      pagination.refresh(stockTableEl);
+    }
   }
 
   function renderLogTable() {
@@ -844,6 +880,108 @@
       fragment.appendChild(row);
     });
     stockLogTableBody.appendChild(fragment);
+    if (pagination && stockLogTableEl) {
+      pagination.refresh(stockLogTableEl);
+    }
+  }
+
+  function refreshAssignmentSelect(previousValue = '') {
+    if (!stockUserSelect) {
+      return;
+    }
+    const preservedValue = previousValue || stockUserSelect.value || '';
+    const sortedNames = Array.from(userAssignments.keys()).sort((a, b) => a.localeCompare(b, 'tr-TR'));
+    stockUserSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Kullanıcı seçin';
+    stockUserSelect.appendChild(placeholder);
+    sortedNames.forEach((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      stockUserSelect.appendChild(option);
+    });
+    if (preservedValue && userAssignments.has(preservedValue)) {
+      stockUserSelect.value = preservedValue;
+    } else {
+      stockUserSelect.value = '';
+    }
+  }
+
+  function renderUserAssignments(responsibleName = '') {
+    if (!stockUserTableBody) {
+      return;
+    }
+    const tableEl = stockUserTableEl;
+    stockUserTableBody.innerHTML = '';
+    const name = responsibleName && userAssignments.has(responsibleName) ? responsibleName : '';
+    if (!name) {
+      const row = document.createElement('tr');
+      row.dataset.emptyRow = 'true';
+      row.innerHTML = `<td class="text-muted text-center" colspan="5">${responsibleName ? 'Bu kullanıcıya ait stok kaydı bulunamadı.' : 'Bir kullanıcı seçin.'}</td>`;
+      stockUserTableBody.appendChild(row);
+      if (pagination && tableEl) {
+        pagination.refresh(tableEl);
+      }
+      return;
+    }
+    const items = userAssignments.get(name) || [];
+    if (!items.length) {
+      const row = document.createElement('tr');
+      row.dataset.emptyRow = 'true';
+      row.innerHTML = '<td class="text-muted text-center" colspan="5">Bu kullanıcıya ait stok kaydı bulunamadı.</td>';
+      stockUserTableBody.appendChild(row);
+      if (pagination && tableEl) {
+        pagination.refresh(tableEl);
+      }
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    items.forEach((item) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${safeText(item.hardware_type)}</td>
+        <td><span class="badge bg-light text-dark">${safeText(item.category_label)}</span></td>
+        <td>${safeText(item.quantity)}</td>
+        <td><span class="stock-status-badge ${safeText(item.status_class || '')}">${safeText(item.status_label)}</span></td>
+        <td>${safeText(item.updated_display || '')}</td>
+      `;
+      fragment.appendChild(row);
+    });
+    stockUserTableBody.appendChild(fragment);
+    if (pagination && tableEl) {
+      pagination.refresh(tableEl);
+    }
+  }
+
+  function rebuildUserAssignments() {
+    const previousSelection = stockUserSelect ? stockUserSelect.value : '';
+    userAssignments.clear();
+    stockMap.forEach((item) => {
+      if (!item || item.status !== 'devredildi') {
+        return;
+      }
+      const responsibleName = (item.metadata?.responsible || '').trim();
+      if (!responsibleName) {
+        return;
+      }
+      if (!userAssignments.has(responsibleName)) {
+        userAssignments.set(responsibleName, []);
+      }
+      userAssignments.get(responsibleName).push({
+        id: item.id,
+        hardware_type: item.hardware_type || item.title,
+        category_label: item.category_label,
+        quantity: item.quantity,
+        status_label: item.status_label,
+        status_class: item.status_class,
+        updated_display: item.updated_display,
+      });
+    });
+    refreshAssignmentSelect(previousSelection);
+    const activeSelection = stockUserSelect ? stockUserSelect.value : '';
+    renderUserAssignments(activeSelection);
   }
 
   function filterStock() {
@@ -858,17 +996,26 @@
         row.classList.add('d-none');
         return;
       }
-      const matchesQuery = !query || (row.dataset.search || '').includes(query);
-      const matchesCategory = category === 'all' || row.dataset.category === category;
-      const matchesFaulty = !showOnlyFaulty || row.dataset.status === 'arizali';
-      const shouldShow = matchesQuery && matchesCategory && matchesFaulty;
-      row.classList.toggle('d-none', !shouldShow);
-      if (shouldShow) visibleCount += 1;
-    });
-    if (stockEmptyState) {
-      stockEmptyState.classList.toggle('d-none', visibleCount > 0);
+    const matchesQuery = !query || (row.dataset.search || '').includes(query);
+    const matchesCategory = category === 'all' || row.dataset.category === category;
+    const matchesFaulty = !showOnlyFaulty || row.dataset.status === 'arizali';
+    const matchesStatus = includeNonStock || row.dataset.status === 'stokta';
+    const shouldShow = matchesQuery && matchesCategory && matchesFaulty && matchesStatus;
+    if (shouldShow) {
+      delete row.dataset.searchHidden;
+      visibleCount += 1;
+    } else {
+      row.dataset.searchHidden = 'true';
     }
+    row.classList.toggle('d-none', !shouldShow);
+  });
+  if (stockEmptyState) {
+    stockEmptyState.classList.toggle('d-none', visibleCount > 0);
   }
+  if (pagination && stockTableEl) {
+    pagination.refresh(stockTableEl);
+  }
+}
 
   async function sendStockRequest(url, { method = 'POST', body = null } = {}) {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
@@ -918,12 +1065,27 @@
     });
   }
 
+  if (historyToggle) {
+    historyToggle.addEventListener('click', () => {
+      includeNonStock = !includeNonStock;
+      historyToggle.classList.toggle('btn-outline-secondary', !includeNonStock);
+      historyToggle.classList.toggle('btn-secondary', includeNonStock);
+      filterStock();
+    });
+  }
+
   if (stockCategoryFilters) {
     stockCategoryFilters.addEventListener('change', filterStock);
   }
 
   if (stockSearchInput) {
     stockSearchInput.addEventListener('input', filterStock);
+  }
+
+  if (stockUserSelect) {
+    stockUserSelect.addEventListener('change', () => {
+      renderUserAssignments(stockUserSelect.value);
+    });
   }
 
   function renderCreateMetadataFields() {
@@ -1086,6 +1248,7 @@
   renderStockTable();
   renderLogTable();
   renderCreateMetadataFields();
+  rebuildUserAssignments();
   filterStock();
   updateFaultyCounter();
 </script>
