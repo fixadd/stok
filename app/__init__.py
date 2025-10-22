@@ -185,7 +185,7 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
     "cevre_birimi": [
         {
             "key": "hardware_type",
-            "label": "Ürün Tipi",
+            "label": "Donanım Tipi",
             "placeholder": "Örn. Klavye",
             "required": True,
         },
@@ -205,12 +205,6 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "key": "serial_no",
             "label": "Seri No",
             "placeholder": "Seri numarası",
-            "required": False,
-        },
-        {
-            "key": "reference",
-            "label": "Referans",
-            "placeholder": "ENV-0001 veya stok kodu",
             "required": False,
         },
         {
@@ -398,12 +392,6 @@ STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
             "key": "model",
             "label": "Model",
             "placeholder": "Model",
-            "required": False,
-        },
-        {
-            "key": "reference",
-            "label": "Referans",
-            "placeholder": "ENV-0001 veya stok kodu",
             "required": False,
         },
     ],
@@ -1827,7 +1815,6 @@ def create_app() -> Flask:
             reference_code = (
                 metadata_payload.get("inventory_no")
                 or metadata_payload.get("license_key")
-                or metadata_payload.get("reference")
                 or None
             )
 
@@ -2085,10 +2072,8 @@ def create_app() -> Flask:
         order_no = (data.get("order_no") or "").strip()
         requested_by = (data.get("requested_by") or "").strip()
         department = (data.get("department") or "").strip()
-        requested_by_id = parse_int_or_none(data.get("requested_by_id"))
-        requested_by_user = (
-            User.query.get(requested_by_id) if requested_by_id is not None else None
-        )
+        active_user = get_active_user()
+        requested_by_user = active_user
         group_key = (data.get("group_key") or "acik").strip().lower() or "acik"
         lines_payload = data.get("lines")
 
@@ -2096,12 +2081,18 @@ def create_app() -> Flask:
             return json_error("Sipariş numarası zorunludur."), 400
         if RequestOrder.query.filter_by(order_no=order_no).first():
             return json_error("Bu sipariş numarası zaten kayıtlı."), 409
-        if requested_by_id is not None and requested_by_user is None:
-            return json_error("Talep sahibi bulunamadı."), 404
+        if not requested_by_user:
+            return json_error("Talep sahibi doğrulanamadı."), 401
 
-        if requested_by_user:
-            requested_by = f"{requested_by_user.first_name} {requested_by_user.last_name}"
-            department = requested_by_user.department or department or "Belirtilmedi"
+        requested_by = (
+            f"{requested_by_user.first_name} {requested_by_user.last_name}".strip()
+            or requested_by_user.username
+        )
+        department = (
+            requested_by_user.department
+            or department
+            or "Belirtilmedi"
+        )
 
         if not requested_by:
             return json_error("Talep sahibi seçin."), 400
@@ -2162,7 +2153,7 @@ def create_app() -> Flask:
                 "order_no": order.order_no,
                 "department": order.department,
                 "requested_by": requested_by,
-                "requested_by_id": requested_by_user.id if requested_by_user else None,
+                "requested_by_id": requested_by_user.id,
                 "line_count": len(order.lines),
             },
         )
@@ -2210,21 +2201,22 @@ def create_app() -> Flask:
             return json_error("Geçersiz işlem tipi."), 400
 
         total_quantity = sum(line.quantity for line in target_lines)
-        if quantity < 1:
+        if requested_quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
         if total_quantity <= 0:
             return json_error("Talep satırları için geçerli miktar bulunamadı."), 400
-        if quantity > total_quantity:
+        if requested_quantity > total_quantity:
             return json_error("Maksimum işlem miktarı aşılamaz."), 400
 
-        category_override = None
+        processed_quantity = 0
+        category_value = None
         validated_metadata: dict[str, str] | None = None
         if action_key == "stok":
-            category_override = normalize_stock_category(
-                data.get("category"),
+            first_line = target_lines[0] if target_lines else None
+            category_value = normalize_stock_category(
+                first_line.category if first_line else None,
                 fallback="envanter",
             )
-            first_line = target_lines[0] if target_lines else None
             metadata_defaults = {}
             if first_line:
                 metadata_defaults.update(
@@ -2238,7 +2230,7 @@ def create_app() -> Flask:
                 metadata_defaults.setdefault("department", order.department)
             try:
                 validated_metadata = prepare_stock_metadata(
-                    category_override,
+                    category_value,
                     data.get("metadata"),
                     defaults=metadata_defaults,
                     include_assignment_fields=False,
@@ -2246,8 +2238,50 @@ def create_app() -> Flask:
             except ValueError as exc:
                 return json_error(str(exc)), 400
 
+        created_stock_items: list[StockItem] = []
         if action_key == "stok":
-            target_group_key = "kapandi"
+            remaining_quantity = min(requested_quantity, total_quantity)
+            lines_to_remove: list[RequestLine] = []
+            for line in target_lines:
+                if remaining_quantity <= 0:
+                    break
+                available_quantity = max(0, line.quantity)
+                if available_quantity <= 0:
+                    continue
+                fulfill_quantity = min(available_quantity, remaining_quantity)
+                if fulfill_quantity <= 0:
+                    continue
+                created_stock_items.append(
+                    create_stock_item_from_request_line(
+                        order,
+                        line,
+                        quantity=fulfill_quantity,
+                        note=note,
+                        actor=actor,
+                        category=category_value,
+                        metadata=validated_metadata,
+                    )
+                )
+                processed_quantity += fulfill_quantity
+                remaining_quantity -= fulfill_quantity
+                if fulfill_quantity >= available_quantity:
+                    lines_to_remove.append(line)
+                else:
+                    line.quantity = available_quantity - fulfill_quantity
+
+            for line in lines_to_remove:
+                if line in order.lines:
+                    order.lines.remove(line)
+                db.session.delete(line)
+
+            if processed_quantity <= 0:
+                return json_error("İşlem yapılacak geçerli miktar bulunamadı."), 400
+        else:
+            processed_quantity = requested_quantity
+
+        if action_key == "stok":
+            remaining_total = sum(line.quantity for line in order.lines)
+            target_group_key = "kapandi" if remaining_total <= 0 else "acik"
             action_label = "Talep stok girişiyle kapandı"
         else:
             target_group_key = "iptal"
@@ -2258,25 +2292,6 @@ def create_app() -> Flask:
             order.group = target_group
 
         db.session.flush()
-
-        created_stock_items: list[StockItem] = []
-        if action_key == "stok":
-            processed_quantity = min(quantity, total_quantity)
-            for line in target_lines:
-                line_quantity = line.quantity
-                if len(target_lines) == 1:
-                    line_quantity = processed_quantity
-                created_stock_items.append(
-                    create_stock_item_from_request_line(
-                        order,
-                        line,
-                        quantity=line_quantity,
-                        note=note,
-                        actor=actor,
-                        category=category_override,
-                        metadata=validated_metadata,
-                    )
-                )
 
         record_activity(
             area="talep",
@@ -2676,7 +2691,6 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         metadata.get("license_key"),
         metadata.get("request_no"),
         metadata.get("responsible"),
-        metadata.get("reference"),
     ]
     if item:
         search_tokens.extend(
@@ -2766,6 +2780,34 @@ def load_stock_payload() -> dict[str, Any]:
     status_counts = Counter(item["status"] for item in stock_items)
     faulty_count = status_counts.get("arizali", 0)
 
+    assignment_map: dict[str, list[dict[str, Any]]] = {}
+    for item in stock_items:
+        if item.get("status") != "devredildi":
+            continue
+        responsible = (item.get("metadata") or {}).get("responsible")
+        if not responsible:
+            continue
+        assignment_map.setdefault(responsible, []).append(
+            {
+                "id": item["id"],
+                "title": item["title"],
+                "hardware_type": item.get("hardware_type") or item.get("title"),
+                "category_label": item.get("category_label"),
+                "quantity": item.get("quantity"),
+                "status": item.get("status"),
+                "status_label": item.get("status_label"),
+                "updated_display": item.get("updated_display"),
+            }
+        )
+
+    user_assignments = [
+        {
+            "responsible": name,
+            "items": sorted(entries, key=lambda payload: payload.get("updated_display") or "", reverse=True),
+        }
+        for name, entries in sorted(assignment_map.items())
+    ]
+
     categories = [
         {
             "value": key,
@@ -2801,6 +2843,7 @@ def load_stock_payload() -> dict[str, Any]:
         "stock_faulty_count": faulty_count,
         "stock_metadata_config": STOCK_METADATA_FIELDS,
         "stock_support_options": support_options,
+        "stock_user_assignments": user_assignments,
     }
 
 
@@ -3198,21 +3241,12 @@ def load_request_groups() -> dict[str, Any]:
         "models": [model.name for model in HardwareModel.query.order_by(HardwareModel.name)],
     }
 
-    request_users = [
-        {
-            "id": user.id,
-            "name": f"{user.first_name} {user.last_name}",
-            "department": user.department or "",
-        }
-        for user in User.query.order_by(User.first_name, User.last_name)
-    ]
-
     return {
         "request_groups": request_groups_payload,
         "hardware_catalog": hardware_catalog,
         "stock_metadata_config": STOCK_METADATA_FIELDS,
         "stock_support_options": build_stock_support_options(),
-        "request_users": request_users,
+        "stock_category_labels": STOCK_CATEGORY_LABELS,
     }
 
 
@@ -3576,7 +3610,21 @@ def load_activity_logs(limit: int | None = None) -> list[dict[str, Any]]:
 
 
 def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
-    return load_activity_logs(limit)
+    allowed_areas = {"talep", "urun", "kullanici"}
+    query_limit = max(limit * 4, limit)
+    candidates = (
+        ActivityLog.query.order_by(ActivityLog.created_at.desc())
+        .limit(query_limit)
+        .all()
+    )
+    filtered: list[dict[str, Any]] = []
+    for log in candidates:
+        if log.area not in allowed_areas:
+            continue
+        filtered.append(serialize_activity_log(log))
+        if len(filtered) >= limit:
+            break
+    return filtered
 
 
 def build_stock_support_options() -> dict[str, list[str]]:

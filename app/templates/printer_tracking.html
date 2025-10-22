@@ -73,7 +73,7 @@
       </div>
     </div>
     <div class="table-responsive">
-      <table class="table align-middle printer-table mb-0">
+      <table class="table align-middle printer-table mb-0" id="printerTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
         <thead>
           <tr>
             <th scope="col" class="text-muted small text-uppercase">ID</th>
@@ -463,6 +463,8 @@
     const statusLabelMap = new Map(statusChoices.map((choice) => [choice.value, choice.label]));
     const searchInput = document.getElementById('printer-search');
     const rows = Array.from(document.querySelectorAll('[data-printer-row]'));
+    const printerTableEl = document.getElementById('printerTable');
+    const pagination = window.Pagination || null;
     const totalCountEl = document.querySelector('[data-total-count]');
     const noResultRow = document.querySelector('[data-no-results]');
     const faultyToggle = document.querySelector('[data-toggle-faulty]');
@@ -486,10 +488,13 @@
         const matchesQuery = !query || row.dataset.searchIndex.includes(query);
         const matchesFaulty = !faultyOnly || row.dataset.status === 'arizali';
         const isVisible = matchesQuery && matchesFaulty;
-        row.classList.toggle('d-none', !isVisible);
         if (isVisible) {
+          delete row.dataset.searchHidden;
           visibleCount += 1;
+        } else {
+          row.dataset.searchHidden = 'true';
         }
+        row.classList.toggle('d-none', !isVisible);
       });
 
       if (noResultRow) {
@@ -497,6 +502,9 @@
       }
 
       updateCounters();
+      if (pagination && printerTableEl) {
+        pagination.refresh(printerTableEl);
+      }
     };
 
     searchInput?.addEventListener('input', () => {

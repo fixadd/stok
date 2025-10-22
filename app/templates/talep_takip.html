@@ -65,6 +65,9 @@
                 data-title="{{ group.label }} Talepleri"
                 data-description="{{ group.description }}"
                 data-empty-message="{{ group.empty_message }}"
+                data-paginate
+                data-page-size="20"
+                data-paginate-items=".request-order"
               >
                 <div class="group-intro alert-soft mb-4">
                   <i class="bi bi-info-circle me-2"></i>{{ group.description }}
@@ -204,14 +207,12 @@
                       <input type="text" class="form-control" name="order_no" placeholder="SIP-2024-020" required>
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label" for="requestOwnerSelect">Talep Sahibi</label>
-                      <select class="form-select" id="requestOwnerSelect" name="requested_by_id" data-request-owner-select required>
-                        <option value="" selected disabled>Seçiniz</option>
-                        {% for user in request_users %}
-                        <option value="{{ user.id }}" data-name="{{ user.name }}" data-department="{{ user.department or '' }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
-                        {% endfor %}
-                      </select>
-                      <div class="form-text text-muted" id="requestOwnerDepartmentHint">Departman: —</div>
+                      <label class="form-label">Talep Sahibi</label>
+                      <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-request-owner-display>
+                        {% if active_user %}{{ active_user.first_name }} {{ active_user.last_name }}{% else %}—{% endif %}
+                      </div>
+                      <input type="hidden" name="requested_by_id" data-request-owner-id value="{{ active_user.id if active_user else '' }}">
+                      <div class="form-text text-muted" data-request-owner-department>Departman: {% if active_user and active_user.department %}{{ active_user.department }}{% else %}—{% endif %}</div>
                     </div>
                   </div>
 
@@ -346,13 +347,9 @@
                   <div class="form-text" data-quantity-hint></div>
                 </div>
                 <div class="mb-3 d-none" data-action-metadata-section>
-                  <label class="form-label" for="action-category">Stok Kategorisi</label>
-                  <select class="form-select" id="action-category" data-action-category>
-                    <option value="cevre_birimi">Çevre Birimi</option>
-                    <option value="envanter">Envanter</option>
-                    <option value="yazici">IP Yazıcı</option>
-                    <option value="lisans">Lisans</option>
-                  </select>
+                  <label class="form-label">Stok Kategorisi</label>
+                  <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-action-category-label>—</div>
+                  <input type="hidden" data-action-category-value>
                   <div class="form-text">Kategoriye göre zorunlu bilgileri doldurun.</div>
                 </div>
                 <div class="row g-3 d-none" data-action-metadata-container></div>
@@ -385,7 +382,29 @@
     const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
     const stockMetadataConfig = {{ stock_metadata_config | tojson }};
     const stockSupportOptions = {{ stock_support_options | tojson }};
+    const stockCategoryLabels = {{ stock_category_labels | default({}) | tojson }};
+    const pagination = window.Pagination || null;
+    const requestOwnerInfo = {{ ({
+      "id": active_user.id if active_user else None,
+      "name": (active_user.first_name ~ ' ' ~ active_user.last_name) if active_user else '',
+      "department": active_user.department if active_user and active_user.department else ''
+    }) | tojson }};
     const metadataOptionLists = new Map();
+    const requestOwnerDisplay = document.querySelector('[data-request-owner-display]');
+    const requestOwnerDepartment = document.querySelector('[data-request-owner-department]');
+    const requestOwnerIdInput = document.querySelector('[data-request-owner-id]');
+
+    if (requestOwnerDisplay) {
+      requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || '—';
+    }
+    if (requestOwnerDepartment) {
+      const departmentLabel = (requestOwnerInfo && requestOwnerInfo.department) || '—';
+      requestOwnerDepartment.textContent = `Departman: ${departmentLabel}`;
+    }
+    if (requestOwnerIdInput) {
+      const ownerId = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
+      requestOwnerIdInput.value = ownerId;
+    }
 
     let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
 
@@ -686,6 +705,9 @@
         group.append(card);
       }
       toggleGroupEmptyState(group);
+      if (pagination) {
+        pagination.refresh(group);
+      }
     }
 
     function removeOrderFromGroup(orderId) {
@@ -697,6 +719,9 @@
       card.remove();
       if (group) {
         toggleGroupEmptyState(group);
+        if (pagination) {
+          pagination.refresh(group);
+        }
       }
     }
 
@@ -730,10 +755,13 @@
       let visibleOrders = 0;
       orders.forEach((order) => {
         const match = !query || order.dataset.searchIndex?.includes(query);
-        order.classList.toggle('d-none', !match);
         if (match) {
+          delete order.dataset.searchHidden;
           visibleOrders += 1;
+        } else {
+          order.dataset.searchHidden = 'true';
         }
+        order.classList.toggle('d-none', !match);
       });
       const emptyState = group.querySelector('.empty-state');
       if (emptyState) {
@@ -747,6 +775,9 @@
       }
       if (activeDescription) {
         activeDescription.textContent = group.dataset.description;
+      }
+      if (pagination) {
+        pagination.refresh(group);
       }
     }
 
@@ -769,22 +800,6 @@
     const addRowButton = document.querySelector('[data-add-row]');
     const newRequestModal = document.getElementById('newRequestModal');
     const newRequestForm = document.getElementById('new-request-form');
-    const requestOwnerSelect = document.getElementById('requestOwnerSelect');
-    const requestOwnerDepartmentHint = document.getElementById('requestOwnerDepartmentHint');
-
-    function updateRequestOwnerHint() {
-      if (!requestOwnerDepartmentHint) {
-        return;
-      }
-      const selectedOption = requestOwnerSelect?.selectedOptions?.[0];
-      const department = selectedOption?.dataset?.department?.trim();
-      requestOwnerDepartmentHint.textContent = `Departman: ${department || '—'}`;
-    }
-
-    if (requestOwnerSelect) {
-      requestOwnerSelect.addEventListener('change', updateRequestOwnerHint);
-      updateRequestOwnerHint();
-    }
 
     function updateRowControls() {
       if (!rowsContainer) {
@@ -839,10 +854,9 @@
 
         const formData = new FormData(newRequestForm);
         const orderNo = (formData.get('order_no') || '').toString().trim();
-        const requestedById = (formData.get('requested_by_id') || '').toString().trim();
-        const selectedOwnerOption = requestOwnerSelect?.selectedOptions?.[0] || null;
-        const requestedByName = selectedOwnerOption?.dataset?.name?.trim() || '';
-        const department = selectedOwnerOption?.dataset?.department?.trim() || '';
+        const requestedById = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
+        const requestedByName = (requestOwnerInfo && requestOwnerInfo.name ? requestOwnerInfo.name : '').trim();
+        const department = (requestOwnerInfo && requestOwnerInfo.department ? requestOwnerInfo.department : '').trim();
 
         const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
         const lines = [];
@@ -886,9 +900,8 @@
           showFeedback('Sipariş numarası zorunludur.', 'danger');
           return;
         }
-        if (!requestedById) {
-          showFeedback('Talep sahibi seçin.', 'danger');
-          requestOwnerSelect?.focus();
+        if (!requestedById || !requestedByName) {
+          showFeedback('Talep sahibi bilgisi alınamadı.', 'danger');
           return;
         }
 
@@ -937,7 +950,17 @@
         if (newRequestForm) {
           newRequestForm.reset();
         }
-        updateRequestOwnerHint();
+        if (requestOwnerIdInput) {
+          const ownerId = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
+          requestOwnerIdInput.value = ownerId;
+        }
+        if (requestOwnerDisplay) {
+          requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || '—';
+        }
+        if (requestOwnerDepartment) {
+          const departmentLabel = (requestOwnerInfo && requestOwnerInfo.department) || '—';
+          requestOwnerDepartment.textContent = `Departman: ${departmentLabel}`;
+        }
         if (rowsContainer) {
           const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
           rows.slice(1).forEach((row) => row.remove());
@@ -955,17 +978,30 @@
     const actionNoteInput = actionModal?.querySelector('#action-note');
     const confirmActionButton = actionModal?.querySelector('[data-confirm-action]');
     const actionMetadataSection = actionModal?.querySelector('[data-action-metadata-section]');
-    const actionMetadataSelect = actionModal?.querySelector('[data-action-category]');
+    const actionCategoryLabel = actionModal?.querySelector('[data-action-category-label]');
+    const actionCategoryValueInput = actionModal?.querySelector('[data-action-category-value]');
     const actionMetadataContainer = actionModal?.querySelector('[data-action-metadata-container]');
     const actionMetadataError = actionModal?.querySelector('[data-action-metadata-error]');
     let pendingAction;
 
     function renderActionMetadataFields({ hidePrefilled = false } = {}) {
-      if (!actionMetadataSection || !actionMetadataContainer || !actionMetadataSelect) {
+      if (!actionMetadataSection || !actionMetadataContainer) {
+        return;
+      }
+      const category = pendingAction?.category || '';
+      if (actionCategoryLabel) {
+        actionCategoryLabel.textContent = stockCategoryLabels?.[category] || category || '—';
+      }
+      if (actionCategoryValueInput) {
+        actionCategoryValueInput.value = category;
+      }
+      if (!category) {
+        actionMetadataSection.classList.add('d-none');
+        actionMetadataContainer.classList.add('d-none');
+        actionMetadataContainer.innerHTML = '';
         return;
       }
       actionMetadataSection.classList.remove('d-none');
-      const category = actionMetadataSelect.value || '';
       const schema = getMetadataSchema(category);
       const defaults = pendingAction?.metadataDefaults || {};
       const existing = readMetadataValues(actionMetadataContainer);
@@ -1004,6 +1040,8 @@
           category: trigger.getAttribute('data-category') || '',
         };
 
+        const inferredCategory = metadataDefaults.category || guessCategoryFromTrigger(trigger);
+
         pendingAction = {
           orderId,
           actionType,
@@ -1012,6 +1050,7 @@
           maxQuantity,
           lineId,
           metadataDefaults,
+          category: inferredCategory,
         };
 
         const modalTitle = actionModal.querySelector('.modal-title');
@@ -1046,8 +1085,8 @@
           confirmActionButton.disabled = false;
         }
         if (actionType === 'stok') {
-          if (actionMetadataSelect) {
-            actionMetadataSelect.value = guessCategoryFromTrigger(trigger);
+          if (!pendingAction.category) {
+            pendingAction.category = guessCategoryFromTrigger(trigger);
           }
           renderActionMetadataFields({ hidePrefilled: true });
         } else {
@@ -1093,15 +1132,12 @@
           actionMetadataError.classList.add('d-none');
           actionMetadataError.textContent = '';
         }
-        if (actionMetadataSelect) {
-          actionMetadataSelect.value = 'envanter';
+        if (actionCategoryLabel) {
+          actionCategoryLabel.textContent = '—';
         }
-      });
-    }
-
-    if (actionMetadataSelect) {
-      actionMetadataSelect.addEventListener('change', () => {
-        renderActionMetadataFields();
+        if (actionCategoryValueInput) {
+          actionCategoryValueInput.value = '';
+        }
       });
     }
 
@@ -1141,7 +1177,7 @@
         let metadataPayload;
         let categoryValue;
         if (pendingAction.actionType === 'stok') {
-          categoryValue = actionMetadataSelect?.value || 'envanter';
+          categoryValue = pendingAction.category || 'envanter';
           const schema = getMetadataSchema(categoryValue);
           const { metadata, missing } = collectMetadata(actionMetadataContainer, schema);
           if (missing.length) {

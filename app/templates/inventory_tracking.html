@@ -63,7 +63,7 @@
     <div class="alert inventory-action-alert d-none" id="inventoryActionAlert" role="alert"></div>
 
     <div class="table-responsive">
-      <table class="table align-middle inventory-table" id="inventoryTable">
+      <table class="table align-middle inventory-table" id="inventoryTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
         <thead>
           <tr>
             <th scope="col">Envanter</th>
@@ -625,6 +625,8 @@
   const bootstrapLib = window.bootstrap;
 
   const inventoryTableBody = document.querySelector("#inventoryTable tbody");
+  const inventoryTableEl = document.getElementById("inventoryTable");
+  const pagination = window.Pagination || null;
   const inventorySearchInput = document.getElementById("inventorySearch");
   const inventoryEmptyState = document.getElementById("inventoryEmptyState");
   const faultyToggleButton = document.querySelector(".inventory-faulty-button");
@@ -674,6 +676,9 @@
 
   function refreshInventoryRows() {
     inventoryRows = inventoryTableBody ? Array.from(inventoryTableBody.querySelectorAll("tr")) : [];
+    if (pagination && inventoryTableEl) {
+      pagination.refresh(inventoryTableEl);
+    }
   }
 
   function updateFaultyCounter() {
@@ -907,6 +912,11 @@
       const matchesSearch = !term || haystack.includes(term);
       const matchesFaulty = !showOnlyFaulty || row.dataset.status === "arizali";
       const isVisible = matchesSearch && matchesFaulty;
+      if (isVisible) {
+        delete row.dataset.searchHidden;
+      } else {
+        row.dataset.searchHidden = "true";
+      }
       row.classList.toggle("d-none", !isVisible);
       if (isVisible) {
         visibleCount += 1;
@@ -915,6 +925,10 @@
 
     if (inventoryEmptyState) {
       inventoryEmptyState.classList.toggle("d-none", visibleCount !== 0);
+    }
+
+    if (pagination && inventoryTableEl) {
+      pagination.refresh(inventoryTableEl);
     }
   }
 
