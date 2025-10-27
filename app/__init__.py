@@ -1655,12 +1655,21 @@ def create_app() -> Flask:
         if existing_stock and existing_stock.status == "stokta":
             return json_error("Bu envanter kaydı zaten stokta."), 409
 
+        category_value = determine_stock_category_from_inventory(item)
+        if existing_stock:
+            category_value = normalize_stock_category(
+                existing_stock.category, fallback=category_value
+            )
+
         item.status = "stokta"
         add_inventory_event(item, "Stok girişi", note, performed_by=actor)
 
         log_entry = None
         if existing_stock:
             metadata_payload = build_inventory_stock_metadata(item)
+            metadata_payload = remove_assignment_only_metadata(
+                metadata_payload, category_value
+            )
             existing_stock.status = "stokta"
             existing_stock.quantity = 1
             existing_stock.reference_code = item.inventory_no
@@ -1682,7 +1691,11 @@ def create_app() -> Flask:
             )
             stock_item = existing_stock
         else:
-            stock_item = create_stock_item_from_inventory(item, note=note, actor=actor)
+            stock_item = create_stock_item_from_inventory(
+                item,
+                note=note,
+                actor=actor,
+            )
 
         db.session.commit()
 
@@ -1876,6 +1889,10 @@ def create_app() -> Flask:
                     if v
                 }
             )
+
+        metadata_defaults = remove_assignment_only_metadata(
+            metadata_defaults, category_value
+        )
 
         try:
             assignment_metadata = prepare_stock_metadata(
@@ -2492,7 +2509,8 @@ def load_inventory_payload() -> dict:
     )
 
     payload = [serialize_inventory_item(item) for item in items]
-    visible_items = [item for item in payload if item.get("status") != "stokta"]
+    hidden_statuses = {"stokta", "hurda"}
+    visible_items = [item for item in payload if item.get("status") not in hidden_statuses]
     faulty_count = sum(1 for item in visible_items if item["status"] == "arizali")
     departments_set: set[str] = {
         item["department"] for item in visible_items if item.get("department")
@@ -2555,7 +2573,8 @@ def load_printer_payload() -> dict[str, Any]:
         items = query.filter(InventoryItem.hardware_type_id == printer_type.id).all()
 
     printers = [serialize_inventory_item(item) for item in items]
-    printers = [printer for printer in printers if printer.get("status") != "stokta"]
+    hidden_statuses = {"stokta", "hurda"}
+    printers = [printer for printer in printers if printer.get("status") not in hidden_statuses]
     faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
 
     status_choices = [
@@ -2630,6 +2649,22 @@ def normalize_stock_category(value: str | None, fallback: str = "envanter") -> s
         return fallback
     normalized = value.strip().lower()
     return normalized if normalized in STOCK_CATEGORY_LABELS else fallback
+
+
+def assignment_only_keys(category: str) -> set[str]:
+    schema = STOCK_METADATA_FIELDS.get(category, [])
+    return {field["key"] for field in schema if field.get("assignment_only")}
+
+
+def remove_assignment_only_metadata(
+    metadata: dict[str, Any] | None, category: str
+) -> dict[str, Any]:
+    if not metadata:
+        return {}
+    disallowed = assignment_only_keys(category)
+    if not disallowed:
+        return dict(metadata)
+    return {key: value for key, value in metadata.items() if key not in disallowed}
 
 
 def determine_stock_category_from_inventory(
@@ -3397,18 +3432,25 @@ def create_stock_item_from_inventory(
     if not title:
         title = item.inventory_no or "Envanter"
 
+    category_value = determine_stock_category_from_inventory(item)
+
     stock_item = StockItem(
         source_type="inventory",
         inventory_item=item,
         reference_code=item.inventory_no,
         title=title,
-        category=determine_stock_category_from_inventory(item),
+        category=category_value,
         quantity=1,
         status="stokta",
         note=note or None,
     )
     metadata_payload = build_inventory_stock_metadata(item)
-    stock_item.metadata_payload = {key: value for key, value in metadata_payload.items() if value}
+    metadata_payload = remove_assignment_only_metadata(
+        metadata_payload, category_value
+    )
+    stock_item.metadata_payload = {
+        key: value for key, value in metadata_payload.items() if value
+    }
     db.session.add(stock_item)
     db.session.flush()
     record_stock_log(

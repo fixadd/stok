@@ -621,7 +621,14 @@
     }
     const category = pendingStockAction.category || '';
     const schema = getMetadataSchema(category);
-    const defaults = pendingStockAction.metadataDefaults || {};
+    const defaults = { ...(pendingStockAction.metadataDefaults || {}) };
+    if (Array.isArray(schema)) {
+      schema.forEach((field) => {
+        if (field.assignment_only) {
+          delete defaults[field.key];
+        }
+      });
+    }
     const currentValues = readMetadataValues(actionMetadataContainer);
     const values = { ...defaults, ...currentValues };
     buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, {
