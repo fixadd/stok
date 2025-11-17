@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 from uuid import uuid4
 
+import os
 import shutil
 import sqlite3
 import tempfile
@@ -564,7 +565,12 @@ def split_license_name(value: str) -> tuple[str, str]:
 
 
 def create_app() -> Flask:
-    data_dir = Path("/data")
+    data_dir_env = os.environ.get("DATA_DIR")
+    if data_dir_env:
+        data_dir = Path(data_dir_env)
+    else:
+        project_root = Path(__file__).resolve().parent.parent
+        data_dir = project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
     database_path = data_dir / "stok.db"
@@ -577,6 +583,7 @@ def create_app() -> Flask:
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
+    app.config["DATA_DIR"] = data_dir
     app.config["INFO_UPLOAD_DIR"] = info_upload_dir
     app.config["DATABASE_PATH"] = database_path
     app.permanent_session_lifetime = timedelta(hours=8)
@@ -1207,7 +1214,14 @@ def create_app() -> Flask:
             flash("Veritabanını sıfırlamak için süper admin yetkisi gerekir.", "danger")
             return redirect(url_for("admin_panel", section="data-section"))
 
-        info_upload_dir = Path(current_app.config.get("INFO_UPLOAD_DIR", Path("/data/info_uploads")))
+        data_dir = Path(
+            current_app.config.get(
+                "DATA_DIR", Path(__file__).resolve().parent.parent / "data"
+            )
+        )
+        info_upload_dir = Path(
+            current_app.config.get("INFO_UPLOAD_DIR", data_dir / "info_uploads")
+        )
 
         try:
             db.session.remove()
