@@ -398,6 +398,24 @@
     const requestOwnerDisplay = document.querySelector('[data-request-owner-display]');
     const requestOwnerDepartment = document.querySelector('[data-request-owner-department]');
     const requestOwnerIdInput = document.querySelector('[data-request-owner-id]');
+    const hardwareCatalog = {{ hardware_catalog | tojson }};
+    const brandModelLookup = new Map();
+    const modelFallbackOptions = Array.isArray(hardwareCatalog?.models)
+      ? hardwareCatalog.models
+      : [];
+    if (hardwareCatalog?.models_by_brand) {
+      Object.entries(hardwareCatalog.models_by_brand).forEach(([brandName, models]) => {
+        if (!brandName) {
+          return;
+        }
+        const normalizedKey = brandName.trim().toLowerCase();
+        brandModelLookup.set(
+          normalizedKey,
+          Array.isArray(models) ? models.slice() : []
+        );
+      });
+    }
+    let modelDatalistCounter = 0;
 
     if (requestOwnerDisplay) {
       requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || '—';
@@ -418,6 +436,19 @@
         return '';
       }
       return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function normalizeBrandKey(brandName) {
+      return (brandName || '').trim().toLowerCase();
+    }
+
+    function getModelOptionsForBrand(brandName) {
+      const normalized = normalizeBrandKey(brandName);
+      if (!normalized || !brandModelLookup.has(normalized)) {
+        return modelFallbackOptions;
+      }
+      const options = brandModelLookup.get(normalized) || modelFallbackOptions;
+      return Array.isArray(options) && options.length ? options : modelFallbackOptions;
     }
 
     function showFeedback(message, type = 'success') {
@@ -568,6 +599,45 @@
         }
       });
       return { metadata, missing };
+    }
+
+    function attachRowEnhancements(row) {
+      if (!row || row.dataset.modelListBound === 'true') {
+        return;
+      }
+      const modelInput = row.querySelector('input[name="model[]"]');
+      if (!modelInput) {
+        return;
+      }
+      const brandInput = row.querySelector('input[name="brand[]"]');
+      row.dataset.modelListBound = 'true';
+      modelDatalistCounter += 1;
+      const datalistId = `request-model-options-${modelDatalistCounter}`;
+      const datalist = document.createElement('datalist');
+      datalist.id = datalistId;
+      modelInput.setAttribute('list', datalistId);
+      row.appendChild(datalist);
+
+      const renderModelOptions = () => {
+        const brandName = brandInput?.value?.trim() || '';
+        const options = getModelOptionsForBrand(brandName);
+        datalist.innerHTML = '';
+        options.forEach((optionValue) => {
+          const option = document.createElement('option');
+          option.value = optionValue;
+          datalist.appendChild(option);
+        });
+      };
+
+      renderModelOptions();
+
+      if (brandInput) {
+        const updateOptions = () => {
+          renderModelOptions();
+        };
+        brandInput.addEventListener('input', updateOptions);
+        brandInput.addEventListener('change', updateOptions);
+      }
     }
 
     function guessCategoryFromTrigger(trigger) {
@@ -831,6 +901,14 @@
     const newRequestModal = document.getElementById('newRequestModal');
     const newRequestForm = document.getElementById('new-request-form');
 
+    function initializeRequestRows() {
+      if (!rowsContainer) {
+        return;
+      }
+      const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+      rows.forEach((row) => attachRowEnhancements(row));
+    }
+
     function updateRowControls() {
       if (!rowsContainer) {
         return;
@@ -848,12 +926,17 @@
     }
 
     updateRowControls();
+    initializeRequestRows();
 
     if (addRowButton && rowTemplate && rowsContainer) {
       addRowButton.addEventListener('click', () => {
-        const clone = rowTemplate.content.cloneNode(true);
-        rowsContainer.appendChild(clone);
+        const fragment = rowTemplate.content.cloneNode(true);
+        const newRow = fragment.querySelector('[data-request-row]');
+        rowsContainer.appendChild(fragment);
         updateRowControls();
+        if (newRow) {
+          attachRowEnhancements(newRow);
+        }
       });
     }
 

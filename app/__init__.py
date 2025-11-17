@@ -3450,10 +3450,21 @@ def load_request_groups() -> dict[str, Any]:
             }
         )
 
+    brands = (
+        Brand.query.options(joinedload(Brand.models))
+        .order_by(Brand.name)
+        .all()
+    )
+
+    models_by_brand: dict[str, list[str]] = {}
+    for brand in brands:
+        models_by_brand[brand.name] = [model.name for model in brand.models]
+
     hardware_catalog = {
         "types": [ht.name for ht in HardwareType.query.order_by(HardwareType.name)],
-        "brands": [brand.name for brand in Brand.query.order_by(Brand.name)],
+        "brands": [brand.name for brand in brands],
         "models": [model.name for model in HardwareModel.query.order_by(HardwareModel.name)],
+        "models_by_brand": models_by_brand,
     }
 
     return {
