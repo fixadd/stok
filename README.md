@@ -29,7 +29,7 @@ Docker Compose tercih ediyorsanız aşağıdaki komutu kullanabilirsiniz:
 docker compose up --build
 ```
 
-Compose ortamı ilk kez ayağa kaldırıldığında `stok-db` adlı volume oluşturulur ve veritabanı dosyası konteyner içindeki `/data/stok.db` konumunda saklanır. Böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunmaya devam eder.
+Compose ortamı ilk kez ayağa kaldırıldığında proje kök dizininde `data/` klasörü oluşturulur ve uygulama bu klasörün içine `stok.db` dosyası ile yüklenen görsellere ait alt klasörleri kaydeder. Docker konteyneri çalışırken bu klasör `/app/data` olarak bağlanır; böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunur. `data/` klasörünü başka bir ortama taşıyarak veya versiyon kontrolü dışında bir yedekle saklayarak veritabanını koruyabilirsiniz.
 
 ## Geliştirme
 

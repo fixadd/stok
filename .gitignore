@@ -8,3 +8,5 @@ instance/
 *.sqlite3
 venv/
 .env
+data/*
+!data/.gitkeep
