@@ -306,12 +306,6 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-12">
-            <div class="form-check">
-              <input class="form-check-input" id="assignAddHistory" type="checkbox" checked>
-              <label class="form-check-label" for="assignAddHistory">Bu işlem lisansın geçmiş kayıtlarına eklenecek.</label>
-            </div>
-          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -401,19 +395,15 @@
               <label class="form-label" for="editEmailInput">Mail Adresi</label>
               <input class="form-control" id="editEmailInput" name="edit_email" type="email" placeholder="ornek@firma.com">
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="editStatusSelect">Durum</label>
-              <select class="form-select" id="editStatusSelect" name="edit_status">
-                <option value="aktif">Aktif</option>
-                <option value="pasif">Pasif</option>
-                <option value="beklemede">Beklemede</option>
-              </select>
-            </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editStatusSelect">Durum</label>
+            <select class="form-select" id="editStatusSelect" name="edit_status">
+              <option value="aktif">Aktif</option>
+              <option value="pasif">Pasif</option>
+              <option value="beklemede">Beklemede</option>
+            </select>
           </div>
-          <div class="form-check form-switch mt-4">
-            <input class="form-check-input" id="editHistoryToggle" type="checkbox" checked>
-            <label class="form-check-label" for="editHistoryToggle">Değişiklikler lisans geçmişine kaydedilecektir.</label>
-          </div>
+        </div>
         </form>
       </div>
       <div class="modal-footer border-0 pt-0">
@@ -454,7 +444,6 @@
     const assignModalEl = document.getElementById('licenseAssignModal');
     const assignResponsibleSelect = document.getElementById('assignResponsibleSelect');
     const assignInventorySelect = document.getElementById('assignInventorySelect');
-    const assignHistoryCheckbox = document.getElementById('assignAddHistory');
     const assignTitle = document.getElementById('assignModalTitle');
 
     const stockModalEl = document.getElementById('licenseStockModal');
@@ -473,7 +462,6 @@
     const editIfsInput = document.getElementById('editIfsInput');
     const editEmailInput = document.getElementById('editEmailInput');
     const editStatusSelect = document.getElementById('editStatusSelect');
-    const editHistoryToggle = document.getElementById('editHistoryToggle');
 
     const createModalEl = document.getElementById('licenseCreateModal');
     const createForm = document.getElementById('licenseCreateForm');
@@ -1039,9 +1027,6 @@
         assignResponsibleSelect.value = data.responsible_id ? String(data.responsible_id) : '';
         assignInventorySelect.value = data.inventory_id ? String(data.inventory_id) : '';
       });
-      assignModalEl.addEventListener('hidden.bs.modal', () => {
-        assignHistoryCheckbox.checked = true;
-      });
     }
 
     if (stockModalEl) {
@@ -1100,7 +1085,6 @@
         }
         refreshLicenseNameSelects();
         editStatusSelect.value = 'aktif';
-        editHistoryToggle.checked = true;
       });
     }
 
@@ -1129,14 +1113,12 @@
         }
         data.status = 'aktif';
         refreshLicenseRecord(data);
-        if (assignHistoryCheckbox.checked) {
-          data.history.unshift({
-            title: 'Atama yapıldı',
-            actor: selectedUser ? selectedUser.name : 'Sistem',
-            note: selectedInventory ? `${selectedInventory.label} envanterine bağlandı.` : 'Sorumlu güncellendi.',
-            performed_at: formatDateTime(new Date()),
-          });
-        }
+        data.history.unshift({
+          title: 'Atama yapıldı',
+          actor: selectedUser ? selectedUser.name : 'Sistem',
+          note: selectedInventory ? `${selectedInventory.label} envanterine bağlandı.` : 'Sorumlu güncellendi.',
+          performed_at: formatDateTime(new Date()),
+        });
         updateRow(currentLicenseId);
         updateDetailIfVisible(currentLicenseId);
         showFeedback('Lisans ataması güncellendi.', 'success');
@@ -1224,14 +1206,12 @@
         }
 
         refreshLicenseRecord(data);
-        if (editHistoryToggle.checked) {
-          data.history.unshift({
-            title: 'Lisans düzenlendi',
-            actor: selectedUser ? selectedUser.name : 'Sistem',
-            note: 'Lisans bilgileri güncellendi.',
-            performed_at: formatDateTime(new Date()),
-          });
-        }
+        data.history.unshift({
+          title: 'Lisans düzenlendi',
+          actor: selectedUser ? selectedUser.name : 'Sistem',
+          note: 'Lisans bilgileri güncellendi.',
+          performed_at: formatDateTime(new Date()),
+        });
         updateRow(currentLicenseId);
         updateDetailIfVisible(currentLicenseId);
         showFeedback('Lisans bilgileri güncellendi.', 'success');

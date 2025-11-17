@@ -192,3 +192,44 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="ldapProfileModal" tabindex="-1" aria-labelledby="ldapProfileTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ldapProfileTitle">Yeni LDAP Profili</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-soft alert-danger d-none" id="ldapProfileModalFeedback"></div>
+        <form class="row g-3" id="ldapProfileForm">
+          <input type="hidden" id="ldapProfileId">
+          <div class="col-md-6">
+            <label class="form-label" for="ldapProfileName">Profil Adı</label>
+            <input class="form-control" id="ldapProfileName" placeholder="Merkez DC" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="ldapProfileHost">Sunucu Adresi</label>
+            <input class="form-control" id="ldapProfileHost" placeholder="ldap.example.com" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="ldapProfilePort">Port</label>
+            <input class="form-control" id="ldapProfilePort" type="number" min="1" placeholder="389" required>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label" for="ldapProfileBaseDn">Base DN</label>
+            <input class="form-control" id="ldapProfileBaseDn" placeholder="DC=example,DC=com" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="ldapProfileBindDn">Bind Kullanıcı</label>
+            <input class="form-control" id="ldapProfileBindDn" placeholder="CN=service,OU=Accounts,DC=example,DC=com" required>
+          </div>
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+            <button class="btn btn-primary" type="submit">Kaydet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

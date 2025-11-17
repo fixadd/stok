@@ -346,6 +346,11 @@
                   <input type="number" class="form-control" id="action-quantity" min="1" value="1">
                   <div class="form-text" data-quantity-hint></div>
                 </div>
+                <div class="form-check form-switch d-none mb-3" data-ip-printer-toggle>
+                  <input class="form-check-input" type="checkbox" id="ipPrinterToggle">
+                  <label class="form-check-label" for="ipPrinterToggle">IP yazıcı olarak kaydet</label>
+                  <div class="form-text">Seçildiğinde IP yazıcı alanları görüntülenir.</div>
+                </div>
                 <div class="mb-3 d-none" data-action-metadata-section>
                   <label class="form-label">Stok Kategorisi</label>
                   <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-action-category-label>—</div>
@@ -581,6 +586,31 @@
         return 'lisans';
       }
       return 'envanter';
+    }
+
+    function shouldShowPrinterToggle(action) {
+      if (!action) {
+        return false;
+      }
+      const base = (action.baseCategory || action.category || '').toLowerCase();
+      if (base === 'yazici') {
+        return true;
+      }
+      const hardwareRaw = action.metadataDefaults?.hardware_type || '';
+      const hardware = hardwareRaw.toLocaleLowerCase('tr-TR');
+      return hardware.includes('yazıcı') || hardware.includes('yazici');
+    }
+
+    function applyPrinterCategorySelection() {
+      if (!pendingAction) {
+        return;
+      }
+      if (!pendingAction.baseCategory) {
+        pendingAction.baseCategory = pendingAction.category || 'envanter';
+      }
+      const shouldUsePrinter = Boolean(ipPrinterToggle && !ipPrinterToggle.disabled && ipPrinterToggle.checked);
+      pendingAction.category = shouldUsePrinter ? 'yazici' : pendingAction.baseCategory || 'envanter';
+      renderActionMetadataFields({ hidePrefilled: true });
     }
 
     function getGroup(status) {
@@ -982,6 +1012,8 @@
     const actionCategoryValueInput = actionModal?.querySelector('[data-action-category-value]');
     const actionMetadataContainer = actionModal?.querySelector('[data-action-metadata-container]');
     const actionMetadataError = actionModal?.querySelector('[data-action-metadata-error]');
+    const ipPrinterToggleGroup = actionModal?.querySelector('[data-ip-printer-toggle]');
+    const ipPrinterToggle = document.getElementById('ipPrinterToggle');
     let pendingAction;
 
     function renderActionMetadataFields({ hidePrefilled = false } = {}) {
@@ -1051,6 +1083,7 @@
           lineId,
           metadataDefaults,
           category: inferredCategory,
+          baseCategory: inferredCategory,
         };
 
         const modalTitle = actionModal.querySelector('.modal-title');
@@ -1088,8 +1121,26 @@
           if (!pendingAction.category) {
             pendingAction.category = guessCategoryFromTrigger(trigger);
           }
-          renderActionMetadataFields({ hidePrefilled: true });
+          if (!pendingAction.baseCategory) {
+            pendingAction.baseCategory = pendingAction.category;
+          }
+          const showPrinterToggle = shouldShowPrinterToggle(pendingAction);
+          if (ipPrinterToggleGroup) {
+            ipPrinterToggleGroup.classList.toggle('d-none', !showPrinterToggle);
+          }
+          if (ipPrinterToggle) {
+            ipPrinterToggle.disabled = !showPrinterToggle;
+            ipPrinterToggle.checked = showPrinterToggle && pendingAction.category === 'yazici';
+          }
+          applyPrinterCategorySelection();
         } else {
+          if (ipPrinterToggleGroup) {
+            ipPrinterToggleGroup.classList.add('d-none');
+          }
+          if (ipPrinterToggle) {
+            ipPrinterToggle.checked = false;
+            ipPrinterToggle.disabled = true;
+          }
           if (actionMetadataSection) {
             actionMetadataSection.classList.add('d-none');
           }
@@ -1138,6 +1189,22 @@
         if (actionCategoryValueInput) {
           actionCategoryValueInput.value = '';
         }
+        if (ipPrinterToggleGroup) {
+          ipPrinterToggleGroup.classList.add('d-none');
+        }
+        if (ipPrinterToggle) {
+          ipPrinterToggle.checked = false;
+          ipPrinterToggle.disabled = true;
+        }
+      });
+    }
+
+    if (ipPrinterToggle) {
+      ipPrinterToggle.addEventListener('change', () => {
+        if (!pendingAction || pendingAction.actionType !== 'stok') {
+          return;
+        }
+        applyPrinterCategorySelection();
       });
     }
 
