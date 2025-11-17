@@ -346,6 +346,11 @@
                   <input type="number" class="form-control" id="action-quantity" min="1" value="1">
                   <div class="form-text" data-quantity-hint></div>
                 </div>
+                <div class="form-check form-switch d-none mb-3" data-ip-printer-toggle>
+                  <input class="form-check-input" type="checkbox" id="ipPrinterToggle">
+                  <label class="form-check-label" for="ipPrinterToggle">IP yazıcı olarak kaydet</label>
+                  <div class="form-text">Seçildiğinde IP yazıcı alanları görüntülenir.</div>
+                </div>
                 <div class="mb-3 d-none" data-action-metadata-section>
                   <label class="form-label">Stok Kategorisi</label>
                   <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-action-category-label>—</div>
@@ -393,6 +398,24 @@
     const requestOwnerDisplay = document.querySelector('[data-request-owner-display]');
     const requestOwnerDepartment = document.querySelector('[data-request-owner-department]');
     const requestOwnerIdInput = document.querySelector('[data-request-owner-id]');
+    const hardwareCatalog = {{ hardware_catalog | tojson }};
+    const brandModelLookup = new Map();
+    const modelFallbackOptions = Array.isArray(hardwareCatalog?.models)
+      ? hardwareCatalog.models
+      : [];
+    if (hardwareCatalog?.models_by_brand) {
+      Object.entries(hardwareCatalog.models_by_brand).forEach(([brandName, models]) => {
+        if (!brandName) {
+          return;
+        }
+        const normalizedKey = brandName.trim().toLowerCase();
+        brandModelLookup.set(
+          normalizedKey,
+          Array.isArray(models) ? models.slice() : []
+        );
+      });
+    }
+    let modelDatalistCounter = 0;
 
     if (requestOwnerDisplay) {
       requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || '—';
@@ -413,6 +436,19 @@
         return '';
       }
       return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function normalizeBrandKey(brandName) {
+      return (brandName || '').trim().toLowerCase();
+    }
+
+    function getModelOptionsForBrand(brandName) {
+      const normalized = normalizeBrandKey(brandName);
+      if (!normalized || !brandModelLookup.has(normalized)) {
+        return modelFallbackOptions;
+      }
+      const options = brandModelLookup.get(normalized) || modelFallbackOptions;
+      return Array.isArray(options) && options.length ? options : modelFallbackOptions;
     }
 
     function showFeedback(message, type = 'success') {
@@ -565,6 +601,45 @@
       return { metadata, missing };
     }
 
+    function attachRowEnhancements(row) {
+      if (!row || row.dataset.modelListBound === 'true') {
+        return;
+      }
+      const modelInput = row.querySelector('input[name="model[]"]');
+      if (!modelInput) {
+        return;
+      }
+      const brandInput = row.querySelector('input[name="brand[]"]');
+      row.dataset.modelListBound = 'true';
+      modelDatalistCounter += 1;
+      const datalistId = `request-model-options-${modelDatalistCounter}`;
+      const datalist = document.createElement('datalist');
+      datalist.id = datalistId;
+      modelInput.setAttribute('list', datalistId);
+      row.appendChild(datalist);
+
+      const renderModelOptions = () => {
+        const brandName = brandInput?.value?.trim() || '';
+        const options = getModelOptionsForBrand(brandName);
+        datalist.innerHTML = '';
+        options.forEach((optionValue) => {
+          const option = document.createElement('option');
+          option.value = optionValue;
+          datalist.appendChild(option);
+        });
+      };
+
+      renderModelOptions();
+
+      if (brandInput) {
+        const updateOptions = () => {
+          renderModelOptions();
+        };
+        brandInput.addEventListener('input', updateOptions);
+        brandInput.addEventListener('change', updateOptions);
+      }
+    }
+
     function guessCategoryFromTrigger(trigger) {
       const explicit = trigger?.getAttribute('data-category');
       if (explicit) {
@@ -581,6 +656,31 @@
         return 'lisans';
       }
       return 'envanter';
+    }
+
+    function shouldShowPrinterToggle(action) {
+      if (!action) {
+        return false;
+      }
+      const base = (action.baseCategory || action.category || '').toLowerCase();
+      if (base === 'yazici') {
+        return true;
+      }
+      const hardwareRaw = action.metadataDefaults?.hardware_type || '';
+      const hardware = hardwareRaw.toLocaleLowerCase('tr-TR');
+      return hardware.includes('yazıcı') || hardware.includes('yazici');
+    }
+
+    function applyPrinterCategorySelection() {
+      if (!pendingAction) {
+        return;
+      }
+      if (!pendingAction.baseCategory) {
+        pendingAction.baseCategory = pendingAction.category || 'envanter';
+      }
+      const shouldUsePrinter = Boolean(ipPrinterToggle && !ipPrinterToggle.disabled && ipPrinterToggle.checked);
+      pendingAction.category = shouldUsePrinter ? 'yazici' : pendingAction.baseCategory || 'envanter';
+      renderActionMetadataFields({ hidePrefilled: true });
     }
 
     function getGroup(status) {
@@ -801,6 +901,14 @@
     const newRequestModal = document.getElementById('newRequestModal');
     const newRequestForm = document.getElementById('new-request-form');
 
+    function initializeRequestRows() {
+      if (!rowsContainer) {
+        return;
+      }
+      const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+      rows.forEach((row) => attachRowEnhancements(row));
+    }
+
     function updateRowControls() {
       if (!rowsContainer) {
         return;
@@ -818,12 +926,17 @@
     }
 
     updateRowControls();
+    initializeRequestRows();
 
     if (addRowButton && rowTemplate && rowsContainer) {
       addRowButton.addEventListener('click', () => {
-        const clone = rowTemplate.content.cloneNode(true);
-        rowsContainer.appendChild(clone);
+        const fragment = rowTemplate.content.cloneNode(true);
+        const newRow = fragment.querySelector('[data-request-row]');
+        rowsContainer.appendChild(fragment);
         updateRowControls();
+        if (newRow) {
+          attachRowEnhancements(newRow);
+        }
       });
     }
 
@@ -982,6 +1095,8 @@
     const actionCategoryValueInput = actionModal?.querySelector('[data-action-category-value]');
     const actionMetadataContainer = actionModal?.querySelector('[data-action-metadata-container]');
     const actionMetadataError = actionModal?.querySelector('[data-action-metadata-error]');
+    const ipPrinterToggleGroup = actionModal?.querySelector('[data-ip-printer-toggle]');
+    const ipPrinterToggle = document.getElementById('ipPrinterToggle');
     let pendingAction;
 
     function renderActionMetadataFields({ hidePrefilled = false } = {}) {
@@ -1051,6 +1166,7 @@
           lineId,
           metadataDefaults,
           category: inferredCategory,
+          baseCategory: inferredCategory,
         };
 
         const modalTitle = actionModal.querySelector('.modal-title');
@@ -1088,8 +1204,26 @@
           if (!pendingAction.category) {
             pendingAction.category = guessCategoryFromTrigger(trigger);
           }
-          renderActionMetadataFields({ hidePrefilled: true });
+          if (!pendingAction.baseCategory) {
+            pendingAction.baseCategory = pendingAction.category;
+          }
+          const showPrinterToggle = shouldShowPrinterToggle(pendingAction);
+          if (ipPrinterToggleGroup) {
+            ipPrinterToggleGroup.classList.toggle('d-none', !showPrinterToggle);
+          }
+          if (ipPrinterToggle) {
+            ipPrinterToggle.disabled = !showPrinterToggle;
+            ipPrinterToggle.checked = showPrinterToggle && pendingAction.category === 'yazici';
+          }
+          applyPrinterCategorySelection();
         } else {
+          if (ipPrinterToggleGroup) {
+            ipPrinterToggleGroup.classList.add('d-none');
+          }
+          if (ipPrinterToggle) {
+            ipPrinterToggle.checked = false;
+            ipPrinterToggle.disabled = true;
+          }
           if (actionMetadataSection) {
             actionMetadataSection.classList.add('d-none');
           }
@@ -1138,6 +1272,22 @@
         if (actionCategoryValueInput) {
           actionCategoryValueInput.value = '';
         }
+        if (ipPrinterToggleGroup) {
+          ipPrinterToggleGroup.classList.add('d-none');
+        }
+        if (ipPrinterToggle) {
+          ipPrinterToggle.checked = false;
+          ipPrinterToggle.disabled = true;
+        }
+      });
+    }
+
+    if (ipPrinterToggle) {
+      ipPrinterToggle.addEventListener('change', () => {
+        if (!pendingAction || pendingAction.actionType !== 'stok') {
+          return;
+        }
+        applyPrinterCategorySelection();
       });
     }
 

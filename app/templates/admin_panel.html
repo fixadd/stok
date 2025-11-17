@@ -78,6 +78,8 @@
       </div>
     </div>
 
+    <div class="alert alert-soft d-none mt-3" id="userRoleFeedback" role="alert"></div>
+
     <div class="table-responsive mt-4">
       <table class="table align-middle mb-0" id="userTable">
         <thead>
@@ -99,7 +101,15 @@
             <td>{{ user.last_name }}</td>
             <td class="text-muted">{{ user.email }}</td>
             <td>
+              {% if can_manage_users and user.system_role != 'superadmin' and (active_user.id != user.id) %}
+              <select class="form-select form-select-sm" data-user-role-select data-user-id="{{ user.id }}" data-current-label="{{ system_role_labels.get(user.system_role, 'Kullanıcı') }}">
+                {% for choice in system_role_choices %}
+                <option value="{{ choice.value }}" {% if user.system_role == choice.value %}selected{% endif %}>{{ choice.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
               <span class="badge rounded-pill bg-primary-subtle text-primary">{{ system_role_labels.get(user.system_role, 'Kullanıcı') }}</span>
+              {% endif %}
             </td>
             <td>
               {% if user.must_change_password %}
@@ -274,19 +284,18 @@
       <div class="col-lg-5">
         <div class="quick-profile card border-0 shadow-sm h-100">
           <div class="card-body">
-            <h3 class="h5 fw-semibold mb-3">Hazır LDAP Profilleri</h3>
-            <p class="text-muted small">Bir profil seçerek form alanlarını otomatik doldurun.</p>
-            <div class="list-group" id="ldapProfileList">
-              {% for profile in ldap_profiles %}
-              <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" type="button" data-profile='{{ profile | tojson | safe }}'>
-                <div>
-                  <span class="fw-semibold d-block">{{ profile.name }}</span>
-                  <small class="text-muted">{{ profile.host }} : {{ profile.port }}</small>
-                </div>
-                <i class="bi bi-arrow-down-left-square fs-5 text-primary"></i>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h3 class="h5 fw-semibold mb-0">Hazır LDAP Profilleri</h3>
+                <p class="text-muted small mb-0">Kayıtlı profillerle form alanlarını hızlıca doldurun.</p>
+              </div>
+              <button class="btn btn-outline-primary btn-sm" type="button" data-profile-mode="create" data-bs-toggle="modal" data-bs-target="#ldapProfileModal">
+                <i class="bi bi-plus-lg"></i>
+                Profil Ekle
               </button>
-              {% endfor %}
             </div>
+            <div class="alert alert-soft d-none" id="ldapProfileFeedback"></div>
+            <div class="list-group" id="ldapProfileList"></div>
           </div>
         </div>
       </div>
@@ -379,6 +388,7 @@
   const productOptionData = {{ product_options | tojson }};
   const brandModelData = {{ brand_models | tojson }};
   const productCatalogEntries = {{ catalog_entries | tojson }};
+  const initialLdapProfiles = {{ ldap_profiles | tojson }};
 
   document.addEventListener("DOMContentLoaded", () => {
     const sectionButtons = Array.from(document.querySelectorAll(".admin-toggle .status-pill"));
@@ -438,6 +448,8 @@
     const userSearchInput = document.getElementById("userSearch");
     const userRows = Array.from(document.querySelectorAll("#userTable tbody tr"));
     const userEmptyState = document.getElementById("userEmptyState");
+    const userRoleFeedback = document.getElementById("userRoleFeedback");
+    const userRoleSelects = Array.from(document.querySelectorAll('[data-user-role-select]'));
 
     function filterUsers() {
       const term = userSearchInput ? userSearchInput.value.trim().toLowerCase() : "";
@@ -462,6 +474,73 @@
     }
 
     filterUsers();
+
+    function showUserRoleMessage(message, variant = "success") {
+      if (!userRoleFeedback) {
+        return;
+      }
+      userRoleFeedback.textContent = message;
+      userRoleFeedback.className = `alert alert-soft alert-${variant} mt-3`;
+      userRoleFeedback.classList.remove("d-none");
+      setTimeout(() => {
+        if (userRoleFeedback.textContent === message) {
+          userRoleFeedback.classList.add("d-none");
+          userRoleFeedback.textContent = "";
+        }
+      }, variant === "success" ? 2800 : 4200);
+    }
+
+    userRoleSelects.forEach((select) => {
+      select.dataset.previousValue = select.value || '';
+      select.addEventListener('change', async () => {
+        const userId = Number(select.dataset.userId);
+        if (!userId) {
+          return;
+        }
+        const newRole = select.value;
+        const previousValue = select.dataset.previousValue || '';
+        select.disabled = true;
+        showUserRoleMessage('Yetki güncelleniyor...', 'info');
+        try {
+          const response = await fetch(`/admin-panel/users/${userId}/role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ system_role: newRole }),
+          });
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok) {
+            showUserRoleMessage(payload.error || 'Yetki güncellenemedi.', 'danger');
+            select.value = previousValue;
+            select.disabled = false;
+            return;
+          }
+          select.dataset.previousValue = newRole;
+          showUserRoleMessage(payload.message || 'Yetki güncellendi.', 'success');
+        } catch (error) {
+          showUserRoleMessage('Sunucuya ulaşılamadı.', 'danger');
+          select.value = previousValue;
+        } finally {
+          select.disabled = false;
+        }
+      });
+    });
+
+    function escapeHtml(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     function sortByName(items = []) {
       return [...items].sort((a, b) => a.name.localeCompare(b.name, "tr") || a.id - b.id);
@@ -934,6 +1013,7 @@
     const factorySelectEl = document.getElementById("factorySelect");
     const hardwareTypeSelectEl = document.getElementById("hardwareTypeSelect");
     let catalogEntries = Array.isArray(productCatalogEntries) ? [...productCatalogEntries] : [];
+    let ldapProfiles = Array.isArray(initialLdapProfiles) ? [...initialLdapProfiles] : [];
 
     function clearProductFeedback() {
       if (!productFeedback) {
@@ -1090,26 +1170,288 @@
     }
 
     const ldapProfileList = document.getElementById("ldapProfileList");
+    const ldapProfileFeedback = document.getElementById("ldapProfileFeedback");
+    const ldapHostInput = document.getElementById("ldapHost");
+    const ldapPortInput = document.getElementById("ldapPort");
+    const ldapBaseDnInput = document.getElementById("ldapBaseDn");
+    const ldapBindDnInput = document.getElementById("ldapBindDn");
     const ldapForm = document.getElementById("ldapForm");
     const ldapStatus = document.getElementById("ldapStatus");
+    const bootstrapModal = window.bootstrap || null;
+    const ldapProfileModalEl = document.getElementById("ldapProfileModal");
+    const ldapProfileModal =
+      ldapProfileModalEl && bootstrapModal ? new bootstrapModal.Modal(ldapProfileModalEl) : null;
+    const ldapProfileForm = document.getElementById("ldapProfileForm");
+    const ldapProfileTitle = document.getElementById("ldapProfileTitle");
+    const ldapProfileModalFeedback = document.getElementById("ldapProfileModalFeedback");
+    const ldapProfileIdInput = document.getElementById("ldapProfileId");
+    const ldapProfileNameInput = document.getElementById("ldapProfileName");
+    const ldapProfileHostInput = document.getElementById("ldapProfileHost");
+    const ldapProfilePortInput = document.getElementById("ldapProfilePort");
+    const ldapProfileBaseDnInput = document.getElementById("ldapProfileBaseDn");
+    const ldapProfileBindDnInput = document.getElementById("ldapProfileBindDn");
 
-    if (ldapProfileList) {
-      ldapProfileList.addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-profile]");
-        if (!button) {
-          return;
-        }
-        const profile = JSON.parse(button.dataset.profile);
-        const hostInput = document.getElementById("ldapHost");
-        const portInput = document.getElementById("ldapPort");
-        const baseDnInput = document.getElementById("ldapBaseDn");
-        const bindDnInput = document.getElementById("ldapBindDn");
-        if (hostInput) hostInput.value = profile.host;
-        if (portInput) portInput.value = profile.port;
-        if (baseDnInput) baseDnInput.value = profile.base_dn;
-        if (bindDnInput) bindDnInput.value = profile.bind_dn;
+    function hideLdapProfileFeedback() {
+      if (!ldapProfileFeedback) {
+        return;
+      }
+      ldapProfileFeedback.classList.add("d-none");
+      ldapProfileFeedback.textContent = "";
+    }
+
+    function showLdapProfileFeedback(message, variant = "success", persist = true) {
+      if (!ldapProfileFeedback) {
+        return;
+      }
+      ldapProfileFeedback.textContent = message;
+      ldapProfileFeedback.className = `alert alert-soft alert-${variant}`;
+      ldapProfileFeedback.classList.remove("d-none");
+      if (!persist) {
+        setTimeout(() => {
+          if (ldapProfileFeedback.textContent === message) {
+            hideLdapProfileFeedback();
+          }
+        }, 3200);
+      }
+    }
+
+    function clearLdapProfileModalMessage() {
+      if (!ldapProfileModalFeedback) {
+        return;
+      }
+      ldapProfileModalFeedback.classList.add("d-none");
+      ldapProfileModalFeedback.textContent = "";
+    }
+
+    function showLdapProfileModalMessage(message, variant = "danger") {
+      if (!ldapProfileModalFeedback) {
+        return;
+      }
+      ldapProfileModalFeedback.textContent = message;
+      ldapProfileModalFeedback.className = `alert alert-soft alert-${variant}`;
+      ldapProfileModalFeedback.classList.remove("d-none");
+    }
+
+    function prepareLdapProfileModal(mode = "create", profile = null) {
+      if (!ldapProfileForm) {
+        return;
+      }
+      ldapProfileForm.dataset.mode = mode;
+      clearLdapProfileModalMessage();
+      if (mode === "create") {
+        ldapProfileForm.reset();
+      }
+      if (ldapProfileTitle) {
+        ldapProfileTitle.textContent = mode === "edit" ? "LDAP Profilini Düzenle" : "Yeni LDAP Profili";
+      }
+      if (ldapProfileIdInput) {
+        ldapProfileIdInput.value = profile && profile.id && mode === "edit" ? profile.id : "";
+      }
+      if (ldapProfileNameInput) {
+        ldapProfileNameInput.value = profile && profile.name && mode === "edit" ? profile.name : "";
+      }
+      if (ldapProfileHostInput) {
+        ldapProfileHostInput.value = profile && profile.host && mode === "edit" ? profile.host : "";
+      }
+      if (ldapProfilePortInput) {
+        ldapProfilePortInput.value = profile && profile.port && mode === "edit" ? profile.port : "";
+      }
+      if (ldapProfileBaseDnInput) {
+        ldapProfileBaseDnInput.value = profile && profile.base_dn && mode === "edit" ? profile.base_dn : "";
+      }
+      if (ldapProfileBindDnInput) {
+        ldapProfileBindDnInput.value = profile && profile.bind_dn && mode === "edit" ? profile.bind_dn : "";
+      }
+    }
+
+    function getLdapProfilePayload() {
+      return {
+        name: (ldapProfileNameInput?.value || "").trim(),
+        host: (ldapProfileHostInput?.value || "").trim(),
+        port: Number(ldapProfilePortInput?.value || "0"),
+        base_dn: (ldapProfileBaseDnInput?.value || "").trim(),
+        bind_dn: (ldapProfileBindDnInput?.value || "").trim(),
+      };
+    }
+
+    function applyProfileToConnectionForm(profile) {
+      if (!profile) {
+        return;
+      }
+      if (ldapHostInput) {
+        ldapHostInput.value = profile.host || "";
+      }
+      if (ldapPortInput) {
+        ldapPortInput.value = profile.port || "";
+      }
+      if (ldapBaseDnInput) {
+        ldapBaseDnInput.value = profile.base_dn || "";
+      }
+      if (ldapBindDnInput) {
+        ldapBindDnInput.value = profile.bind_dn || "";
+      }
+      showLdapProfileFeedback(`${profile.name} form alanlarına aktarıldı.`, "success", false);
+    }
+
+    function renderLdapProfiles() {
+      if (!ldapProfileList) {
+        return;
+      }
+      ldapProfileList.innerHTML = "";
+      if (!ldapProfiles.length) {
+        const emptyState = document.createElement("div");
+        emptyState.className = "text-muted small text-center py-4";
+        emptyState.textContent = "Henüz kayıtlı LDAP profili yok.";
+        ldapProfileList.append(emptyState);
+        return;
+      }
+      sortByName(ldapProfiles).forEach((profile) => {
+        const item = document.createElement("div");
+        item.className = "list-group-item";
+        item.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div>
+              <div class="fw-semibold">${escapeHtml(profile.name)}</div>
+              <div class="text-muted small">${escapeHtml(profile.host)}:${escapeHtml(String(profile.port))}</div>
+              <div class="text-muted small">Base DN: ${escapeHtml(profile.base_dn)}</div>
+              <div class="text-muted small">Bind: ${escapeHtml(profile.bind_dn)}</div>
+            </div>
+            <div class="d-flex flex-column align-items-stretch gap-2">
+              <button class="btn btn-outline-secondary btn-sm" type="button" data-profile-action="apply" data-profile-id="${profile.id}">
+                <i class="bi bi-arrow-down-circle me-1"></i>
+                Forma Aktar
+              </button>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#ldapProfileModal" data-profile-mode="edit" data-profile-id="${profile.id}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger" type="button" data-profile-action="delete" data-profile-id="${profile.id}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        ldapProfileList.append(item);
       });
     }
+
+    async function deleteLdapProfile(profileId) {
+      const profile = ldapProfiles.find((entry) => entry.id === profileId);
+      if (!profile) {
+        showLdapProfileFeedback("LDAP profili bulunamadı.", "danger");
+        return;
+      }
+      const confirmation = window.confirm(
+        `${profile.name} profilini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
+      );
+      if (!confirmation) {
+        return;
+      }
+      try {
+        const response = await fetch(`/api/ldap-profiles/${profileId}`, { method: "DELETE" });
+        if (!response.ok) {
+          let payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          showLdapProfileFeedback(payload.error || "LDAP profili silinemedi.", "danger");
+          return;
+        }
+        ldapProfiles = ldapProfiles.filter((entry) => entry.id !== profileId);
+        renderLdapProfiles();
+        showLdapProfileFeedback("LDAP profili silindi.");
+      } catch (error) {
+        showLdapProfileFeedback("Sunucuya ulaşılamadı.", "danger");
+      }
+    }
+
+    ldapProfileList?.addEventListener("click", (event) => {
+      const actionButton = event.target.closest("[data-profile-action]");
+      if (!actionButton) {
+        return;
+      }
+      const profileId = Number(actionButton.dataset.profileId);
+      if (!profileId) {
+        return;
+      }
+      const action = actionButton.dataset.profileAction;
+      if (action === "apply") {
+        const profile = ldapProfiles.find((entry) => entry.id === profileId);
+        if (!profile) {
+          showLdapProfileFeedback("LDAP profili bulunamadı.", "danger");
+          return;
+        }
+        applyProfileToConnectionForm(profile);
+      } else if (action === "delete") {
+        deleteLdapProfile(profileId);
+      }
+    });
+
+    ldapProfileModalEl?.addEventListener("show.bs.modal", (event) => {
+      const trigger = event.relatedTarget;
+      const mode = trigger?.dataset.profileMode === "edit" ? "edit" : "create";
+      const profileId = Number(trigger?.dataset.profileId);
+      const profile = mode === "edit" ? ldapProfiles.find((entry) => entry.id === profileId) : null;
+      if (mode === "edit" && !profile) {
+        event.preventDefault();
+        showLdapProfileFeedback("LDAP profili bulunamadı.", "danger");
+        return;
+      }
+      prepareLdapProfileModal(mode, profile || null);
+    });
+
+    ldapProfileModalEl?.addEventListener("hidden.bs.modal", () => {
+      prepareLdapProfileModal("create", null);
+    });
+
+    ldapProfileForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const mode = ldapProfileForm.dataset.mode === "edit" ? "edit" : "create";
+      const payload = getLdapProfilePayload();
+      if (mode === "edit" && !ldapProfileIdInput?.value) {
+        showLdapProfileModalMessage("Düzenlenecek profil bulunamadı.");
+        return;
+      }
+      const endpoint =
+        mode === "edit"
+          ? `/api/ldap-profiles/${ldapProfileIdInput.value}`
+          : "/api/ldap-profiles";
+      const method = mode === "edit" ? "PUT" : "POST";
+      try {
+        const response = await fetch(endpoint, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        let body = {};
+        try {
+          body = await response.json();
+        } catch (error) {
+          body = {};
+        }
+        if (!response.ok) {
+          showLdapProfileModalMessage(body.error || "LDAP profili kaydedilemedi.");
+          return;
+        }
+        clearLdapProfileModalMessage();
+        const savedProfile = body.profile;
+        if (mode === "edit") {
+          ldapProfiles = ldapProfiles.map((entry) => (entry.id === savedProfile.id ? savedProfile : entry));
+        } else {
+          ldapProfiles = [savedProfile, ...ldapProfiles];
+        }
+        renderLdapProfiles();
+        showLdapProfileFeedback(body.message || "LDAP profili kaydedildi.");
+        ldapProfileModal?.hide();
+      } catch (error) {
+        showLdapProfileModalMessage("Sunucuya ulaşılamadı.");
+      }
+    });
+
+    renderLdapProfiles();
 
     if (ldapForm && ldapStatus) {
       ldapForm.addEventListener("submit", (event) => {

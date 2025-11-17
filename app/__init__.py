@@ -1359,6 +1359,60 @@ def create_app() -> Flask:
         flash("Kullanıcı başarıyla silindi.", "success")
         return redirect(url_for("admin_panel"))
 
+    @app.post("/admin-panel/users/<int:user_id>/role")
+    def update_user_role(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            return jsonify(json_error("Bu işlemi yapmak için süper admin yetkisi gerekir.")), 403
+
+        user = User.query.get(user_id)
+        if user is None:
+            return jsonify(json_error("Kullanıcı bulunamadı.")), 404
+
+        data = request.get_json(silent=True) or {}
+        new_role = (data.get("system_role") or "").strip().lower()
+        if new_role not in SYSTEM_ROLE_LEVELS:
+            return jsonify(json_error("Geçersiz yetki değeri.")), 400
+
+        if user.system_role == "superadmin" and new_role != "superadmin":
+            remaining = (
+                User.query.filter(func.lower(User.system_role) == "superadmin")
+                .filter(User.id != user.id)
+                .count()
+            )
+            if remaining == 0:
+                return jsonify(json_error("Son süper admin yetkisi düşürülemez.")), 400
+            if active_user and active_user.id == user.id:
+                return jsonify(json_error("Aktif kullanıcının yetkisi buradan düşürülemez.")), 400
+
+        if user.system_role == new_role:
+            return jsonify(
+                {
+                    "user": user.to_dict(),
+                    "message": "Yetki güncellendi.",
+                }
+            )
+
+        user.system_role = new_role
+        record_activity(
+            area="kullanici",
+            action="Yetki güncellendi",
+            description=f"{user.username} → {SYSTEM_ROLE_LABELS.get(new_role, new_role)}",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "system_role": new_role},
+        )
+        db.session.commit()
+
+        return (
+            jsonify(
+                {
+                    "user": user.to_dict(),
+                    "message": "Kullanıcı yetkisi güncellendi.",
+                }
+            ),
+            200,
+        )
+
     @app.post("/api/options/<string:option_key>")
     def create_option(option_key: str):
         if option_key == "brands":
@@ -1395,6 +1449,101 @@ def create_app() -> Flask:
             return jsonify({"error": "Kayıt bulunamadı."}), 404
 
         db.session.delete(option)
+        db.session.commit()
+        return ("", 204)
+
+    @app.post("/api/ldap-profiles")
+    def create_ldap_profile():
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify(json_error("Bu işlemi yapmak için yetkiniz yok.")), 403
+
+        try:
+            payload = parse_ldap_profile_payload(request.get_json(silent=True))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        existing = (
+            LdapProfile.query.filter(func.lower(LdapProfile.name) == payload["name"].lower())
+            .first()
+        )
+        if existing:
+            return jsonify({"error": "Bu profil adı zaten kayıtlı."}), 409
+
+        profile = LdapProfile(**payload)
+        db.session.add(profile)
+        record_activity(
+            area="entegrasyon",
+            action="LDAP profili oluşturuldu",
+            description=profile.name,
+            actor=current_actor_name(),
+            metadata={"profile_id": profile.id},
+        )
+        db.session.commit()
+        return (
+            jsonify(
+                {
+                    "profile": profile.to_dict(),
+                    "message": "LDAP profili kaydedildi.",
+                }
+            ),
+            201,
+        )
+
+    @app.put("/api/ldap-profiles/<int:profile_id>")
+    def update_ldap_profile(profile_id: int):
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify(json_error("Bu işlemi yapmak için yetkiniz yok.")), 403
+
+        profile = LdapProfile.query.get(profile_id)
+        if profile is None:
+            return jsonify(json_error("LDAP profili bulunamadı.")), 404
+
+        try:
+            payload = parse_ldap_profile_payload(request.get_json(silent=True))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        duplicate = (
+            LdapProfile.query.filter(func.lower(LdapProfile.name) == payload["name"].lower())
+            .filter(LdapProfile.id != profile.id)
+            .first()
+        )
+        if duplicate:
+            return jsonify({"error": "Bu profil adı zaten kayıtlı."}), 409
+
+        profile.name = payload["name"]
+        profile.host = payload["host"]
+        profile.port = payload["port"]
+        profile.base_dn = payload["base_dn"]
+        profile.bind_dn = payload["bind_dn"]
+
+        record_activity(
+            area="entegrasyon",
+            action="LDAP profili güncellendi",
+            description=profile.name,
+            actor=current_actor_name(),
+            metadata={"profile_id": profile.id},
+        )
+        db.session.commit()
+        return jsonify({"profile": profile.to_dict(), "message": "LDAP profili güncellendi."})
+
+    @app.delete("/api/ldap-profiles/<int:profile_id>")
+    def delete_ldap_profile(profile_id: int):
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify(json_error("Bu işlemi yapmak için yetkiniz yok.")), 403
+
+        profile = LdapProfile.query.get(profile_id)
+        if profile is None:
+            return jsonify(json_error("LDAP profili bulunamadı.")), 404
+
+        db.session.delete(profile)
+        record_activity(
+            area="entegrasyon",
+            action="LDAP profili silindi",
+            description=profile.name,
+            actor=current_actor_name(),
+            metadata={"profile_id": profile.id},
+        )
         db.session.commit()
         return ("", 204)
 
@@ -2217,6 +2366,7 @@ def create_app() -> Flask:
         quantity = parse_int_or_none(data.get("quantity"))
         if quantity is None:
             quantity = 1
+        requested_quantity = quantity
         note = (data.get("note") or "").strip() or None
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
@@ -2232,6 +2382,8 @@ def create_app() -> Flask:
             return json_error("Geçersiz işlem tipi."), 400
 
         total_quantity = sum(line.quantity for line in target_lines)
+        if action_key == "stok" and requested_quantity > 1:
+            return json_error("Tek seferde en fazla 1 adet stok girişi yapılabilir."), 400
         if requested_quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
         if total_quantity <= 0:
@@ -2245,8 +2397,8 @@ def create_app() -> Flask:
         if action_key == "stok":
             first_line = target_lines[0] if target_lines else None
             category_value = normalize_stock_category(
-                first_line.category if first_line else None,
-                fallback="envanter",
+                data.get("category"),
+                fallback=first_line.category if first_line else "envanter",
             )
             metadata_defaults = {}
             if first_line:
@@ -2332,7 +2484,7 @@ def create_app() -> Flask:
             metadata={
                 "order_id": order.id,
                 "order_no": order.order_no,
-                "quantity": quantity,
+                "quantity": requested_quantity,
                 "target_group": order.group.key if order.group else None,
             },
         )
@@ -2793,6 +2945,17 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
 def serialize_stock_log(log: StockLog) -> dict[str, Any]:
     item = log.stock_item
     status_value = normalize_stock_status(item.status if item else "stokta")
+    combined_metadata: dict[str, Any] = {}
+    if item and item.metadata_payload:
+        combined_metadata.update(item.metadata_payload)
+    log_metadata = log.metadata_payload or {}
+    if log_metadata:
+        combined_metadata.update(log_metadata)
+    unit_label = "adet"
+    if item and item.unit:
+        unit_label = item.unit
+    elif item and (item.metadata_payload or {}).get("unit"):
+        unit_label = (item.metadata_payload or {}).get("unit")  # type: ignore[arg-type]
     return {
         "id": log.id,
         "stock_item_id": item.id if item else None,
@@ -2801,12 +2964,14 @@ def serialize_stock_log(log: StockLog) -> dict[str, Any]:
         "action_type": log.action_type,
         "performed_by": log.performed_by,
         "quantity_change": log.quantity_change,
+        "unit": unit_label,
         "note": log.note or "",
         "status": status_value,
         "status_label": STOCK_STATUS_LABELS.get(status_value, status_value.capitalize()),
         "status_class": STOCK_STATUS_CLASSES.get(status_value, "status-stock"),
         "created_display": log.created_at.strftime("%d.%m.%Y %H:%M"),
-        "metadata": log.metadata_payload or {},
+        "metadata": log_metadata,
+        "details_metadata": combined_metadata,
     }
 
 
@@ -3048,6 +3213,7 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "ip_address": item.related_machine_no,
         "mac_address": item.machine_no,
         "note": item.note,
+        "is_ip_printer": bool(item.related_machine_no or item.machine_no),
         "status": status_value,
         "history": history,
         "licenses": licenses,
@@ -3284,10 +3450,21 @@ def load_request_groups() -> dict[str, Any]:
             }
         )
 
+    brands = (
+        Brand.query.options(joinedload(Brand.models))
+        .order_by(Brand.name)
+        .all()
+    )
+
+    models_by_brand: dict[str, list[str]] = {}
+    for brand in brands:
+        models_by_brand[brand.name] = [model.name for model in brand.models]
+
     hardware_catalog = {
         "types": [ht.name for ht in HardwareType.query.order_by(HardwareType.name)],
-        "brands": [brand.name for brand in Brand.query.order_by(Brand.name)],
+        "brands": [brand.name for brand in brands],
         "models": [model.name for model in HardwareModel.query.order_by(HardwareModel.name)],
+        "models_by_brand": models_by_brand,
     }
 
     return {
@@ -3562,6 +3739,8 @@ def create_stock_item_from_request_line(
     stock_item.metadata_payload = metadata_payload
     db.session.add(stock_item)
     db.session.flush()
+    log_metadata = dict(metadata_payload)
+    log_metadata["request_id"] = order.id
     record_stock_log(
         stock_item,
         "Talep stok girişi",
@@ -3569,7 +3748,7 @@ def create_stock_item_from_request_line(
         performed_by=actor,
         quantity_change=stock_item.quantity,
         note=note,
-        metadata={"request_id": order.id},
+        metadata=log_metadata,
     )
     return stock_item
 
@@ -3769,6 +3948,47 @@ def parse_option_name(payload: dict | None) -> str:
     if not name:
         raise ValueError("İsim alanı zorunludur")
     return name
+
+
+def parse_ldap_profile_payload(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Geçersiz istek gövdesi")
+
+    def clean_text(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        return str(value).strip()
+
+    name = clean_text(payload.get("name"))
+    host = clean_text(payload.get("host"))
+    base_dn = clean_text(payload.get("base_dn"))
+    bind_dn = clean_text(payload.get("bind_dn"))
+    port_value = payload.get("port")
+    try:
+        port = int(port_value)
+    except (TypeError, ValueError):
+        port = 0
+
+    if not name:
+        raise ValueError("Profil adı zorunludur.")
+    if not host:
+        raise ValueError("Sunucu adresi zorunludur.")
+    if port <= 0:
+        raise ValueError("Geçerli bir port numarası girin.")
+    if not base_dn:
+        raise ValueError("Base DN alanı zorunludur.")
+    if not bind_dn:
+        raise ValueError("Bind kullanıcı alanı zorunludur.")
+
+    return {
+        "name": name,
+        "host": host,
+        "port": port,
+        "base_dn": base_dn,
+        "bind_dn": bind_dn,
+    }
 
 
 def create_brand():
