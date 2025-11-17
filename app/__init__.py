@@ -2217,6 +2217,7 @@ def create_app() -> Flask:
         quantity = parse_int_or_none(data.get("quantity"))
         if quantity is None:
             quantity = 1
+        requested_quantity = quantity
         note = (data.get("note") or "").strip() or None
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
@@ -2232,6 +2233,8 @@ def create_app() -> Flask:
             return json_error("Geçersiz işlem tipi."), 400
 
         total_quantity = sum(line.quantity for line in target_lines)
+        if action_key == "stok" and requested_quantity > 1:
+            return json_error("Tek seferde en fazla 1 adet stok girişi yapılabilir."), 400
         if requested_quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
         if total_quantity <= 0:
@@ -2332,7 +2335,7 @@ def create_app() -> Flask:
             metadata={
                 "order_id": order.id,
                 "order_no": order.order_no,
-                "quantity": quantity,
+                "quantity": requested_quantity,
                 "target_group": order.group.key if order.group else None,
             },
         )
