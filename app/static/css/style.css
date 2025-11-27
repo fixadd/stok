@@ -760,6 +760,10 @@ body.theme-okyanus .section-title {
   border-radius: 999px;
 }
 
+.table-responsive {
+  overflow-y: visible;
+}
+
 .table-actions {
   display: inline-flex;
   align-items: center;

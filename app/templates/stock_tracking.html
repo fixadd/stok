@@ -148,7 +148,7 @@
                     <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="{{ item.id }}" aria-label="Stok detayını görüntüle">
                       <i class="bi bi-eye"></i>
                     </button>
-                    <div class="dropdown action-dropdown">
+                    <div class="dropdown action-dropdown" data-bs-display="static">
                       <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         İşlemler
                       </button>
@@ -387,6 +387,11 @@
       </div>
       <div class="modal-body">
         <p class="mb-3" data-stock-action="message">Seçili stok kaydı üzerinde işlem yapacaksınız.</p>
+        <div class="mb-3 d-none" data-stock-action-quantity>
+          <label class="form-label" for="stockActionQuantity">Miktar</label>
+          <input class="form-control" id="stockActionQuantity" name="quantity" type="number" min="1" value="1">
+          <div class="form-text" data-stock-action-quantity-hint></div>
+        </div>
         <div class="mb-3 d-none" data-stock-action-metadata-section>
           <div class="d-flex justify-content-between align-items-center mb-2">
             <label class="form-label mb-0">Atama Bilgileri</label>
@@ -513,6 +518,9 @@
   const actionMetadataContainer = actionModalEl?.querySelector('[data-stock-action-metadata-container]');
   const actionMetadataError = actionModalEl?.querySelector('[data-stock-action-metadata-error]');
   const actionCategoryBadge = actionModalEl?.querySelector('[data-stock-action="category"]');
+  const actionQuantityWrapper = actionModalEl?.querySelector('[data-stock-action-quantity]');
+  const actionQuantityInput = document.getElementById('stockActionQuantity');
+  const actionQuantityHint = actionModalEl?.querySelector('[data-stock-action-quantity-hint]');
 
   const createModalEl = document.getElementById('stockCreateModal');
   const createForm = document.getElementById('stockCreateForm');
@@ -925,7 +933,7 @@
           scrap: 'Hurda İşlemi',
         };
         const messages = {
-          assign: 'Seçili stok kaydı envantere geri kazandırılacak.',
+          assign: 'Seçili stok kaydı ilgili personele atanacak.',
           faulty: 'Stok kaydı arızalı olarak işaretlenecek.',
           scrap: 'Bu stok kaydı hurda listesine taşınacak.',
         };
@@ -964,12 +972,27 @@
           actionCategoryBadge.textContent = safeText(item.category_label || '');
         }
         if (action === 'assign') {
+          const maxQuantity = Math.max(1, Number(item.quantity) || 1);
+          if (actionQuantityInput) {
+            actionQuantityInput.value = '1';
+            actionQuantityInput.min = '1';
+            actionQuantityInput.max = String(maxQuantity);
+          }
+          if (actionQuantityHint) {
+            actionQuantityHint.textContent = `Stoktaki maksimum miktar: ${maxQuantity}`;
+          }
+          if (actionQuantityWrapper) {
+            actionQuantityWrapper.classList.remove('d-none');
+          }
           renderStockActionMetadata({ hidePrefilled: true });
           if (actionMetadataSection) {
             actionMetadataSection.classList.remove('d-none');
           }
         } else {
           pendingStockAction = null;
+          if (actionQuantityWrapper) {
+            actionQuantityWrapper.classList.add('d-none');
+          }
           if (actionMetadataSection) {
             actionMetadataSection.classList.add('d-none');
           }
@@ -1337,6 +1360,21 @@
       }
       const requestBody = { note, performed_by: defaultActor };
       if (action === 'assign') {
+        const maxQuantity = Math.max(1, Number(item.quantity) || 1);
+        const requestedQuantity = actionQuantityInput ? Number(actionQuantityInput.value || '1') : 1;
+        if (!Number.isFinite(requestedQuantity) || requestedQuantity < 1) {
+          if (actionQuantityInput) {
+            actionQuantityInput.value = '1';
+            actionQuantityInput.focus();
+          }
+          showActionAlert('Miktar en az 1 olmalıdır.', 'danger');
+          return;
+        }
+        if (requestedQuantity > maxQuantity) {
+          showActionAlert(`En fazla ${maxQuantity} adet atayabilirsiniz.`, 'danger');
+          return;
+        }
+        requestBody.quantity = requestedQuantity;
         const schema = getMetadataSchema(item.category);
         const { metadata, missing } = collectMetadata(actionMetadataContainer, schema);
         if (missing.length) {
@@ -1360,10 +1398,13 @@
         });
         if (payload?.stock_item) {
           stockMap.set(payload.stock_item.id, payload.stock_item);
-          renderStockTable();
-          updateFaultyCounter();
-          filterStock();
         }
+        if (payload?.remaining_stock_item) {
+          stockMap.set(payload.remaining_stock_item.id, payload.remaining_stock_item);
+        }
+        renderStockTable();
+        updateFaultyCounter();
+        filterStock();
         if (payload?.log) {
           appendStockLog(payload.log);
         }
@@ -1390,6 +1431,15 @@
       }
       if (actionCategoryBadge) {
         actionCategoryBadge.textContent = '';
+      }
+      if (actionQuantityWrapper) {
+        actionQuantityWrapper.classList.add('d-none');
+      }
+      if (actionQuantityInput) {
+        actionQuantityInput.value = '1';
+      }
+      if (actionQuantityHint) {
+        actionQuantityHint.textContent = '';
       }
     });
   }
