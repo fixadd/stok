@@ -2039,6 +2039,13 @@ def create_app() -> Flask:
 
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        quantity = parse_int_or_none(data.get("quantity")) or 1
+        if quantity < 1:
+            return json_error("Miktar en az 1 olmalıdır."), 400
+        if quantity > max(1, stock_item.quantity):
+            return json_error("Stokta yeterli miktar bulunmuyor."), 400
+
+        existing_note = stock_item.note
 
         category_value = normalize_stock_category(stock_item.category)
         metadata_defaults: dict[str, Any] = {}
@@ -2078,11 +2085,32 @@ def create_app() -> Flask:
 
         combined_metadata = sanitize(metadata_defaults)
         combined_metadata.update(sanitize(assignment_metadata))
-        stock_item.metadata_payload = combined_metadata or None
 
+        previous_quantity = max(1, stock_item.quantity)
+        remaining_quantity = max(0, previous_quantity - quantity)
+        stock_item.quantity = quantity
+        stock_item.metadata_payload = combined_metadata or None
         stock_item.status = "devredildi"
         if note:
             stock_item.note = note
+
+        remaining_item: StockItem | None = None
+        if remaining_quantity > 0:
+            remaining_item = StockItem(
+                source_type=stock_item.source_type,
+                source_id=stock_item.source_id,
+                inventory_item_id=stock_item.inventory_item_id,
+                license_id=stock_item.license_id,
+                reference_code=stock_item.reference_code,
+                title=stock_item.title,
+                category=stock_item.category,
+                quantity=remaining_quantity,
+                unit=stock_item.unit,
+                status="stokta",
+                note=existing_note,
+            )
+            remaining_item.metadata_payload = metadata_defaults or None
+            db.session.add(remaining_item)
 
         if stock_item.inventory_item:
             inventory = stock_item.inventory_item
@@ -2099,7 +2127,7 @@ def create_app() -> Flask:
             "Stoktan atama yapıldı",
             action_type="out",
             performed_by=actor,
-            quantity_change=-max(1, stock_item.quantity),
+            quantity_change=-quantity,
             note=note,
             metadata=assignment_metadata or None,
         )
@@ -2123,6 +2151,11 @@ def create_app() -> Flask:
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        if remaining_item:
+            fresh_remaining = get_stock_item_with_relations(remaining_item.id)
+            response_payload["remaining_stock_item"] = serialize_stock_item(
+                fresh_remaining
+            )
         if log_entry:
             response_payload["log"] = serialize_stock_log(log_entry)
         return jsonify(response_payload)
@@ -2460,15 +2493,47 @@ def create_app() -> Flask:
             if processed_quantity <= 0:
                 return json_error("İşlem yapılacak geçerli miktar bulunamadı."), 400
         else:
-            processed_quantity = requested_quantity
+            remaining_quantity = min(requested_quantity, total_quantity)
+            lines_to_remove: list[RequestLine] = []
+            for line in target_lines:
+                if remaining_quantity <= 0:
+                    break
+                available_quantity = max(0, line.quantity)
+                if available_quantity <= 0:
+                    continue
+                cancel_quantity = min(available_quantity, remaining_quantity)
+                if cancel_quantity <= 0:
+                    continue
+                processed_quantity += cancel_quantity
+                remaining_quantity -= cancel_quantity
+                if cancel_quantity >= available_quantity:
+                    lines_to_remove.append(line)
+                else:
+                    line.quantity = available_quantity - cancel_quantity
 
+            for line in lines_to_remove:
+                if line in order.lines:
+                    order.lines.remove(line)
+                db.session.delete(line)
+
+            if processed_quantity <= 0:
+                return json_error("İşlem yapılacak geçerli miktar bulunamadı."), 400
+
+        remaining_total = sum(line.quantity for line in order.lines)
         if action_key == "stok":
-            remaining_total = sum(line.quantity for line in order.lines)
-            target_group_key = "kapandi" if remaining_total <= 0 else "acik"
-            action_label = "Talep stok girişiyle kapandı"
+            if remaining_total <= 0:
+                target_group_key = "kapandi"
+                action_label = "Talep stok girişiyle kapandı"
+            else:
+                target_group_key = "acik"
+                action_label = "Talep stok işlemi"
         else:
-            target_group_key = "iptal"
-            action_label = "Talep iptal edildi"
+            if remaining_total <= 0:
+                target_group_key = "iptal"
+                action_label = "Talep iptal edildi"
+            else:
+                target_group_key = "acik"
+                action_label = "Talep satırı iptal edildi"
 
         target_group = get_request_group_by_key(target_group_key)
         if target_group:
