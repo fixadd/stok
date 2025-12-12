@@ -118,6 +118,7 @@
                             <td><span class="text-muted small">{{ item.opened_display }}</span></td>
                             <td>{{ item.note }}</td>
                             <td class="text-end">
+                              {% if group.key == 'acik' %}
                               <div class="btn-group">
                                 <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                   İşlem
@@ -165,6 +166,9 @@
                                   </li>
                                 </ul>
                               </div>
+                              {% else %}
+                              <span class="text-muted small">—</span>
+                              {% endif %}
                             </td>
                           </tr>
                           {% endfor %}
@@ -513,6 +517,8 @@
         return;
       }
       containerEl.innerHTML = '';
+      const brandInputs = [];
+      const modelInputs = [];
       const filteredSchema = Array.isArray(schema)
         ? schema.filter((field) => {
             const assignmentOnly = Boolean(field.assignment_only);
@@ -536,6 +542,9 @@
         const placeholder = field.placeholder || '';
         const required = Boolean(field.required);
         const currentValue = (values[key] ?? '').toString();
+        const isHardwareTypeField = key === 'hardware_type';
+        const isBrandField = key === 'brand';
+        const isModelField = key === 'model';
         const column = document.createElement('div');
         column.className = 'col-12 col-md-6';
 
@@ -561,6 +570,16 @@
           input.placeholder = placeholder;
           input.value = currentValue;
           input.autocomplete = 'off';
+          if (isHardwareTypeField) {
+            input.setAttribute('list', 'hardware-types');
+          }
+          if (isBrandField) {
+            input.setAttribute('list', 'hardware-brands');
+            brandInputs.push(input);
+          }
+          if (isModelField) {
+            modelInputs.push(input);
+          }
           if (field.options_key) {
             const datalist = ensureMetadataOptions(field.options_key);
             if (datalist) {
@@ -574,6 +593,34 @@
         }
 
         containerEl.append(column);
+      });
+
+      modelInputs.forEach((modelInput) => {
+        modelDatalistCounter += 1;
+        const datalistId = `metadata-model-options-${modelDatalistCounter}`;
+        const datalist = document.createElement('datalist');
+        datalist.id = datalistId;
+        modelInput.setAttribute('list', datalistId);
+        containerEl.appendChild(datalist);
+
+        const linkedBrandInput = brandInputs[0];
+        const renderModelOptions = () => {
+          const brandName = linkedBrandInput?.value?.trim() || '';
+          const options = getModelOptionsForBrand(brandName);
+          datalist.innerHTML = '';
+          options.forEach((optionValue) => {
+            const option = document.createElement('option');
+            option.value = optionValue;
+            datalist.appendChild(option);
+          });
+        };
+
+        renderModelOptions();
+
+        if (linkedBrandInput) {
+          linkedBrandInput.addEventListener('input', renderModelOptions);
+          linkedBrandInput.addEventListener('change', renderModelOptions);
+        }
       });
     }
 
@@ -716,24 +763,13 @@
         <span class="meta-chip"><i class="bi bi-box-seam"></i>${escapeHtml(order.item_count)} kalem · ${escapeHtml(order.total_quantity)} adet</span>
       `;
 
+      const showActions = (order.group_key || 'acik') === 'acik';
       const linesHtml = (order.lines || [])
         .map((line) => {
           const itemLabel = `${escapeHtml(line.hardware_type)} · ${escapeHtml(line.brand)} ${escapeHtml(line.model)}`;
           const note = line.note ? escapeHtml(line.note) : '—';
-          return `
-            <tr>
-              <td class="fw-semibold">${escapeHtml(line.hardware_type)}</td>
-              <td><span class="badge bg-light text-dark">${escapeHtml(line.category_label)}</span></td>
-              <td>${escapeHtml(line.brand)}</td>
-              <td>${escapeHtml(line.model)}</td>
-              <td class="text-center">
-                <span class="quantity-badge">
-                  <i class="bi bi-stack"></i>${escapeHtml(line.quantity)}
-                </span>
-              </td>
-              <td><span class="text-muted small">${escapeHtml(line.opened_display)}</span></td>
-              <td>${note}</td>
-              <td class="text-end">
+          const actionsHtml = showActions
+            ? `
                 <div class="btn-group">
                   <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     İşlem
@@ -751,7 +787,22 @@
                     </li>
                   </ul>
                 </div>
+              `
+            : '<span class="text-muted small">—</span>';
+          return `
+            <tr>
+              <td class="fw-semibold">${escapeHtml(line.hardware_type)}</td>
+              <td><span class="badge bg-light text-dark">${escapeHtml(line.category_label)}</span></td>
+              <td>${escapeHtml(line.brand)}</td>
+              <td>${escapeHtml(line.model)}</td>
+              <td class="text-center">
+                <span class="quantity-badge">
+                  <i class="bi bi-stack"></i>${escapeHtml(line.quantity)}
+                </span>
               </td>
+              <td><span class="text-muted small">${escapeHtml(line.opened_display)}</span></td>
+              <td>${note}</td>
+              <td class="text-end">${actionsHtml}</td>
             </tr>
           `;
         })

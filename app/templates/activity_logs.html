@@ -61,7 +61,14 @@
                 <span class="badge rounded-pill bg-light text-dark text-capitalize">{{ activity_area_labels.get(log.area, log.area|capitalize) }}</span>
               </td>
               <td class="fw-semibold">{{ log.action }}</td>
-              <td class="text-muted">{{ log.description or '—' }}</td>
+              <td class="text-muted">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="d-none d-md-inline">{{ log.description or '—' }}</span>
+                  <button class="btn btn-light btn-sm border text-secondary activity-detail-btn d-inline-flex align-items-center justify-content-center" type="button" data-description="{{ (log.description or '—')|e }}" aria-label="İşlem detayını görüntüle">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+              </td>
               <td>{{ log.actor }}</td>
               <td class="text-end text-muted small">{{ log.created_display }}</td>
             </tr>
@@ -86,6 +93,10 @@
     const rows = Array.from(document.querySelectorAll('#activityTable tbody tr'));
     const areaFilters = document.getElementById('activityAreaFilters');
     let activeArea = areaFilters?.dataset?.defaultArea || 'all';
+    const detailButtons = document.querySelectorAll('.activity-detail-btn');
+    const detailModalElement = document.getElementById('activityDetailModal');
+    const detailModalBody = detailModalElement?.querySelector('.modal-body');
+    const detailModal = detailModalElement ? new bootstrap.Modal(detailModalElement) : null;
 
     function filterRows() {
       const query = (searchInput?.value ?? '').trim().toLowerCase();
@@ -116,7 +127,32 @@
       });
     }
 
+    detailButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const description = button.dataset.description || '—';
+        if (detailModalBody) {
+          detailModalBody.textContent = description;
+        }
+        detailModal?.show();
+      });
+    });
+
     filterRows();
   });
 </script>
+
+<div class="modal fade" id="activityDetailModal" tabindex="-1" aria-labelledby="activityDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="activityDetailModalLabel">İşlem Detayı</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
