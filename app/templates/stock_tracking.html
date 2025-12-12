@@ -24,16 +24,27 @@
           <i class="bi bi-archive"></i>
           Stok Dışı
         </button>
+        {% if can_manage_stock_data %}
         <div class="btn-group">
           <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-file-earmark-spreadsheet"></i>
             Excel
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-            <li><button class="dropdown-item" type="button"><i class="bi bi-box-arrow-up"></i> Dışa Aktar</button></li>
-            <li><button class="dropdown-item" type="button"><i class="bi bi-box-arrow-in-down"></i> İçe Aktar</button></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_stock_excel') }}"><i class="bi bi-box-arrow-up"></i> Dışa Aktar</a></li>
+            <li><button class="dropdown-item" type="button" id="stockExcelImportTrigger"><i class="bi bi-box-arrow-in-down"></i> İçe Aktar</button></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_panel', section='data-section') }}"><i class="bi bi-gear"></i> Veri Ayarlarına Git</a></li>
           </ul>
         </div>
+        <form class="d-none" id="stockExcelImportForm" method="post" action="{{ url_for('import_stock_excel') }}" enctype="multipart/form-data">
+          <input class="form-control" id="stockExcelImportInput" name="excel_file" type="file" accept=".xlsx,.xlsm">
+        </form>
+        {% else %}
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" type="button" disabled title="Excel işlemleri için yönetici yetkisi gerekir">
+          <i class="bi bi-file-earmark-spreadsheet"></i>
+          Excel
+        </button>
+        {% endif %}
       </div>
       <div class="stock-search">
         <div class="input-group search-input">
@@ -101,7 +112,8 @@
             </thead>
             <tbody>
               {% for item in stock_items %}
-              <tr class="stock-row" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
+              {% set in_stock_statuses = ['stokta', 'arizali'] %}
+              <tr class="stock-row{% if item.status not in in_stock_statuses %} d-none{% endif %}" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
                 <td>
                   {% set hardware_label = item.hardware_type or item.title %}
                   <div class="fw-semibold">{{ hardware_label }}</div>
@@ -163,12 +175,6 @@
                           <button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
                             <i class="bi bi-bandaid"></i>
                             Arızalı İşaretle
-                          </button>
-                        </li>
-                        <li>
-                          <button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
-                            <i class="bi bi-calendar-x"></i>
-                            Tarihten Ayır
                           </button>
                         </li>
                       </ul>
@@ -457,6 +463,7 @@
   const stockMetadataConfig = {{ stock_metadata_config | tojson }};
   const stockSupportOptions = {{ stock_support_options | tojson }};
   const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
+  const inStockStatuses = ['stokta', 'arizali'];
   const stockLogMap = new Map();
   stockLogs.forEach((log) => {
     if (log && typeof log.id === 'number') {
@@ -473,6 +480,9 @@
   const stockActionAlert = document.getElementById('stockActionAlert');
   const faultyButton = document.querySelector('.stock-faulty-button');
   const faultyCounter = document.querySelector('.stock-faulty-counter');
+  const stockExcelImportForm = document.getElementById('stockExcelImportForm');
+  const stockExcelImportInput = document.getElementById('stockExcelImportInput');
+  const stockExcelImportTrigger = document.getElementById('stockExcelImportTrigger');
 
   const detailModalEl = document.getElementById('stockDetailModal');
   const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
@@ -506,6 +516,20 @@
       }
     : {};
   const metadataLabels = buildMetadataLabelMap();
+
+  if (stockExcelImportTrigger && stockExcelImportInput && stockExcelImportForm) {
+    stockExcelImportTrigger.addEventListener('click', () => {
+      stockExcelImportInput.value = '';
+      stockExcelImportInput.click();
+    });
+
+    stockExcelImportInput.addEventListener('change', () => {
+      if (!stockExcelImportInput.files || !stockExcelImportInput.files.length) {
+        return;
+      }
+      stockExcelImportForm.submit();
+    });
+  }
 
   const actionModalEl = document.getElementById('stockActionModal');
   const actionModal = actionModalEl && bootstrapLib ? new bootstrapLib.Modal(actionModalEl) : null;
@@ -582,12 +606,49 @@
     return labels;
   }
 
-  function getMetadataSchema(category) {
+  const assignmentFallbackFields = [
+    {
+      key: 'factory',
+      label: 'Fabrika',
+      placeholder: 'Fabrika adı',
+      required: true,
+      assignment_only: true,
+      options_key: 'factories',
+    },
+    {
+      key: 'department',
+      label: 'Departman',
+      placeholder: 'Departman',
+      required: true,
+      assignment_only: true,
+      options_key: 'departments',
+    },
+    {
+      key: 'responsible',
+      label: 'Sorumlu',
+      placeholder: 'Teslim edilen kişi',
+      required: true,
+      assignment_only: true,
+      options_key: 'responsibles',
+    },
+  ];
+
+  function getMetadataSchema(category, { includeAssignmentFallback = false } = {}) {
     if (!category) {
       return [];
     }
     const schema = stockMetadataConfig?.[category];
-    return Array.isArray(schema) ? schema : [];
+    const baseSchema = Array.isArray(schema) ? [...schema] : [];
+    if (!includeAssignmentFallback) {
+      return baseSchema;
+    }
+    const existingKeys = new Set(baseSchema.map((field) => field.key));
+    assignmentFallbackFields.forEach((field) => {
+      if (!existingKeys.has(field.key)) {
+        baseSchema.push(field);
+      }
+    });
+    return baseSchema;
   }
 
   function readMetadataValues(container) {
@@ -771,7 +832,7 @@
       return;
     }
     const category = pendingStockAction.category || '';
-    const schema = getMetadataSchema(category);
+    const schema = getMetadataSchema(category, { includeAssignmentFallback: true });
     const defaults = { ...(pendingStockAction.metadataDefaults || {}) };
     if (Array.isArray(schema)) {
       schema.forEach((field) => {
@@ -852,12 +913,11 @@
           <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="${item.id}">
             <i class="bi bi-eye"></i>
           </button>
-          <div class="dropdown">
+          <div class="dropdown" data-bs-display="static">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">İşlemler</button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
               <li><button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Atama Yap</button></li>
               <li><button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Arızalı İşaretle</button></li>
-              <li><button class="dropdown-item text-danger stock-action" type="button" data-action="scrap" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Hurda</button></li>
             </ul>
           </div>
         </div>
@@ -930,12 +990,10 @@
         const titles = {
           assign: 'Atama Yap',
           faulty: 'Arızalı İşaretle',
-          scrap: 'Hurda İşlemi',
         };
         const messages = {
           assign: 'Seçili stok kaydı ilgili personele atanacak.',
           faulty: 'Stok kaydı arızalı olarak işaretlenecek.',
-          scrap: 'Bu stok kaydı hurda listesine taşınacak.',
         };
         actionModalEl.dataset.action = action;
         const metadataDefaults = {
@@ -964,8 +1022,8 @@
         if (actionMessage) actionMessage.textContent = messages[action] || '';
         if (actionConfirmButton) {
           actionConfirmButton.textContent = titles[action] || 'Onayla';
-          actionConfirmButton.classList.toggle('btn-danger', action === 'scrap');
-          actionConfirmButton.classList.toggle('btn-primary', action !== 'scrap');
+          actionConfirmButton.classList.remove('btn-danger');
+          actionConfirmButton.classList.add('btn-primary');
         }
         if (actionNoteInput) actionNoteInput.value = '';
         if (actionCategoryBadge) {
@@ -1182,7 +1240,7 @@
     const matchesQuery = !query || (row.dataset.search || '').includes(query);
     const matchesCategory = category === 'all' || row.dataset.category === category;
     const matchesFaulty = !showOnlyFaulty || row.dataset.status === 'arizali';
-    const matchesStatus = includeNonStock || row.dataset.status === 'stokta';
+    const matchesStatus = includeNonStock || inStockStatuses.includes(row.dataset.status);
     const shouldShow = matchesQuery && matchesCategory && matchesFaulty && matchesStatus;
     if (shouldShow) {
       delete row.dataset.searchHidden;
@@ -1352,7 +1410,6 @@
       const endpoints = {
         assign: `/api/stock/${item.id}/assign`,
         faulty: `/api/stock/${item.id}/mark-faulty`,
-        scrap: `/api/stock/${item.id}/scrap`,
       };
       const url = endpoints[action];
       if (!url) {

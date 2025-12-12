@@ -846,11 +846,17 @@ body.theme-okyanus .section-title {
 
 .table .dropdown.show {
   position: relative;
-  z-index: 2100;
+  z-index: 3100;
 }
 
 .table .dropdown-menu {
-  z-index: 2000;
+  z-index: 3000;
+}
+
+.table-actions .dropdown,
+.table-actions .action-dropdown {
+  position: relative;
+  z-index: 1;
 }
 
 .dropdown-menu .dropdown-item {

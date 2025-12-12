@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 from flask import (
     Flask,
     abort,
+    after_this_request,
     current_app,
     flash,
     jsonify,
@@ -32,6 +33,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
+from openpyxl import Workbook, load_workbook
 
 from .models import (
     Brand,
@@ -824,6 +826,7 @@ def create_app() -> Flask:
         return render_template(
             "stock_tracking.html",
             active_page="stock_tracking",
+            can_manage_stock_data=has_system_role(get_active_user(), "admin"),
             **payload,
         )
 
@@ -1100,7 +1103,7 @@ def create_app() -> Flask:
             "admin_panel.html",
             active_page="admin_panel",
             can_manage_users=has_system_role(user, "superadmin"),
-            can_manage_data=has_system_role(user, "superadmin"),
+            can_manage_data=has_system_role(user, "admin"),
             system_role_choices=[
                 {"value": key, "label": SYSTEM_ROLE_LABELS[key]}
                 for key in ("user", "admin")
@@ -1206,6 +1209,265 @@ def create_app() -> Flask:
 
         flash("Veritabanı yedeği başarıyla içe aktarıldı.", "success")
         return redirect(url_for("admin_panel", section="data-section"))
+
+    @app.get("/admin-panel/data/stock/export-excel")
+    def export_stock_excel():
+        user = get_active_user()
+        if not has_system_role(user, "admin"):
+            flash("Excel dışa aktarma işlemi için yönetici yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        items = (
+            StockItem.query.options(
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
+                joinedload(StockItem.license),
+            )
+            .order_by(StockItem.created_at.desc())
+            .all()
+        )
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Stok"
+
+        headers = [
+            "Başlık",
+            "Kategori",
+            "Donanım Tipi",
+            "Marka",
+            "Model",
+            "Miktar",
+            "Birim",
+            "Durum",
+            "Kaynak",
+            "Referans",
+            "Not",
+            "Fabrika",
+            "Departman",
+            "Sorumlu",
+            "Oluşturulma",
+            "Güncellenme",
+        ]
+        sheet.append(headers)
+
+        for item in items:
+            serialized = serialize_stock_item(item)
+            metadata = serialized.get("metadata") or {}
+            sheet.append(
+                [
+                    serialized.get("title"),
+                    serialized.get("category_label"),
+                    serialized.get("hardware_type"),
+                    serialized.get("brand"),
+                    serialized.get("model"),
+                    serialized.get("quantity"),
+                    serialized.get("unit"),
+                    serialized.get("status_label"),
+                    serialized.get("source_label"),
+                    serialized.get("reference_code"),
+                    serialized.get("note"),
+                    metadata.get("factory"),
+                    metadata.get("department"),
+                    metadata.get("responsible"),
+                    serialized.get("created_display"),
+                    serialized.get("updated_display"),
+                ]
+            )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            workbook.save(tmp.name)
+            temp_path = Path(tmp.name)
+
+        @after_this_request
+        def cleanup_excel(response):
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                current_app.logger.warning("Geçici Excel dosyası silinemedi", exc_info=True)
+            return response
+
+        record_activity(
+            area="sistem",
+            action="Stok Excel'e aktarıldı",
+            description="Sistem yöneticisi stok kayıtlarını Excel olarak indirdi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=f"stok-verileri-{timestamp}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    @app.post("/admin-panel/data/stock/import-excel")
+    def import_stock_excel():
+        user = get_active_user()
+        if not has_system_role(user, "admin"):
+            flash("Excel içe aktarma işlemi için yönetici yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        file: FileStorage | None = request.files.get("excel_file")
+        if file is None or not file.filename:
+            flash("Lütfen bir Excel dosyası seçin.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        filename = secure_filename(file.filename)
+        extension = Path(filename).suffix.lower()
+        if extension not in {".xlsx", ".xlsm"}:
+            flash("Yalnızca .xlsx uzantılı Excel dosyaları içe aktarılabilir.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
+                file.save(tmp.name)
+                temp_path = Path(tmp.name)
+        except Exception:
+            flash("Yüklenen dosya kaydedilirken bir hata oluştu.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        try:
+            workbook = load_workbook(temp_path, data_only=True)
+            sheet = workbook.active
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            flash("Geçerli bir Excel dosyası okunamadı.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        try:
+            header_map = {
+                "başlık": "title",
+                "kategori": "category",
+                "donanım tipi": "hardware_type",
+                "marka": "brand",
+                "model": "model",
+                "miktar": "quantity",
+                "birim": "unit",
+                "durum": "status",
+                "kaynak": "source_type",
+                "referans": "reference_code",
+                "not": "note",
+                "fabrika": "factory",
+                "departman": "department",
+                "sorumlu": "responsible",
+            }
+
+            column_indexes: dict[str, int] = {}
+            header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), [])
+            for idx, cell in enumerate(header_row or []):
+                header_value = str(cell or "").strip().lower()
+                if header_value in header_map:
+                    column_indexes[header_map[header_value]] = idx
+
+            if "title" not in column_indexes:
+                flash("Tablonun ilk satırında en azından 'Başlık' sütunu bulunmalı.", "warning")
+                return redirect(url_for("admin_panel", section="data-section"))
+
+            category_lookup = {
+                **{key: key for key in STOCK_CATEGORY_LABELS.keys()},
+                **{label.lower(): key for key, label in STOCK_CATEGORY_LABELS.items()},
+            }
+            status_lookup = {
+                **{key: key for key in STOCK_STATUS_LABELS.keys()},
+                **{label.lower(): key for key, label in STOCK_STATUS_LABELS.items()},
+            }
+            source_lookup = {
+                **{key: key for key in STOCK_SOURCE_LABELS.keys()},
+                **{label.lower(): key for key, label in STOCK_SOURCE_LABELS.items()},
+            }
+
+            def normalize_lookup(raw_value: Any, lookup: dict[str, str], fallback: str) -> str:
+                if raw_value is None:
+                    return fallback
+                normalized_value = str(raw_value).strip().lower()
+                return lookup.get(normalized_value, fallback)
+
+            imported_count = 0
+            current_actor = current_actor_name()
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                values = list(row or [])
+                if not any(values):
+                    continue
+
+                def pick(key: str) -> Any:
+                    index = column_indexes.get(key)
+                    return values[index] if index is not None and index < len(values) else None
+
+                title = str(pick("title") or "").strip()
+                if not title:
+                    continue
+
+                category_value = normalize_lookup(
+                    pick("category"), category_lookup, fallback="envanter"
+                )
+                status_value = normalize_lookup(
+                    pick("status"), status_lookup, fallback="stokta"
+                )
+                source_value = normalize_lookup(
+                    pick("source_type"), source_lookup, fallback="manual"
+                )
+                quantity = parse_int_or_none(pick("quantity")) or 1
+                unit_value = str(pick("unit") or "").strip() or None
+                reference_code = str(pick("reference_code") or "").strip() or None
+                note_value = str(pick("note") or "").strip() or None
+
+                metadata = {
+                    "hardware_type": str(pick("hardware_type") or "").strip() or None,
+                    "brand": str(pick("brand") or "").strip() or None,
+                    "model": str(pick("model") or "").strip() or None,
+                    "factory": str(pick("factory") or "").strip() or None,
+                    "department": str(pick("department") or "").strip() or None,
+                    "responsible": str(pick("responsible") or "").strip() or None,
+                }
+
+                stock_item = StockItem(
+                    source_type=source_value,
+                    title=title,
+                    category=category_value,
+                    quantity=quantity,
+                    unit=unit_value,
+                    status=status_value,
+                    reference_code=reference_code,
+                    note=note_value,
+                )
+                stock_item.metadata_payload = {k: v for k, v in metadata.items() if v}
+                db.session.add(stock_item)
+                db.session.flush()
+
+                record_stock_log(
+                    stock_item,
+                    "Excel içe aktarım",
+                    action_type="in",
+                    performed_by=current_actor,
+                    quantity_change=quantity,
+                    note=note_value,
+                )
+
+                imported_count += 1
+
+            db.session.commit()
+
+            record_activity(
+                area="sistem",
+                action="Excel'den stok içe aktarıldı",
+                description=f"Excel içe aktarımıyla {imported_count} stok satırı eklendi.",
+                actor=current_actor,
+            )
+            db.session.commit()
+
+            if imported_count:
+                flash(f"Excel'den {imported_count} stok kaydı eklendi.", "success")
+            else:
+                flash("Excel dosyasında eklenecek satır bulunamadı.", "info")
+
+            return redirect(url_for("admin_panel", section="data-section"))
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     @app.post("/admin-panel/data/reset")
     def reset_database_view():
@@ -2455,6 +2717,23 @@ def create_app() -> Flask:
                 return json_error(str(exc)), 400
 
         created_stock_items: list[StockItem] = []
+        processed_line_snapshots: list[dict[str, Any]] = []
+
+        def capture_snapshot(line: RequestLine, qty: int) -> None:
+            if qty <= 0:
+                return
+            processed_line_snapshots.append(
+                {
+                    "hardware_type": line.hardware_type,
+                    "brand": line.brand,
+                    "model": line.model,
+                    "quantity": qty,
+                    "note": line.note or note,
+                    "category": line.category,
+                    "action": action_key,
+                }
+            )
+
         if action_key == "stok":
             remaining_quantity = min(requested_quantity, total_quantity)
             lines_to_remove: list[RequestLine] = []
@@ -2467,6 +2746,7 @@ def create_app() -> Flask:
                 fulfill_quantity = min(available_quantity, remaining_quantity)
                 if fulfill_quantity <= 0:
                     continue
+                capture_snapshot(line, fulfill_quantity)
                 created_stock_items.append(
                     create_stock_item_from_request_line(
                         order,
@@ -2504,6 +2784,7 @@ def create_app() -> Flask:
                 cancel_quantity = min(available_quantity, remaining_quantity)
                 if cancel_quantity <= 0:
                     continue
+                capture_snapshot(line, cancel_quantity)
                 processed_quantity += cancel_quantity
                 remaining_quantity -= cancel_quantity
                 if cancel_quantity >= available_quantity:
@@ -2538,6 +2819,22 @@ def create_app() -> Flask:
         target_group = get_request_group_by_key(target_group_key)
         if target_group:
             order.group = target_group
+
+        if target_group_key != "acik" and processed_line_snapshots:
+            for line in list(order.lines):
+                order.lines.remove(line)
+                db.session.delete(line)
+
+            for snapshot in processed_line_snapshots:
+                archived_line = RequestLine(
+                    hardware_type=snapshot["hardware_type"],
+                    brand=snapshot["brand"],
+                    model=snapshot["model"],
+                    quantity=snapshot["quantity"],
+                    note=snapshot.get("note"),
+                    category=snapshot["category"],
+                )
+                order.lines.append(archived_line)
 
         db.session.flush()
 
