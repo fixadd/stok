@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 from uuid import uuid4
 
+import mimetypes
 import os
 import shutil
 import sqlite3
@@ -114,6 +115,47 @@ SYSTEM_ROLE_LABELS = {
     "admin": "Admin",
     "superadmin": "Süper Admin",
 }
+
+INFO_ALLOWED_EXTENSIONS: dict[str, set[str]] = {
+    ".png": {"image/png"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".gif": {"image/gif"},
+    ".webp": {"image/webp"},
+    ".bmp": {"image/bmp"},
+    ".pdf": {"application/pdf"},
+    ".txt": {"text/plain"},
+    ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel"},
+    ".doc": {
+        "application/msword",
+        "application/vnd.ms-word",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    },
+    ".xls": {
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
+    ".xlsx": {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+    },
+    ".ppt": {
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    },
+    ".pptx": {
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.ms-powerpoint",
+    },
+}
+
+INLINE_SAFE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+DISALLOWED_DOWNLOAD_EXTENSIONS = {".html", ".htm", ".svg", ".js", ".mjs"}
+MAX_INFO_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 STOCK_METADATA_FIELDS: dict[str, list[dict[str, Any]]] = {
@@ -943,7 +985,21 @@ def create_app() -> Flask:
     @app.route("/uploads/info/<path:filename>")
     def info_uploads(filename: str):
         upload_dir: Path = app.config["INFO_UPLOAD_DIR"]
-        return send_from_directory(upload_dir, filename)
+        extension = Path(filename).suffix.lower()
+        if extension in DISALLOWED_DOWNLOAD_EXTENSIONS:
+            abort(404)
+
+        attachment = InfoAttachment.query.filter_by(filename=filename).first()
+        content_type = attachment.content_type if attachment else None
+        inline_safe = extension in INLINE_SAFE_EXTENSIONS or (
+            content_type and content_type.startswith("image/")
+        )
+        response = send_from_directory(
+            upload_dir, filename, as_attachment=not inline_safe
+        )
+        if content_type:
+            response.headers["Content-Type"] = content_type
+        return response
 
     @app.route("/bilgiler")
     def information_list():
@@ -3520,7 +3576,45 @@ def save_information_file(file: FileStorage | None) -> tuple[str, str] | None:
     if not original_name:
         return None
 
-    extension = Path(original_name).suffix
+    extension = Path(original_name).suffix.lower()
+    allowed_mimetypes = INFO_ALLOWED_EXTENSIONS.get(extension)
+    if not allowed_mimetypes:
+        flash(
+            "Bu dosya türüne izin verilmiyor. Lütfen yalnızca görsel veya belge yükleyin.",
+            "warning",
+        )
+        return None
+
+    content_type = (file.mimetype or "").lower()
+    guessed_type, _ = mimetypes.guess_type(original_name)
+    guessed_type = (guessed_type or "").lower()
+    if allowed_mimetypes and (
+        content_type not in allowed_mimetypes
+        and guessed_type not in allowed_mimetypes
+    ):
+        flash(
+            "Dosya içerik türü doğrulanamadı. Lütfen desteklenen bir belge yükleyin.",
+            "warning",
+        )
+        return None
+
+    length = file.content_length
+    if length is None or length <= 0:
+        current_position = file.stream.tell()
+        file.stream.seek(0, os.SEEK_END)
+        length = file.stream.tell()
+        file.stream.seek(current_position)
+
+    if length is not None and length > MAX_INFO_UPLOAD_SIZE:
+        flash(
+            "Dosya boyutu en fazla 10 MB olabilir. Lütfen daha küçük bir dosya seçin.",
+            "warning",
+        )
+        return None
+
+    if file.stream.tell() != 0:
+        file.stream.seek(0)
+
     unique_name = f"{uuid4().hex}{extension}" if extension else uuid4().hex
     upload_dir: Path = current_app.config["INFO_UPLOAD_DIR"]
     target = upload_dir / unique_name
