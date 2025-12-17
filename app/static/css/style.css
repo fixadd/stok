@@ -767,6 +767,7 @@ body.theme-okyanus .section-title {
 .table-actions {
   display: inline-flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0.5rem;
 }
 
@@ -808,10 +809,14 @@ body.theme-okyanus .section-title {
 .action-dropdown .dropdown-menu {
   border-radius: 16px;
   padding: 0.35rem;
-  min-width: 200px;
+  min-width: 190px;
   border: 1px solid rgba(148, 163, 184, 0.25);
   box-shadow: 0 22px 45px rgba(15, 23, 42, 0.18);
   z-index: 2000;
+}
+
+.action-dropdown .dropdown-menu li + li {
+  margin-top: 2px;
 }
 
 .action-dropdown .dropdown-item {

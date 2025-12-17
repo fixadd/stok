@@ -119,11 +119,12 @@
                             <td>{{ item.note }}</td>
                             <td class="text-end">
                               {% if group.key == 'acik' %}
-                              <div class="btn-group">
-                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                  İşlem
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
+                              <div class="table-actions">
+                                <div class="dropdown action-dropdown" data-bs-display="static">
+                                  <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    İşlemler
+                                  </button>
+                                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                   <li>
                                     <button
                                       class="dropdown-item"
@@ -143,7 +144,8 @@
                                       data-bs-toggle="modal"
                                       data-bs-target="#requestActionModal"
                                     >
-                                      <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
+                                      <i class="bi bi-box-arrow-in-down"></i>
+                                      Stok Gir
                                     </button>
                                   </li>
                                   <li>
@@ -161,10 +163,12 @@
                                       data-bs-toggle="modal"
                                       data-bs-target="#requestActionModal"
                                     >
-                                      <i class="bi bi-x-circle me-2"></i>İptal Et
+                                      <i class="bi bi-x-circle"></i>
+                                      İptal Et
                                     </button>
                                   </li>
-                                </ul>
+                                  </ul>
+                                </div>
                               </div>
                               {% else %}
                               <span class="text-muted small">—</span>
@@ -770,22 +774,26 @@
           const note = line.note ? escapeHtml(line.note) : '—';
           const actionsHtml = showActions
             ? `
-                <div class="btn-group">
-                  <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    İşlem
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                      <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
-                        <i class="bi bi-box-arrow-in-down me-2"></i>Stok Gir
-                      </button>
-                    </li>
-                    <li>
-                      <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
-                        <i class="bi bi-x-circle me-2"></i>İptal Et
-                      </button>
-                    </li>
-                  </ul>
+                <div class="table-actions">
+                  <div class="dropdown action-dropdown" data-bs-display="static">
+                    <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      İşlemler
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                      <li>
+                        <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-hardware-type="${escapeHtml(line.hardware_type)}" data-brand="${escapeHtml(line.brand)}" data-model="${escapeHtml(line.model)}" data-department="${escapeHtml(order.department)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                          <i class="bi bi-box-arrow-in-down"></i>
+                          Stok Gir
+                        </button>
+                      </li>
+                      <li>
+                        <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-hardware-type="${escapeHtml(line.hardware_type)}" data-brand="${escapeHtml(line.brand)}" data-model="${escapeHtml(line.model)}" data-department="${escapeHtml(order.department)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+                          <i class="bi bi-x-circle"></i>
+                          İptal Et
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               `
             : '<span class="text-muted small">—</span>';
