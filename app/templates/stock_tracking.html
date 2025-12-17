@@ -877,6 +877,8 @@
     row.dataset.category = item.category;
     row.dataset.status = item.status;
     row.dataset.search = item.search_index || '';
+    const isInStock = inStockStatuses.includes(item.status);
+    row.classList.toggle('d-none', !includeNonStock && !isInStock);
     const hardwareLabel = item.hardware_type || item.title;
     const brandParts = [];
     if (item.brand) brandParts.push(item.brand);

@@ -51,6 +51,7 @@ from .models import (
     ProductCatalogEntry,
     RequestGroup,
     RequestLine,
+    RequestLineSnapshot,
     RequestOrder,
     UsageArea,
     User,
@@ -787,10 +788,12 @@ def create_app() -> Flask:
     @app.route("/")
     def index():
         recent_activity = load_recent_activity()
+        dashboard = load_dashboard_metrics()
         return render_template(
             "index.html",
             active_page="index",
             recent_activity=recent_activity,
+            dashboard=dashboard,
         )
 
     @app.route("/envanter-takip")
@@ -2722,6 +2725,17 @@ def create_app() -> Flask:
         def capture_snapshot(line: RequestLine, qty: int) -> None:
             if qty <= 0:
                 return
+            order.snapshots.append(
+                RequestLineSnapshot(
+                    hardware_type=line.hardware_type,
+                    brand=line.brand,
+                    model=line.model,
+                    quantity=qty,
+                    note=line.note or note,
+                    category=line.category,
+                    action=action_key,
+                )
+            )
             processed_line_snapshots.append(
                 {
                     "hardware_type": line.hardware_type,
@@ -2820,12 +2834,30 @@ def create_app() -> Flask:
         if target_group:
             order.group = target_group
 
-        if target_group_key != "acik" and processed_line_snapshots:
+        if target_group_key != "acik" and (order.snapshots or processed_line_snapshots):
             for line in list(order.lines):
                 order.lines.remove(line)
                 db.session.delete(line)
 
-            for snapshot in processed_line_snapshots:
+            snapshot_sources: list[dict[str, Any]] = []
+            if order.snapshots:
+                snapshot_sources.extend(
+                    [
+                        {
+                            "hardware_type": snapshot.hardware_type,
+                            "brand": snapshot.brand,
+                            "model": snapshot.model,
+                            "quantity": snapshot.quantity,
+                            "note": snapshot.note,
+                            "category": snapshot.category,
+                        }
+                        for snapshot in order.snapshots
+                    ]
+                )
+            else:
+                snapshot_sources.extend(processed_line_snapshots)
+
+            for snapshot in snapshot_sources:
                 archived_line = RequestLine(
                     hardware_type=snapshot["hardware_type"],
                     brand=snapshot["brand"],
@@ -3722,23 +3754,31 @@ def load_license_payload() -> dict[str, Any]:
 def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
     opened_display = order.opened_at.strftime("%d.%m.%Y %H:%M")
     lines_payload: list[dict[str, Any]] = []
+    group_key = order.group.key if order.group else None
+    use_snapshots = group_key in {"kapandi", "iptal"}
     search_tokens = [order.order_no, order.requested_by, order.department, opened_display]
 
-    for line in order.lines:
-        category_value = normalize_stock_category(line.category, fallback="envanter")
+    def build_line_payload(source_line: RequestLine | RequestLineSnapshot) -> dict[str, Any]:
+        category_value = normalize_stock_category(source_line.category, fallback="envanter")
         line_payload = {
-            "id": line.id,
-            "hardware_type": line.hardware_type,
-            "brand": line.brand,
-            "model": line.model,
-            "quantity": line.quantity,
-            "note": line.note,
+            "id": source_line.id,
+            "hardware_type": source_line.hardware_type,
+            "brand": source_line.brand,
+            "model": source_line.model,
+            "quantity": source_line.quantity,
+            "note": source_line.note,
             "opened_display": opened_display,
             "category": category_value,
             "category_label": STOCK_CATEGORY_LABELS.get(
                 category_value, category_value.capitalize()
             ),
         }
+        return line_payload
+
+    source_lines = order.snapshots if use_snapshots and order.snapshots else order.lines
+
+    for line in source_lines:
+        line_payload = build_line_payload(line)
         lines_payload.append(line_payload)
         search_tokens.extend(
             [
@@ -3760,7 +3800,7 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
         "item_count": len(lines_payload),
         "total_quantity": sum(line["quantity"] for line in lines_payload),
         "search_index": " ".join(token for token in search_tokens if token).lower(),
-        "group_key": order.group.key if order.group else None,
+        "group_key": group_key,
     }
 
 
@@ -3794,7 +3834,10 @@ def load_request_groups() -> dict[str, Any]:
     request_groups_payload: list[dict[str, Any]] = []
     groups = (
         RequestGroup.query.options(
-            joinedload(RequestGroup.orders).joinedload(RequestOrder.lines)
+            joinedload(RequestGroup.orders)
+            .joinedload(RequestOrder.lines)
+            .joinedload(RequestLine.order),
+            joinedload(RequestGroup.orders).joinedload(RequestOrder.snapshots),
         )
         .order_by(RequestGroup.id)
         .all()
@@ -3872,6 +3915,7 @@ def get_request_order_with_relations(order_id: int) -> RequestOrder | None:
         RequestOrder.query.options(
             joinedload(RequestOrder.group),
             joinedload(RequestOrder.lines),
+            joinedload(RequestOrder.snapshots),
         )
         .filter_by(id=order_id)
         .first()
@@ -4207,7 +4251,18 @@ def load_activity_logs(limit: int | None = None) -> list[dict[str, Any]]:
 
 
 def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
-    allowed_areas = {"talep", "urun", "kullanici"}
+    allowed_areas = {
+        "talep",
+        "urun",
+        "kullanici",
+        "envanter",
+        "stok",
+        "bilgi",
+        "profil",
+        "auth",
+        "sistem",
+        "entegrasyon",
+    }
     query_limit = max(limit * 4, limit)
     candidates = (
         ActivityLog.query.order_by(ActivityLog.created_at.desc())
@@ -4222,6 +4277,40 @@ def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
         if len(filtered) >= limit:
             break
     return filtered
+
+
+def load_dashboard_metrics() -> dict[str, Any]:
+    available_stock = (
+        db.session.query(func.sum(StockItem.quantity))
+        .filter(StockItem.status == "stokta")
+        .scalar()
+        or 0
+    )
+    total_stock = (db.session.query(func.sum(StockItem.quantity)).scalar() or 0)
+
+    open_request_count = (
+        RequestOrder.query.join(RequestGroup)
+        .filter(func.lower(RequestGroup.key) == "acik")
+        .count()
+    )
+    total_request_count = RequestOrder.query.count()
+
+    faulty_inventory_count = (
+        InventoryItem.query.filter(InventoryItem.status == "arizali").count()
+    )
+    critical_stock_count = StockItem.query.filter(
+        StockItem.status.in_(["arizali", "hurda"])
+    ).count()
+
+    return {
+        "available_stock": int(available_stock),
+        "total_stock": int(total_stock),
+        "open_requests": int(open_request_count),
+        "total_requests": int(total_request_count),
+        "critical_alerts": int(faulty_inventory_count + critical_stock_count),
+        "faulty_inventory": int(faulty_inventory_count),
+        "problem_stock": int(critical_stock_count),
+    }
 
 
 def build_stock_support_options() -> dict[str, list[str]]:

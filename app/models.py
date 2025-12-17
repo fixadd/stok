@@ -210,6 +210,12 @@ class RequestOrder(db.Model):
         back_populates="order",
         order_by="RequestLine.id",
     )
+    snapshots = db.relationship(
+        "RequestLineSnapshot",
+        cascade="all, delete-orphan",
+        back_populates="order",
+        order_by="RequestLineSnapshot.created_at",
+    )
 
 
 class RequestLine(db.Model):
@@ -225,6 +231,27 @@ class RequestLine(db.Model):
 
     order_id = db.Column(db.Integer, db.ForeignKey("request_orders.id", ondelete="CASCADE"), nullable=False)
     order = db.relationship("RequestOrder", back_populates="lines")
+
+
+class RequestLineSnapshot(db.Model):
+    __tablename__ = "request_line_snapshots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("request_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    hardware_type = db.Column(db.String(128), nullable=False)
+    brand = db.Column(db.String(128), nullable=False)
+    model = db.Column(db.String(128), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    note = db.Column(db.String(256), nullable=True)
+    category = db.Column(db.String(32), nullable=False, default="envanter")
+    action = db.Column(db.String(32), nullable=False, default="stok")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    order = db.relationship("RequestOrder", back_populates="snapshots")
 
 
 class InventoryItem(db.Model):
