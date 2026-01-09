@@ -20,31 +20,10 @@
           Arızalı Durum
           <span class="stock-faulty-counter">{{ stock_faulty_count }}</span>
         </button>
-        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" type="button" id="stockHistoryToggle">
-          <i class="bi bi-archive"></i>
-          Stok Dışı
-        </button>
-        {% if can_manage_stock_data %}
-        <div class="btn-group">
-          <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-file-earmark-spreadsheet"></i>
-            Excel
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-            <li><a class="dropdown-item" href="{{ url_for('export_stock_excel') }}"><i class="bi bi-box-arrow-up"></i> Dışa Aktar</a></li>
-            <li><button class="dropdown-item" type="button" id="stockExcelImportTrigger"><i class="bi bi-box-arrow-in-down"></i> İçe Aktar</button></li>
-            <li><a class="dropdown-item" href="{{ url_for('admin_panel', section='data-section') }}"><i class="bi bi-gear"></i> Veri Ayarlarına Git</a></li>
-          </ul>
-        </div>
-        <form class="d-none" id="stockExcelImportForm" method="post" action="{{ url_for('import_stock_excel') }}" enctype="multipart/form-data">
-          <input class="form-control" id="stockExcelImportInput" name="excel_file" type="file" accept=".xlsx,.xlsm">
-        </form>
-        {% else %}
-        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" type="button" disabled title="Excel işlemleri için yönetici yetkisi gerekir">
-          <i class="bi bi-file-earmark-spreadsheet"></i>
-          Excel
-        </button>
-        {% endif %}
+        <a class="btn btn-outline-primary d-flex align-items-center gap-2" href="{{ url_for('admin_panel', section='data-section') }}">
+          <i class="bi bi-database"></i>
+          Veritabanı İşlemleri
+        </a>
       </div>
       <div class="stock-search">
         <div class="input-group search-input">
@@ -480,10 +459,6 @@
   const stockActionAlert = document.getElementById('stockActionAlert');
   const faultyButton = document.querySelector('.stock-faulty-button');
   const faultyCounter = document.querySelector('.stock-faulty-counter');
-  const stockExcelImportForm = document.getElementById('stockExcelImportForm');
-  const stockExcelImportInput = document.getElementById('stockExcelImportInput');
-  const stockExcelImportTrigger = document.getElementById('stockExcelImportTrigger');
-
   const detailModalEl = document.getElementById('stockDetailModal');
   const detailModal = detailModalEl && bootstrapLib ? new bootstrapLib.Modal(detailModalEl) : null;
   const detailFields = detailModalEl
@@ -517,20 +492,6 @@
     : {};
   const metadataLabels = buildMetadataLabelMap();
 
-  if (stockExcelImportTrigger && stockExcelImportInput && stockExcelImportForm) {
-    stockExcelImportTrigger.addEventListener('click', () => {
-      stockExcelImportInput.value = '';
-      stockExcelImportInput.click();
-    });
-
-    stockExcelImportInput.addEventListener('change', () => {
-      if (!stockExcelImportInput.files || !stockExcelImportInput.files.length) {
-        return;
-      }
-      stockExcelImportForm.submit();
-    });
-  }
-
   const actionModalEl = document.getElementById('stockActionModal');
   const actionModal = actionModalEl && bootstrapLib ? new bootstrapLib.Modal(actionModalEl) : null;
   const actionForm = document.getElementById('stockActionForm');
@@ -560,14 +521,12 @@
   const stockMap = new Map(stockItems.map((item) => [item.id, item]));
   let activeStockId = null;
   let showOnlyFaulty = false;
-  let includeNonStock = false;
   let alertTimeoutId;
   const metadataOptionLists = new Map();
   let pendingStockAction = null;
   const pagination = window.Pagination || null;
   const stockTableEl = document.getElementById('stockTable');
   const stockLogTableEl = document.getElementById('stockLogTable');
-  const historyToggle = document.getElementById('stockHistoryToggle');
   const stockUserSelect = document.getElementById('stockUserSelect');
   const stockUserTableBody = document.querySelector('#stockUserTable tbody');
   const stockUserTableEl = document.getElementById('stockUserTable');
@@ -772,22 +731,46 @@
         hiddenInput.value = currentValue;
         column.append(hiddenInput);
       } else {
-        const input = document.createElement('input');
-        input.className = 'form-control';
-        input.name = `metadata_${key}`;
-        input.placeholder = placeholder;
-        input.value = currentValue;
-        input.autocomplete = 'off';
-        if (field.options_key) {
-          const datalist = ensureMetadataOptions(field.options_key);
-          if (datalist) {
-            input.setAttribute('list', datalist.id);
+        const options = field.options_key ? stockSupportOptions?.[field.options_key] : null;
+        if (Array.isArray(options) && options.length) {
+          const select = document.createElement('select');
+          select.className = 'form-select';
+          select.name = `metadata_${key}`;
+          const placeholderOption = document.createElement('option');
+          placeholderOption.value = '';
+          placeholderOption.textContent = placeholder || 'Seçin';
+          select.append(placeholderOption);
+          options.forEach((optionValue) => {
+            const option = document.createElement('option');
+            option.value = optionValue;
+            option.textContent = optionValue;
+            select.append(option);
+          });
+          if (required) {
+            select.required = true;
           }
+          if (currentValue) {
+            select.value = currentValue;
+          }
+          column.append(select);
+        } else {
+          const input = document.createElement('input');
+          input.className = 'form-control';
+          input.name = `metadata_${key}`;
+          input.placeholder = placeholder;
+          input.value = currentValue;
+          input.autocomplete = 'off';
+          if (field.options_key) {
+            const datalist = ensureMetadataOptions(field.options_key);
+            if (datalist) {
+              input.setAttribute('list', datalist.id);
+            }
+          }
+          if (required) {
+            input.required = true;
+          }
+          column.append(input);
         }
-        if (required) {
-          input.required = true;
-        }
-        column.append(input);
       }
 
       containerEl.append(column);
@@ -878,7 +861,7 @@
     row.dataset.status = item.status;
     row.dataset.search = item.search_index || '';
     const isInStock = inStockStatuses.includes(item.status);
-    row.classList.toggle('d-none', !includeNonStock && !isInStock);
+    row.classList.toggle('d-none', !isInStock);
     const hardwareLabel = item.hardware_type || item.title;
     const brandParts = [];
     if (item.brand) brandParts.push(item.brand);
@@ -1242,7 +1225,7 @@
     const matchesQuery = !query || (row.dataset.search || '').includes(query);
     const matchesCategory = category === 'all' || row.dataset.category === category;
     const matchesFaulty = !showOnlyFaulty || row.dataset.status === 'arizali';
-    const matchesStatus = includeNonStock || inStockStatuses.includes(row.dataset.status);
+    const matchesStatus = inStockStatuses.includes(row.dataset.status);
     const shouldShow = matchesQuery && matchesCategory && matchesFaulty && matchesStatus;
     if (shouldShow) {
       delete row.dataset.searchHidden;
@@ -1310,15 +1293,6 @@
       showOnlyFaulty = !showOnlyFaulty;
       faultyButton.classList.toggle('btn-warning', !showOnlyFaulty);
       faultyButton.classList.toggle('btn-danger', showOnlyFaulty);
-      filterStock();
-    });
-  }
-
-  if (historyToggle) {
-    historyToggle.addEventListener('click', () => {
-      includeNonStock = !includeNonStock;
-      historyToggle.classList.toggle('btn-outline-secondary', !includeNonStock);
-      historyToggle.classList.toggle('btn-secondary', includeNonStock);
       filterStock();
     });
   }

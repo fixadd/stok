@@ -2959,6 +2959,10 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
+        department = (data.get("department") or "").strip()
+        if not department:
+            return json_error("Departman alanı zorunludur."), 400
+
         try:
             usage_area_id = int(data.get("usage_area_id"))
             license_name_id = int(data.get("license_name_id"))
@@ -2982,6 +2986,7 @@ def create_app() -> Flask:
             return json_error("Seçilen kayıtlar doğrulanamadı."), 400
 
         entry = ProductCatalogEntry(
+            department=department,
             usage_area=usage_area,
             license_name=license_name,
             info_category=info_category,
@@ -3002,6 +3007,7 @@ def create_app() -> Flask:
                 "brand": brand.name,
                 "model": model.name,
                 "factory": factory.name,
+                "department": department,
             },
         )
 
@@ -3426,6 +3432,7 @@ def serialize_stock_log(log: StockLog) -> dict[str, Any]:
 
 
 def load_stock_payload() -> dict[str, Any]:
+    in_stock_statuses = {"stokta", "arizali"}
     items = (
         StockItem.query.options(
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
@@ -3439,13 +3446,14 @@ def load_stock_payload() -> dict[str, Any]:
         .all()
     )
 
-    stock_items = [serialize_stock_item(item) for item in items]
+    all_stock_items = [serialize_stock_item(item) for item in items]
+    stock_items = [item for item in all_stock_items if item.get("status") in in_stock_statuses]
     category_counts = Counter(item["category"] for item in stock_items)
     status_counts = Counter(item["status"] for item in stock_items)
     faulty_count = status_counts.get("arizali", 0)
 
     assignment_map: dict[str, list[dict[str, Any]]] = {}
-    for item in stock_items:
+    for item in all_stock_items:
         if item.get("status") != "devredildi":
             continue
         responsible = (item.get("metadata") or {}).get("responsible")
@@ -3488,6 +3496,7 @@ def load_stock_payload() -> dict[str, Any]:
             "count": status_counts.get(key, 0),
         }
         for key in STOCK_STATUS_LABELS
+        if key in in_stock_statuses
     ]
 
     logs = (
@@ -3913,6 +3922,7 @@ def serialize_activity_log(log: ActivityLog) -> dict[str, Any]:
 def serialize_catalog_entry(entry: ProductCatalogEntry) -> dict[str, Any]:
     return {
         "id": entry.id,
+        "department": entry.department or "",
         "usage_area": entry.usage_area.name if entry.usage_area else "",
         "license_name": entry.license_name.name if entry.license_name else "",
         "info_category": entry.info_category.name if entry.info_category else "",
@@ -4451,6 +4461,10 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
 def load_admin_panel_payload() -> dict:
     users = User.query.order_by(User.first_name, User.last_name).all()
+    stock_support_options = build_stock_support_options()
+    department_options = [
+        {"id": name, "name": name} for name in stock_support_options.get("departments", [])
+    ]
 
     product_options = {
         "usage_areas": [ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)],
@@ -4459,6 +4473,7 @@ def load_admin_panel_payload() -> dict:
         "factories": [factory.to_dict() for factory in Factory.query.order_by(Factory.name)],
         "hardware_types": [ht.to_dict() for ht in HardwareType.query.order_by(HardwareType.name)],
         "brands": [brand.to_dict() for brand in Brand.query.order_by(Brand.name)],
+        "departments": department_options,
     }
 
     brand_models = [brand.to_dict(include_models=True) for brand in Brand.query.order_by(Brand.name)]

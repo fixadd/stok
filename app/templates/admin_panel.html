@@ -193,6 +193,10 @@
         </div>
       </div>
       <div class="col-md-6">
+        <label class="form-label" for="departmentSelect">Departman</label>
+        <select class="form-select" id="departmentSelect"></select>
+      </div>
+      <div class="col-md-6">
         <label class="form-label" for="hardwareTypeSelect">Donanım Tipi</label>
         <div class="input-group option-manager">
           <select class="form-select" id="hardwareTypeSelect"></select>
@@ -304,8 +308,7 @@
   <section id="data-section" class="content-card shadow-sm admin-section">
     <div class="mb-4">
       <h2 class="h4 fw-semibold mb-1">Veriler</h2>
-      <p class="text-muted mb-0">Sistem verilerini dışa aktarın, içe aktarın veya veritabanını varsayılan içerikle
-        yeniden oluşturun.</p>
+      <p class="text-muted mb-0">Sistemin tamamını kapsayan veritabanını dışa aktarın veya yedekten geri yükleyin.</p>
     </div>
 
     {% if can_manage_data %}
@@ -317,11 +320,11 @@
               <i class="bi bi-cloud-arrow-down"></i>
             </div>
             <h3 class="card-title h5 fw-semibold">Veritabanını dışa aktar</h3>
-            <p class="card-text text-muted flex-grow-1">Tüm kayıtların bulunduğu mevcut veritabanını yedekleyin ve yerel
+            <p class="card-text text-muted flex-grow-1">Tüm modülleri kapsayan mevcut veritabanını yedekleyin ve yerel
               olarak saklayın.</p>
             <a class="btn btn-outline-primary mt-3 align-self-start" href="{{ url_for('export_database') }}">
               <i class="bi bi-download"></i>
-              Yedeği indir
+              Veritabanını indir
             </a>
           </div>
         </div>
@@ -334,8 +337,7 @@
               <i class="bi bi-cloud-arrow-up"></i>
             </div>
             <h3 class="card-title h5 fw-semibold">Veritabanı yedeği içe aktar</h3>
-            <p class="card-text text-muted">Dışarı aktardığınız bir SQLite dosyasını yükleyerek tüm verileri geri
-              yükleyin.</p>
+            <p class="card-text text-muted">Dışa aktardığınız SQLite dosyasını yükleyerek tüm verileri geri yükleyin.</p>
             <div class="mb-3">
               <label class="form-label" for="dataFile">Yedek dosyası</label>
               <input class="form-control" id="dataFile" name="data_file" type="file" accept=".db,.sqlite,.sqlite3"
@@ -344,69 +346,13 @@
             </div>
             <button class="btn btn-success align-self-start mt-auto" type="submit">
               <i class="bi bi-upload"></i>
-              Yedeği yükle
-            </button>
-          </div>
-        </form>
-      </div>
-      <div class="col-xl-4 col-lg-6">
-        <form class="data-action-card card border-0 shadow-sm h-100" method="post"
-          action="{{ url_for('reset_database_view') }}"
-          onsubmit='return confirm("Tüm veriler silinip varsayılan içerik yüklenecek. Devam etmek istediğinize emin misiniz?");'>
-          <div class="card-body d-flex flex-column">
-            <div class="icon-bubble bg-danger-subtle text-danger mb-3">
-              <i class="bi bi-arrow-counterclockwise"></i>
-            </div>
-            <h3 class="card-title h5 fw-semibold">Veritabanını sıfırla</h3>
-            <p class="card-text text-muted flex-grow-1">Tüm kayıtları silin ve uygulamayı varsayılan demo verileriyle yeniden
-              başlatın.</p>
-            <button class="btn btn-outline-danger align-self-start mt-auto" type="submit">
-              <i class="bi bi-exclamation-octagon"></i>
-              Sıfırlamayı başlat
+              Veritabanını yükle
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <div class="row g-4 align-items-stretch admin-data-grid">
-      <div class="col-xl-4 col-lg-6">
-        <div class="data-action-card card border-0 shadow-sm h-100">
-          <div class="card-body d-flex flex-column">
-            <div class="icon-bubble bg-info-subtle text-info mb-3">
-              <i class="bi bi-file-earmark-spreadsheet"></i>
-            </div>
-            <h3 class="card-title h5 fw-semibold">Stok Excel'ini dışa aktar</h3>
-            <p class="card-text text-muted flex-grow-1">Stok hareketlerini Excel olarak indirip başka sistemlere aktarın ya da şablon olarak kullanın.</p>
-            <a class="btn btn-outline-info mt-3 align-self-start" href="{{ url_for('export_stock_excel') }}">
-              <i class="bi bi-download"></i>
-              Excel indir
-            </a>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-4 col-lg-6">
-        <form class="data-action-card card border-0 shadow-sm h-100" method="post"
-          action="{{ url_for('import_stock_excel') }}" enctype="multipart/form-data">
-          <div class="card-body d-flex flex-column">
-            <div class="icon-bubble bg-secondary-subtle text-secondary mb-3">
-              <i class="bi bi-box-arrow-in-down"></i>
-            </div>
-            <h3 class="card-title h5 fw-semibold">Excel'den stok içe aktar</h3>
-            <p class="card-text text-muted">Excel dosyasındaki satırları yeni stok girişleri olarak kaydedin. Boş satırlar otomatik atlanır.</p>
-            <div class="mb-3">
-              <label class="form-label" for="excelFile">Excel dosyası</label>
-              <input class="form-control" id="excelFile" name="excel_file" type="file" accept=".xlsx,.xlsm" required>
-              <div class="form-text">Desteklenen uzantılar: .xlsx, .xlsm</div>
-            </div>
-            <button class="btn btn-secondary align-self-start mt-auto" type="submit">
-              <i class="bi bi-upload"></i>
-              Excel yükle
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
     {% else %}
     <div class="alert alert-soft alert-warning d-flex align-items-center gap-2 mb-0">
       <i class="bi bi-lock"></i>
@@ -695,6 +641,10 @@
         form: document.getElementById("factoryForm"),
         input: document.getElementById("factoryInput"),
         feedback: document.getElementById("factoryFeedback"),
+      },
+      {
+        dataKey: "departments",
+        select: document.getElementById("departmentSelect"),
       },
       {
         dataKey: "hardware_types",
@@ -1050,6 +1000,7 @@
     const licenseNameSelectEl = document.getElementById("licenseNameSelect");
     const infoCategorySelectEl = document.getElementById("infoCategorySelect");
     const factorySelectEl = document.getElementById("factorySelect");
+    const departmentSelectEl = document.getElementById("departmentSelect");
     const hardwareTypeSelectEl = document.getElementById("hardwareTypeSelect");
     let catalogEntries = Array.isArray(productCatalogEntries) ? [...productCatalogEntries] : [];
     let ldapProfiles = Array.isArray(initialLdapProfiles) ? [...initialLdapProfiles] : [];
@@ -1086,7 +1037,9 @@
           const item = document.createElement("div");
           item.className = "list-group-item d-flex justify-content-between align-items-center gap-3";
           const primaryLabel = [entry.brand, entry.model].filter(Boolean).join(" ") || "—";
-          const metaParts = [entry.hardware_type, entry.factory, entry.usage_area].filter(Boolean).join(" • ");
+          const metaParts = [entry.hardware_type, entry.factory, entry.department, entry.usage_area]
+            .filter(Boolean)
+            .join(" • ");
           const infoParts = [entry.license_name, entry.info_category].filter(Boolean).join(" • ");
           item.innerHTML = `
             <div class="flex-grow-1">
@@ -1117,6 +1070,7 @@
           license_name_id: licenseNameSelectEl ? licenseNameSelectEl.value : "",
           info_category_id: infoCategorySelectEl ? infoCategorySelectEl.value : "",
           factory_id: factorySelectEl ? factorySelectEl.value : "",
+          department: departmentSelectEl ? departmentSelectEl.value : "",
           hardware_type_id: hardwareTypeSelectEl ? hardwareTypeSelectEl.value : "",
           brand_id: brandSelect ? brandSelect.value : "",
           model_id: modelSelect ? modelSelect.value : "",
