@@ -453,6 +453,7 @@ class ProductCatalogEntry(db.Model):
     __tablename__ = "product_catalog_entries"
 
     id = db.Column(db.Integer, primary_key=True)
+    department = db.Column(db.String(128), nullable=True)
     usage_area_id = db.Column(
         db.Integer,
         db.ForeignKey("usage_areas.id"),
@@ -501,6 +502,7 @@ class ProductCatalogEntry(db.Model):
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "department": self.department,
             "usage_area": self.usage_area.to_dict() if self.usage_area else None,
             "license_name": self.license_name.to_dict() if self.license_name else None,
             "info_category": self.info_category.to_dict() if self.info_category else None,
