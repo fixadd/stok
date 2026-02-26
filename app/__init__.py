@@ -575,6 +575,34 @@ def ensure_stock_item_relation_columns() -> None:
         db.session.commit()
 
 
+def ensure_soft_delete_and_sku_columns() -> None:
+    table_specs = {
+        "product_catalog_entries": {
+            "is_deleted": "ALTER TABLE product_catalog_entries ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
+            "sku": "ALTER TABLE product_catalog_entries ADD COLUMN sku VARCHAR(64)",
+        },
+        "stock_items": {
+            "is_deleted": "ALTER TABLE stock_items ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
+            "sku": "ALTER TABLE stock_items ADD COLUMN sku VARCHAR(64)",
+        },
+    }
+    altered = False
+    for table_name, columns in table_specs.items():
+        existing_columns = {
+            row[1]
+            for row in db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        }
+        for column_name, ddl in columns.items():
+            if column_name not in existing_columns:
+                db.session.execute(text(ddl))
+                altered = True
+
+    if altered:
+        db.session.commit()
+
+
+
+
 def get_active_user() -> User | None:
     user_id = session.get("active_user_id")
     if user_id is None:
@@ -641,6 +669,38 @@ def split_license_name(value: str) -> tuple[str, str]:
     return value.strip(), ""
 
 
+
+def sanitize_input_text(value: Any, *, max_length: int = 256) -> str:
+    raw = "" if value is None else str(value)
+    cleaned = raw.replace("\x00", "").strip()
+    cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
+    suspicious_sql_tokens = ["--", "/*", "*/", ";", " xp_", " union ", " drop ", " delete "]
+    lowered = f" {cleaned.lower()} "
+    for token in suspicious_sql_tokens:
+        lowered = lowered.replace(token, " ")
+    return lowered.strip()[:max_length]
+
+
+def sanitize_metadata_payload(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        sanitize_input_text(key, max_length=64): sanitize_input_text(value, max_length=256)
+        for key, value in payload.items()
+        if sanitize_input_text(key, max_length=64)
+    }
+
+
+def generate_unique_sku(prefix: str) -> str:
+    cleaned_prefix = (prefix or "SKU").strip().upper()[:8] or "SKU"
+    while True:
+        code = f"{cleaned_prefix}-{uuid4().hex[:10].upper()}"
+        exists_stock = StockItem.query.filter_by(sku=code).first()
+        exists_catalog = ProductCatalogEntry.query.filter_by(sku=code).first()
+        if not exists_stock and not exists_catalog:
+            return code
+
+
 def create_app() -> Flask:
     data_dir_env = os.environ.get("DATA_DIR")
     if data_dir_env:
@@ -672,6 +732,7 @@ def create_app() -> Flask:
         ensure_user_profile_columns()
         ensure_request_line_category_column()
         ensure_stock_item_relation_columns()
+        ensure_soft_delete_and_sku_columns()
         seed_initial_data()
 
     @app.before_request
@@ -1973,7 +2034,7 @@ def create_app() -> Flask:
         if responsible_user_id and not responsible_user:
             return json_error("Geçerli bir kullanıcı seçin."), 400
 
-        department = (data.get("department") or "").strip()
+        department = sanitize_input_text(data.get("department"))
         if not department:
             return json_error("Departman alanı zorunludur."), 400
 
@@ -2045,7 +2106,7 @@ def create_app() -> Flask:
         if responsible_user_id and not responsible_user:
             return json_error("Geçerli bir kullanıcı seçin."), 400
 
-        department = (data.get("department") or "").strip()
+        department = sanitize_input_text(data.get("department"))
         if not department:
             return json_error("Departman alanı zorunludur."), 400
 
@@ -2088,7 +2149,7 @@ def create_app() -> Flask:
 
         factory_id = parse_int_or_none(data.get("factory_id"))
         responsible_user_id = parse_int_or_none(data.get("responsible_user_id"))
-        department = (data.get("department") or "").strip()
+        department = sanitize_input_text(data.get("department"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
         responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
@@ -2155,8 +2216,8 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         existing_stock = (
             StockItem.query.options(
@@ -2240,7 +2301,7 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
+        note = sanitize_input_text(data.get("note"), max_length=512)
         item.status = "hurda"
         if note:
             item.note = note
@@ -2272,8 +2333,8 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         associated_item = license.item
         with db.session.begin():
@@ -2318,7 +2379,7 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        title = (data.get("title") or "").strip()
+        title = sanitize_input_text(data.get("title"))
         if not title:
             return json_error("Stok adı zorunludur."), 400
 
@@ -2328,15 +2389,15 @@ def create_app() -> Flask:
             quantity = 1
         if quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
-        reference_code = (data.get("reference_code") or "").strip() or None
-        unit = (data.get("unit") or "").strip() or None
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
+        reference_code = sanitize_input_text(data.get("reference_code")) or None
+        unit = sanitize_input_text(data.get("unit"), max_length=32) or None
 
         try:
             metadata_payload = prepare_stock_metadata(
                 category,
-                data.get("metadata"),
+                sanitize_metadata_payload(data.get("metadata")),
                 include_assignment_fields=False,
             )
         except ValueError as exc:
@@ -2364,6 +2425,7 @@ def create_app() -> Flask:
                 unit=unit,
                 unit_id=unit_ref.id if unit_ref else None,
                 note=note or None,
+                sku=generate_unique_sku("STK"),
             )
             stock_item.metadata_payload = {
                 k: v for k, v in metadata_payload.items() if v
@@ -2403,8 +2465,8 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
         quantity = parse_int_or_none(data.get("quantity")) or 1
         if quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
@@ -2434,7 +2496,7 @@ def create_app() -> Flask:
         try:
             assignment_metadata = prepare_stock_metadata(
                 category_value,
-                data.get("metadata"),
+                sanitize_metadata_payload(data.get("metadata")),
                 defaults=metadata_defaults,
             )
         except ValueError as exc:
@@ -2556,8 +2618,8 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
@@ -2608,8 +2670,8 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        note = (data.get("note") or "").strip()
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512)
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
@@ -2687,7 +2749,7 @@ def create_app() -> Flask:
 
         order_no = (data.get("order_no") or "").strip()
         requested_by = (data.get("requested_by") or "").strip()
-        department = (data.get("department") or "").strip()
+        department = sanitize_input_text(data.get("department"))
         active_user = get_active_user()
         requested_by_user = active_user
         group_key = (data.get("group_key") or "acik").strip().lower() or "acik"
@@ -2803,8 +2865,8 @@ def create_app() -> Flask:
         if quantity is None:
             quantity = 1
         requested_quantity = quantity
-        note = (data.get("note") or "").strip() or None
-        actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
+        note = sanitize_input_text(data.get("note"), max_length=512) or None
+        actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         target_line_id = parse_int_or_none(data.get("line_id"))
         if target_line_id:
@@ -2850,7 +2912,7 @@ def create_app() -> Flask:
             try:
                 validated_metadata = prepare_stock_metadata(
                     category_value,
-                    data.get("metadata"),
+                    sanitize_metadata_payload(data.get("metadata")),
                     defaults=metadata_defaults,
                     include_assignment_fields=False,
                 )
@@ -3041,7 +3103,7 @@ def create_app() -> Flask:
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
 
-        department = (data.get("department") or "").strip()
+        department = sanitize_input_text(data.get("department"))
         if not department:
             return json_error("Departman alanı zorunludur."), 400
 
@@ -3068,6 +3130,7 @@ def create_app() -> Flask:
             return json_error("Seçilen kayıtlar doğrulanamadı."), 400
 
         entry = ProductCatalogEntry(
+            sku=generate_unique_sku("PRD"),
             department=department,
             usage_area=usage_area,
             license_name=license_name,
@@ -3127,7 +3190,7 @@ def create_app() -> Flask:
                 joinedload(ProductCatalogEntry.brand),
                 joinedload(ProductCatalogEntry.model),
             )
-            .filter_by(id=entry_id)
+            .filter_by(id=entry_id, is_deleted=False)
             .first()
         )
         if entry is None:
@@ -3136,7 +3199,7 @@ def create_app() -> Flask:
         brand_name = entry.brand.name if entry.brand else ""
         model_name = entry.model.name if entry.model else ""
 
-        db.session.delete(entry)
+        entry.is_deleted = True
 
         record_activity(
             area="urun",
@@ -3449,6 +3512,7 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
 
     return {
         "id": stock_item.id,
+        "sku": stock_item.sku or "",
         "title": stock_item.title,
         "category": category_value,
         "category_label": STOCK_CATEGORY_LABELS.get(
@@ -3530,6 +3594,7 @@ def load_stock_payload() -> dict[str, Any]:
             joinedload(StockItem.unit_ref),
             joinedload(StockItem.logs),
         )
+        .filter(StockItem.is_deleted.is_(False))
         .order_by(StockItem.created_at.desc())
         .all()
     )
@@ -4010,6 +4075,7 @@ def serialize_activity_log(log: ActivityLog) -> dict[str, Any]:
 def serialize_catalog_entry(entry: ProductCatalogEntry) -> dict[str, Any]:
     return {
         "id": entry.id,
+        "sku": entry.sku or "",
         "department": entry.department or "",
         "usage_area": entry.usage_area.name if entry.usage_area else "",
         "license_name": entry.license_name.name if entry.license_name else "",
@@ -4099,7 +4165,7 @@ def get_stock_item_with_relations(item_id: int) -> StockItem | None:
             joinedload(StockItem.unit_ref),
             joinedload(StockItem.logs),
         )
-        .filter_by(id=item_id)
+        .filter_by(id=item_id, is_deleted=False)
         .first()
     )
 
@@ -4644,6 +4710,7 @@ def load_admin_panel_payload() -> dict:
             joinedload(ProductCatalogEntry.brand),
             joinedload(ProductCatalogEntry.model),
         )
+        .filter(ProductCatalogEntry.is_deleted.is_(False))
         .order_by(ProductCatalogEntry.created_at.desc())
         .all()
     )

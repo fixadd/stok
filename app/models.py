@@ -380,6 +380,7 @@ class StockItem(db.Model):
         nullable=True,
     )
     reference_code = db.Column(db.String(128), nullable=True)
+    sku = db.Column(db.String(64), unique=True, nullable=True)
     title = db.Column(db.String(256), nullable=False)
     category = db.Column(db.String(32), nullable=False, default="envanter")
     category_id = db.Column(
@@ -397,6 +398,9 @@ class StockItem(db.Model):
     status = db.Column(db.String(32), nullable=False, default="stokta")
     note = db.Column(db.String(256), nullable=True)
     metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    is_deleted = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.text("0")
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime,
@@ -513,6 +517,10 @@ class ProductCatalogEntry(db.Model):
     __tablename__ = "product_catalog_entries"
 
     id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(64), unique=True, nullable=True)
+    is_deleted = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.text("0")
+    )
     department = db.Column(db.String(128), nullable=True)
     usage_area_id = db.Column(
         db.Integer,
