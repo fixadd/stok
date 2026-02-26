@@ -36,6 +36,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from openpyxl import Workbook, load_workbook
 
+from .services.authz import current_actor_name, get_active_user, get_system_role, has_system_role, is_safe_redirect_target, set_active_user
+from .utils.parsing import parse_excel_date, parse_int_or_none, sanitize_input_text, sanitize_metadata_payload
 from .models import (
     Brand,
     Factory,
@@ -676,63 +678,6 @@ def ensure_stock_enterprise_columns() -> None:
 
 
 
-def get_active_user() -> User | None:
-    user_id = session.get("active_user_id")
-    if user_id is None:
-        return None
-
-    user: User | None = User.query.get(user_id)
-    if user is None:
-        session.pop("active_user_id", None)
-    return user
-
-
-def set_active_user(user: User | None) -> None:
-    if user is None:
-        session.pop("active_user_id", None)
-    else:
-        session["active_user_id"] = user.id
-
-
-def get_system_role(user: User | None) -> str:
-    if user is None:
-        return "user"
-    role = (user.system_role or "user").strip().lower()
-    return role if role in SYSTEM_ROLE_LEVELS else "user"
-
-
-def has_system_role(user: User | None, required: str) -> bool:
-    required_role = (required or "user").strip().lower()
-    if required_role not in SYSTEM_ROLE_LEVELS:
-        required_role = "user"
-    user_role = get_system_role(user)
-    return SYSTEM_ROLE_LEVELS[user_role] >= SYSTEM_ROLE_LEVELS[required_role]
-
-
-def current_actor_name() -> str:
-    user = get_active_user()
-    if not user:
-        return DEFAULT_EVENT_ACTOR
-    full_name = f"{user.first_name} {user.last_name}".strip()
-    return full_name or user.username or DEFAULT_EVENT_ACTOR
-
-
-def is_safe_redirect_target(target: str | None) -> bool:
-    if not target:
-        return False
-    target = target.strip()
-    if not target:
-        return False
-    if target.startswith("//"):
-        return False
-    parsed_target = urlparse(target)
-    if parsed_target.scheme and parsed_target.scheme not in {"http", "https"}:
-        return False
-    if parsed_target.netloc and parsed_target.netloc != urlparse(request.host_url).netloc:
-        return False
-    return True
-
-
 def split_license_name(value: str) -> tuple[str, str]:
     if not value:
         return "", ""
@@ -741,45 +686,6 @@ def split_license_name(value: str) -> tuple[str, str]:
         return name.strip(), key.strip()
     return value.strip(), ""
 
-
-
-def sanitize_input_text(value: Any, *, max_length: int = 256) -> str:
-    raw = "" if value is None else str(value)
-    cleaned = raw.replace("\x00", "").strip()
-    cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
-    suspicious_sql_tokens = ["--", "/*", "*/", ";", " xp_", " union ", " drop ", " delete "]
-    lowered = f" {cleaned.lower()} "
-    for token in suspicious_sql_tokens:
-        lowered = lowered.replace(token, " ")
-    return lowered.strip()[:max_length]
-
-
-def sanitize_metadata_payload(payload: Any) -> dict[str, str]:
-    if not isinstance(payload, dict):
-        return {}
-    return {
-        sanitize_input_text(key, max_length=64): sanitize_input_text(value, max_length=256)
-        for key, value in payload.items()
-        if sanitize_input_text(key, max_length=64)
-    }
-
-
-def parse_excel_date(value: Any) -> date | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    raw = str(value).strip()
-    if not raw:
-        return None
-    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(raw, fmt).date()
-        except ValueError:
-            continue
-    return None
 
 
 def build_qr_code_url(sku: str) -> str:
@@ -4679,19 +4585,6 @@ def create_stock_item_from_request_line(
         user=get_active_user(),
     )
     return stock_item
-
-
-def parse_int_or_none(value: Any) -> int | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        value = value.strip()
-        if not value:
-            return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def prepare_stock_metadata(
