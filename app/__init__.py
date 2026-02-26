@@ -59,8 +59,11 @@ from .models import (
     db,
     find_existing_by_name,
     ActivityLog,
+    StockCategory,
     StockItem,
     StockLog,
+    StockMovement,
+    StockUnit,
 )
 
 
@@ -543,6 +546,35 @@ def ensure_request_line_category_column() -> None:
         db.session.commit()
 
 
+def ensure_stock_item_relation_columns() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
+    }
+    altered = False
+
+    if "category_id" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE stock_items ADD COLUMN category_id INTEGER"
+                " REFERENCES stock_categories(id)"
+            )
+        )
+        altered = True
+
+    if "unit_id" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE stock_items ADD COLUMN unit_id INTEGER"
+                " REFERENCES stock_units(id)"
+            )
+        )
+        altered = True
+
+    if altered:
+        db.session.commit()
+
+
 def get_active_user() -> User | None:
     user_id = session.get("active_user_id")
     if user_id is None:
@@ -639,6 +671,7 @@ def create_app() -> Flask:
         db.create_all()
         ensure_user_profile_columns()
         ensure_request_line_category_column()
+        ensure_stock_item_relation_columns()
         seed_initial_data()
 
     @app.before_request
@@ -1248,6 +1281,7 @@ def create_app() -> Flask:
             db.create_all()
             ensure_user_profile_columns()
             ensure_request_line_category_column()
+            ensure_stock_item_relation_columns()
         except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
             current_app.logger.exception("Veritabanı içe aktarılamadı")
             if backup_path.exists():
@@ -1550,6 +1584,7 @@ def create_app() -> Flask:
             db.create_all()
             ensure_user_profile_columns()
             ensure_request_line_category_column()
+            ensure_stock_item_relation_columns()
             if info_upload_dir.exists():
                 shutil.rmtree(info_upload_dir, ignore_errors=True)
             info_upload_dir.mkdir(parents=True, exist_ok=True)
@@ -2241,20 +2276,19 @@ def create_app() -> Flask:
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
         associated_item = license.item
-        stock_item = create_stock_item_from_license(license, note=note, actor=actor)
+        with db.session.begin():
+            stock_item = create_stock_item_from_license(license, note=note, actor=actor)
 
-        license.status = "pasif"
-        license.item = None
+            license.status = "pasif"
+            license.item = None
 
-        if associated_item:
-            add_inventory_event(
-                associated_item,
-                "Lisans stoklandı",
-                note or f"{license.name} lisansı stok listesine taşındı.",
-                performed_by=actor,
-            )
-
-        db.session.commit()
+            if associated_item:
+                add_inventory_event(
+                    associated_item,
+                    "Lisans stoklandı",
+                    note or f"{license.name} lisansı stok listesine taşındı.",
+                    performed_by=actor,
+                )
 
         fresh_license = (
             InventoryLicense.query.options(
@@ -2315,32 +2349,43 @@ def create_app() -> Flask:
                 or None
             )
 
-        stock_item = StockItem(
-            source_type="manual",
-            title=title,
-            category=category,
-            quantity=quantity,
-            status="stokta",
-            reference_code=reference_code,
-            unit=unit,
-            note=note or None,
-        )
-        stock_item.metadata_payload = {
-            k: v for k, v in metadata_payload.items() if v
-        }
-        db.session.add(stock_item)
-        db.session.flush()
+        active_user = get_active_user()
+        with db.session.begin():
+            category_ref = resolve_stock_category(category)
+            unit_ref = resolve_stock_unit(unit)
+            stock_item = StockItem(
+                source_type="manual",
+                title=title,
+                category=category,
+                category_id=category_ref.id if category_ref else None,
+                quantity=quantity,
+                status="stokta",
+                reference_code=reference_code,
+                unit=unit,
+                unit_id=unit_ref.id if unit_ref else None,
+                note=note or None,
+            )
+            stock_item.metadata_payload = {
+                k: v for k, v in metadata_payload.items() if v
+            }
+            db.session.add(stock_item)
+            db.session.flush()
 
-        log_entry = record_stock_log(
-            stock_item,
-            "Manuel stok girişi",
-            action_type="in",
-            performed_by=actor,
-            quantity_change=stock_item.quantity,
-            note=note,
-        )
-
-        db.session.commit()
+            log_entry = record_stock_log(
+                stock_item,
+                "Manuel stok girişi",
+                action_type="in",
+                performed_by=actor,
+                quantity_change=stock_item.quantity,
+                note=note,
+            )
+            record_stock_movement(
+                stock_item,
+                operation_type="giris",
+                old_quantity=0,
+                new_quantity=stock_item.quantity,
+                user=active_user,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
@@ -2368,7 +2413,8 @@ def create_app() -> Flask:
 
         existing_note = stock_item.note
 
-        category_value = normalize_stock_category(stock_item.category)
+        category_name = stock_item.category_ref.name if stock_item.category_ref else stock_item.category
+        category_value = normalize_stock_category(category_name)
         metadata_defaults: dict[str, Any] = {}
         if stock_item.metadata_payload:
             metadata_defaults.update(stock_item.metadata_payload)
@@ -2409,73 +2455,92 @@ def create_app() -> Flask:
 
         previous_quantity = max(1, stock_item.quantity)
         remaining_quantity = max(0, previous_quantity - quantity)
-        stock_item.quantity = quantity
-        stock_item.metadata_payload = combined_metadata or None
-        stock_item.status = "devredildi"
-        if note:
-            stock_item.note = note
 
-        remaining_item: StockItem | None = None
-        if remaining_quantity > 0:
-            remaining_item = StockItem(
-                source_type=stock_item.source_type,
-                source_id=stock_item.source_id,
-                inventory_item_id=stock_item.inventory_item_id,
-                license_id=stock_item.license_id,
-                reference_code=stock_item.reference_code,
-                title=stock_item.title,
-                category=stock_item.category,
-                quantity=remaining_quantity,
-                unit=stock_item.unit,
-                status="stokta",
-                note=existing_note,
-            )
-            remaining_item.metadata_payload = metadata_defaults or None
-            db.session.add(remaining_item)
+        active_user = get_active_user()
+        with db.session.begin():
+            stock_item.quantity = quantity
+            stock_item.metadata_payload = combined_metadata or None
+            stock_item.status = "devredildi"
+            if note:
+                stock_item.note = note
 
-        if stock_item.inventory_item:
-            inventory = stock_item.inventory_item
-            inventory.status = "aktif"
-            add_inventory_event(
-                inventory,
+            remaining_item: StockItem | None = None
+            if remaining_quantity > 0:
+                remaining_item = StockItem(
+                    source_type=stock_item.source_type,
+                    source_id=stock_item.source_id,
+                    inventory_item_id=stock_item.inventory_item_id,
+                    license_id=stock_item.license_id,
+                    reference_code=stock_item.reference_code,
+                    title=stock_item.title,
+                    category=stock_item.category,
+                    category_id=stock_item.category_id,
+                    quantity=remaining_quantity,
+                    unit=stock_item.unit,
+                    unit_id=stock_item.unit_id,
+                    status="stokta",
+                    note=existing_note,
+                )
+                remaining_item.metadata_payload = metadata_defaults or None
+                db.session.add(remaining_item)
+                db.session.flush()
+                remaining_item_id = remaining_item.id
+
+            if stock_item.inventory_item:
+                inventory = stock_item.inventory_item
+                inventory.status = "aktif"
+                add_inventory_event(
+                    inventory,
+                    "Stoktan atama yapıldı",
+                    note or f"{stock_item.title} stoğa alınan ürün atandı.",
+                    performed_by=actor,
+                )
+
+            log_entry = record_stock_log(
+                stock_item,
                 "Stoktan atama yapıldı",
-                note or f"{stock_item.title} stoğa alınan ürün atandı.",
+                action_type="out",
                 performed_by=actor,
+                quantity_change=-quantity,
+                note=note,
+                metadata=assignment_metadata or None,
             )
-
-        log_entry = record_stock_log(
-            stock_item,
-            "Stoktan atama yapıldı",
-            action_type="out",
-            performed_by=actor,
-            quantity_change=-quantity,
-            note=note,
-            metadata=assignment_metadata or None,
-        )
-
-        responsible_name = (stock_item.metadata_payload or {}).get("responsible")
-        if responsible_name:
-            record_activity(
-                area="kullanici",
-                action="Stok ataması",
-                description=f"{stock_item.title} → {responsible_name}",
-                actor=actor,
-                metadata={
-                    "stock_item_id": stock_item.id,
-                    "category": category_value,
-                    "responsible": responsible_name,
-                    "inventory_no": (stock_item.metadata_payload or {}).get("inventory_no"),
-                },
+            record_stock_movement(
+                stock_item,
+                operation_type="zimmet",
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                user=active_user,
             )
+            if remaining_item:
+                record_stock_movement(
+                    remaining_item,
+                    operation_type="iade",
+                    old_quantity=0,
+                    new_quantity=remaining_item.quantity,
+                    user=active_user,
+                )
 
-        db.session.commit()
+            responsible_name = (stock_item.metadata_payload or {}).get("responsible")
+            if responsible_name:
+                record_activity(
+                    area="kullanici",
+                    action="Stok ataması",
+                    description=f"{stock_item.title} → {responsible_name}",
+                    actor=actor,
+                    metadata={
+                        "stock_item_id": stock_item.id,
+                        "category": category_value,
+                        "responsible": responsible_name,
+                        "inventory_no": (stock_item.metadata_payload or {}).get("inventory_no"),
+                    },
+                )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
-        if remaining_item:
-            fresh_remaining = get_stock_item_with_relations(remaining_item.id)
+        if remaining_item_id:
             response_payload["remaining_stock_item"] = serialize_stock_item(
-                fresh_remaining
+                get_stock_item_with_relations(remaining_item_id)
             )
         if log_entry:
             response_payload["log"] = serialize_stock_log(log_entry)
@@ -2494,29 +2559,38 @@ def create_app() -> Flask:
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
-        stock_item.status = "arizali"
-        if note:
-            stock_item.note = note
+        previous_quantity = stock_item.quantity
+        active_user = get_active_user()
+        with db.session.begin():
+            stock_item.status = "arizali"
+            if note:
+                stock_item.note = note
+            stock_item.quantity = 0
 
-        if stock_item.inventory_item:
-            inventory = stock_item.inventory_item
-            inventory.status = "arizali"
-            add_inventory_event(
-                inventory,
-                "Stok ürünü arızalı",
-                note or f"{stock_item.title} stok kaydı arızalı işaretlendi.",
+            if stock_item.inventory_item:
+                inventory = stock_item.inventory_item
+                inventory.status = "arizali"
+                add_inventory_event(
+                    inventory,
+                    "Stok ürünü arızalı",
+                    note or f"{stock_item.title} stok kaydı arızalı işaretlendi.",
+                    performed_by=actor,
+                )
+
+            log_entry = record_stock_log(
+                stock_item,
+                "Stok ürünü arızalı işaretlendi",
+                action_type="warning",
                 performed_by=actor,
+                note=note,
             )
-
-        log_entry = record_stock_log(
-            stock_item,
-            "Stok ürünü arızalı işaretlendi",
-            action_type="warning",
-            performed_by=actor,
-            note=note,
-        )
-
-        db.session.commit()
+            record_stock_movement(
+                stock_item,
+                operation_type="durum_guncelleme",
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                user=active_user,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
@@ -2537,30 +2611,38 @@ def create_app() -> Flask:
         note = (data.get("note") or "").strip()
         actor = (data.get("performed_by") or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
 
-        stock_item.status = "hurda"
-        if note:
-            stock_item.note = note
+        previous_quantity = stock_item.quantity
+        active_user = get_active_user()
+        with db.session.begin():
+            stock_item.status = "hurda"
+            if note:
+                stock_item.note = note
 
-        if stock_item.inventory_item:
-            inventory = stock_item.inventory_item
-            inventory.status = "hurda"
-            add_inventory_event(
-                inventory,
+            if stock_item.inventory_item:
+                inventory = stock_item.inventory_item
+                inventory.status = "hurda"
+                add_inventory_event(
+                    inventory,
+                    "Stok ürünü hurdaya ayrıldı",
+                    note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
+                    performed_by=actor,
+                )
+
+            log_entry = record_stock_log(
+                stock_item,
                 "Stok ürünü hurdaya ayrıldı",
-                note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
+                action_type="out",
                 performed_by=actor,
+                quantity_change=-max(1, previous_quantity),
+                note=note,
             )
-
-        log_entry = record_stock_log(
-            stock_item,
-            "Stok ürünü hurdaya ayrıldı",
-            action_type="out",
-            performed_by=actor,
-            quantity_change=-max(1, stock_item.quantity),
-            note=note,
-        )
-
-        db.session.commit()
+            record_stock_movement(
+                stock_item,
+                operation_type="satis",
+                old_quantity=previous_quantity,
+                new_quantity=0,
+                user=active_user,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
@@ -3373,7 +3455,11 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
             category_value, category_value.capitalize()
         ),
         "quantity": stock_item.quantity,
-        "unit": stock_item.unit or metadata.get("unit") or "adet",
+        "unit": (
+            stock_item.unit_ref.name
+            if stock_item.unit_ref
+            else stock_item.unit or metadata.get("unit") or "adet"
+        ),
         "reference_code": stock_item.reference_code or "",
         "status": status_value,
         "status_label": STOCK_STATUS_LABELS.get(
@@ -3440,6 +3526,8 @@ def load_stock_payload() -> dict[str, Any]:
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
             joinedload(StockItem.license),
+            joinedload(StockItem.category_ref),
+            joinedload(StockItem.unit_ref),
             joinedload(StockItem.logs),
         )
         .order_by(StockItem.created_at.desc())
@@ -4007,6 +4095,8 @@ def get_stock_item_with_relations(item_id: int) -> StockItem | None:
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
             joinedload(StockItem.license),
+            joinedload(StockItem.category_ref),
+            joinedload(StockItem.unit_ref),
             joinedload(StockItem.logs),
         )
         .filter_by(id=item_id)
@@ -4055,6 +4145,51 @@ def add_inventory_event(
         },
     )
     return event
+
+
+def resolve_stock_category(name: str | None) -> StockCategory | None:
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return None
+    existing = find_existing_by_name(StockCategory, cleaned)
+    if existing:
+        return existing
+    category = StockCategory(name=cleaned)
+    db.session.add(category)
+    db.session.flush()
+    return category
+
+
+def resolve_stock_unit(name: str | None) -> StockUnit | None:
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return None
+    existing = find_existing_by_name(StockUnit, cleaned)
+    if existing:
+        return existing
+    unit = StockUnit(name=cleaned)
+    db.session.add(unit)
+    db.session.flush()
+    return unit
+
+
+def record_stock_movement(
+    stock_item: StockItem,
+    *,
+    operation_type: str,
+    old_quantity: int,
+    new_quantity: int,
+    user: User | None,
+) -> StockMovement:
+    movement = StockMovement(
+        stock_item=stock_item,
+        user_id=user.id if user else None,
+        operation_type=operation_type,
+        old_quantity=max(0, int(old_quantity)),
+        new_quantity=max(0, int(new_quantity)),
+    )
+    db.session.add(movement)
+    return movement
 
 
 def record_stock_log(
@@ -4163,6 +4298,13 @@ def create_stock_item_from_inventory(
         note=note,
         metadata={"inventory_no": item.inventory_no},
     )
+    record_stock_movement(
+        stock_item,
+        operation_type="giris",
+        old_quantity=0,
+        new_quantity=1,
+        user=get_active_user(),
+    )
     return stock_item
 
 
@@ -4202,6 +4344,13 @@ def create_stock_item_from_license(
         quantity_change=1,
         note=note,
         metadata={"license_id": license.id},
+    )
+    record_stock_movement(
+        stock_item,
+        operation_type="giris",
+        old_quantity=0,
+        new_quantity=1,
+        user=get_active_user(),
     )
     return stock_item
 
@@ -4259,6 +4408,13 @@ def create_stock_item_from_request_line(
         quantity_change=stock_item.quantity,
         note=note,
         metadata=log_metadata,
+    )
+    record_stock_movement(
+        stock_item,
+        operation_type="giris",
+        old_quantity=0,
+        new_quantity=stock_item.quantity,
+        user=get_active_user(),
     )
     return stock_item
 
@@ -4592,6 +4748,7 @@ def seed_initial_data() -> None:
     seed_inventory_data()
     seed_ldap_profiles()
     seed_request_data()
+    seed_stock_reference_data()
     seed_stock_data()
     db.session.commit()
 
@@ -5246,6 +5403,16 @@ def seed_request_data() -> None:
     )
 
 
+def seed_stock_reference_data() -> None:
+    for category_name in STOCK_CATEGORY_LABELS.keys():
+        if not find_existing_by_name(StockCategory, category_name):
+            db.session.add(StockCategory(name=category_name))
+    for unit_name in ("adet", "kg", "metre"):
+        if not find_existing_by_name(StockUnit, unit_name):
+            db.session.add(StockUnit(name=unit_name))
+    db.session.flush()
+
+
 def seed_stock_data() -> None:
     if StockItem.query.count():
         return
@@ -5275,11 +5442,16 @@ def seed_stock_data() -> None:
     ]
 
     for sample in samples:
+        category_ref = resolve_stock_category(sample["category"])
+        unit_ref = resolve_stock_unit("adet")
         stock_item = StockItem(
             source_type="manual",
             title=sample["title"],
             category=sample["category"],
+            category_id=category_ref.id if category_ref else None,
             quantity=sample["quantity"],
+            unit="adet",
+            unit_id=unit_ref.id if unit_ref else None,
             status="stokta",
             note=sample["note"],
         )

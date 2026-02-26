@@ -382,8 +382,18 @@ class StockItem(db.Model):
     reference_code = db.Column(db.String(128), nullable=True)
     title = db.Column(db.String(256), nullable=False)
     category = db.Column(db.String(32), nullable=False, default="envanter")
+    category_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_categories.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     quantity = db.Column(db.Integer, nullable=False, default=1)
     unit = db.Column(db.String(32), nullable=True)
+    unit_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_units.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     status = db.Column(db.String(32), nullable=False, default="stokta")
     note = db.Column(db.String(256), nullable=True)
     metadata_json = db.Column("metadata", db.JSON, nullable=True)
@@ -397,12 +407,20 @@ class StockItem(db.Model):
 
     inventory_item = db.relationship("InventoryItem")
     license = db.relationship("InventoryLicense")
+    category_ref = db.relationship("StockCategory")
+    unit_ref = db.relationship("StockUnit")
 
     logs = db.relationship(
         "StockLog",
         cascade="all, delete-orphan",
         back_populates="stock_item",
         order_by="StockLog.created_at.desc()",
+    )
+    movements = db.relationship(
+        "StockMovement",
+        cascade="all, delete-orphan",
+        back_populates="stock_item",
+        order_by="StockMovement.created_at.desc()",
     )
 
     @property
@@ -440,6 +458,48 @@ class StockLog(db.Model):
     @metadata_payload.setter
     def metadata_payload(self, value: dict | None) -> None:
         self.metadata_json = value
+
+
+class StockCategory(NamedEntityMixin, db.Model):
+    __tablename__ = "stock_categories"
+
+
+class StockUnit(NamedEntityMixin, db.Model):
+    __tablename__ = "stock_units"
+
+
+class StockMovement(db.Model):
+    __tablename__ = "stock_movements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    stock_item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    operation_type = db.Column(db.String(32), nullable=False)
+    old_quantity = db.Column(db.Integer, nullable=False)
+    new_quantity = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    stock_item = db.relationship("StockItem", back_populates="movements")
+    user = db.relationship("User")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "stock_item_id": self.stock_item_id,
+            "user_id": self.user_id,
+            "operation_type": self.operation_type,
+            "old_quantity": self.old_quantity,
+            "new_quantity": self.new_quantity,
+            "created_at": self.created_at,
+        }
 
 
 def find_existing_by_name(model: type[NamedEntityMixin], name: str):
