@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from collections import Counter
 from uuid import uuid4
 
@@ -64,6 +64,8 @@ from .models import (
     StockLog,
     StockMovement,
     StockUnit,
+    StockAssignment,
+    StockAuditLog,
 )
 
 
@@ -601,6 +603,77 @@ def ensure_soft_delete_and_sku_columns() -> None:
         db.session.commit()
 
 
+def ensure_stock_enterprise_columns() -> None:
+    stock_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
+    }
+    altered = False
+
+    column_specs = {
+        "serial_no": "ALTER TABLE stock_items ADD COLUMN serial_no VARCHAR(128)",
+        "warranty_end_date": "ALTER TABLE stock_items ADD COLUMN warranty_end_date DATE",
+    }
+    for column_name, ddl in column_specs.items():
+        if column_name not in stock_columns:
+            db.session.execute(text(ddl))
+            altered = True
+
+    existing_indexes = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA index_list(stock_items)")).fetchall()
+    }
+    index_specs = {
+        "ix_stock_items_reference_code": "CREATE INDEX ix_stock_items_reference_code ON stock_items(reference_code)",
+        "ix_stock_items_title": "CREATE INDEX ix_stock_items_title ON stock_items(title)",
+    }
+    for index_name, ddl in index_specs.items():
+        if index_name not in existing_indexes:
+            db.session.execute(text(ddl))
+            altered = True
+
+    assignment_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "assigned_to": "assigned_to VARCHAR(128) NOT NULL",
+        "assigned_department": "assigned_department VARCHAR(128)",
+        "quantity": "quantity INTEGER NOT NULL DEFAULT 1",
+        "delivery_note": "delivery_note VARCHAR(512)",
+        "delivered_by": "delivered_by VARCHAR(128) NOT NULL",
+        "delivered_at": "delivered_at DATETIME NOT NULL",
+        "receipt_code": "receipt_code VARCHAR(64) NOT NULL UNIQUE",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+    audit_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "old_quantity": "old_quantity INTEGER NOT NULL",
+        "new_quantity": "new_quantity INTEGER NOT NULL",
+        "performed_by": "performed_by VARCHAR(128) NOT NULL",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+
+    def ensure_table(table_name: str, columns: dict[str, str]) -> None:
+        nonlocal altered
+        existing = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+            {"name": table_name},
+        ).scalar()
+        if existing:
+            return
+        ddl = f"CREATE TABLE {table_name} (" + ", ".join(columns.values()) + ")"
+        db.session.execute(text(ddl))
+        altered = True
+
+    ensure_table("stock_assignments", assignment_columns)
+    ensure_table("stok_hareketleri", audit_columns)
+
+    if altered:
+        db.session.commit()
+
+
+
+
 
 
 def get_active_user() -> User | None:
@@ -691,6 +764,29 @@ def sanitize_metadata_payload(payload: Any) -> dict[str, str]:
     }
 
 
+def parse_excel_date(value: Any) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    raw = str(value).strip()
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def build_qr_code_url(sku: str) -> str:
+    code = sanitize_input_text(sku, max_length=64)
+    return f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={code}" if code else ""
+
+
 def generate_unique_sku(prefix: str) -> str:
     cleaned_prefix = (prefix or "SKU").strip().upper()[:8] or "SKU"
     while True:
@@ -733,6 +829,7 @@ def create_app() -> Flask:
         ensure_request_line_category_column()
         ensure_stock_item_relation_columns()
         ensure_soft_delete_and_sku_columns()
+        ensure_stock_enterprise_columns()
         seed_initial_data()
 
     @app.before_request
@@ -1398,6 +1495,10 @@ def create_app() -> Flask:
             "Kaynak",
             "Referans",
             "Not",
+            "Seri No",
+            "Garanti Bitiş",
+            "SKU",
+            "QR URL",
             "Fabrika",
             "Departman",
             "Sorumlu",
@@ -1422,6 +1523,10 @@ def create_app() -> Flask:
                     serialized.get("source_label"),
                     serialized.get("reference_code"),
                     serialized.get("note"),
+                    serialized.get("serial_no"),
+                    serialized.get("warranty_end_date"),
+                    serialized.get("sku"),
+                    serialized.get("qr_code_url"),
                     metadata.get("factory"),
                     metadata.get("department"),
                     metadata.get("responsible"),
@@ -1505,6 +1610,8 @@ def create_app() -> Flask:
                 "kaynak": "source_type",
                 "referans": "reference_code",
                 "not": "note",
+                "seri no": "serial_no",
+                "garanti bitiş": "warranty_end_date",
                 "fabrika": "factory",
                 "departman": "department",
                 "sorumlu": "responsible",
@@ -1569,6 +1676,8 @@ def create_app() -> Flask:
                 unit_value = str(pick("unit") or "").strip() or None
                 reference_code = str(pick("reference_code") or "").strip() or None
                 note_value = str(pick("note") or "").strip() or None
+                serial_no = str(pick("serial_no") or "").strip() or None
+                warranty_end_date = parse_excel_date(pick("warranty_end_date"))
 
                 metadata = {
                     "hardware_type": str(pick("hardware_type") or "").strip() or None,
@@ -1588,6 +1697,9 @@ def create_app() -> Flask:
                     status=status_value,
                     reference_code=reference_code,
                     note=note_value,
+                    sku=generate_unique_sku("STK"),
+                    serial_no=serial_no,
+                    warranty_end_date=warranty_end_date,
                 )
                 stock_item.metadata_payload = {k: v for k, v in metadata.items() if v}
                 db.session.add(stock_item)
@@ -1600,6 +1712,12 @@ def create_app() -> Flask:
                     performed_by=current_actor,
                     quantity_change=quantity,
                     note=note_value,
+                )
+                record_stock_audit(
+                    stock_item,
+                    old_quantity=0,
+                    new_quantity=quantity,
+                    performed_by=current_actor,
                 )
 
                 imported_count += 1
@@ -2393,6 +2511,8 @@ def create_app() -> Flask:
         actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
         reference_code = sanitize_input_text(data.get("reference_code")) or None
         unit = sanitize_input_text(data.get("unit"), max_length=32) or None
+        serial_no = sanitize_input_text(data.get("serial_no"), max_length=128) or None
+        warranty_end_date = parse_excel_date(data.get("warranty_end_date"))
 
         try:
             metadata_payload = prepare_stock_metadata(
@@ -2426,6 +2546,8 @@ def create_app() -> Flask:
                 unit_id=unit_ref.id if unit_ref else None,
                 note=note or None,
                 sku=generate_unique_sku("STK"),
+                serial_no=serial_no,
+                warranty_end_date=warranty_end_date,
             )
             stock_item.metadata_payload = {
                 k: v for k, v in metadata_payload.items() if v
@@ -2447,6 +2569,12 @@ def create_app() -> Flask:
                 old_quantity=0,
                 new_quantity=stock_item.quantity,
                 user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=0,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
@@ -2519,6 +2647,7 @@ def create_app() -> Flask:
         remaining_quantity = max(0, previous_quantity - quantity)
 
         active_user = get_active_user()
+        remaining_item_id: int | None = None
         with db.session.begin():
             stock_item.quantity = quantity
             stock_item.metadata_payload = combined_metadata or None
@@ -2574,6 +2703,24 @@ def create_app() -> Flask:
                 new_quantity=stock_item.quantity,
                 user=active_user,
             )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
+            )
+            receipt_code = generate_unique_sku("ZIM")
+            assignment_record = StockAssignment(
+                stock_item_id=stock_item.id,
+                assigned_to=(stock_item.metadata_payload or {}).get("responsible") or "Belirtilmedi",
+                assigned_department=(stock_item.metadata_payload or {}).get("department") or None,
+                quantity=quantity,
+                delivery_note=note or None,
+                delivered_by=actor,
+                delivered_at=datetime.utcnow(),
+                receipt_code=receipt_code,
+            )
+            db.session.add(assignment_record)
             if remaining_item:
                 record_stock_movement(
                     remaining_item,
@@ -2653,6 +2800,12 @@ def create_app() -> Flask:
                 new_quantity=stock_item.quantity,
                 user=active_user,
             )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
@@ -2704,6 +2857,12 @@ def create_app() -> Flask:
                 old_quantity=previous_quantity,
                 new_quantity=0,
                 user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=0,
+                performed_by=actor,
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
@@ -3545,6 +3704,10 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         "updated_display": updated_display,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
         "allow_operations": allow_operations,
+        "serial_no": stock_item.serial_no or (item.serial_no if item else "") or metadata.get("serial_no", ""),
+        "warranty_end_date": (stock_item.warranty_end_date.isoformat() if stock_item.warranty_end_date else ""),
+        "qr_code_url": build_qr_code_url(stock_item.sku or ""),
+        "is_critical": status_value == "stokta" and int(stock_item.quantity or 0) < 5,
     }
 
 
@@ -3661,6 +3824,8 @@ def load_stock_payload() -> dict[str, Any]:
 
     support_options = build_stock_support_options()
 
+    assignments = StockAssignment.query.order_by(StockAssignment.created_at.desc()).limit(100).all()
+
     return {
         "stock_items": stock_items,
         "stock_logs": [serialize_stock_log(log) for log in logs],
@@ -3670,6 +3835,20 @@ def load_stock_payload() -> dict[str, Any]:
         "stock_metadata_config": STOCK_METADATA_FIELDS,
         "stock_support_options": support_options,
         "stock_user_assignments": user_assignments,
+        "stock_assignments": [
+            {
+                "id": assignment.id,
+                "stock_item_id": assignment.stock_item_id,
+                "assigned_to": assignment.assigned_to,
+                "assigned_department": assignment.assigned_department or "",
+                "quantity": assignment.quantity,
+                "delivery_note": assignment.delivery_note or "",
+                "delivered_by": assignment.delivered_by,
+                "delivered_at": assignment.delivered_at.strftime("%d.%m.%Y %H:%M") if assignment.delivered_at else "",
+                "receipt_code": assignment.receipt_code,
+            }
+            for assignment in assignments
+        ],
     }
 
 
@@ -4258,6 +4437,23 @@ def record_stock_movement(
     return movement
 
 
+def record_stock_audit(
+    stock_item: StockItem,
+    *,
+    old_quantity: int,
+    new_quantity: int,
+    performed_by: str,
+) -> StockAuditLog:
+    audit = StockAuditLog(
+        stock_item=stock_item,
+        old_quantity=max(0, int(old_quantity)),
+        new_quantity=max(0, int(new_quantity)),
+        performed_by=(performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR,
+    )
+    db.session.add(audit)
+    return audit
+
+
 def record_stock_log(
     stock_item: StockItem,
     action: str,
@@ -4627,6 +4823,12 @@ def load_dashboard_metrics() -> dict[str, Any]:
     critical_stock_count = StockItem.query.filter(
         StockItem.status.in_(["arizali", "hurda"])
     ).count()
+    recent_stock_movements = (
+        StockMovement.query.options(joinedload(StockMovement.stock_item))
+        .order_by(StockMovement.created_at.desc())
+        .limit(5)
+        .all()
+    )
 
     return {
         "available_stock": int(available_stock),
@@ -4636,6 +4838,14 @@ def load_dashboard_metrics() -> dict[str, Any]:
         "critical_alerts": int(faulty_inventory_count + critical_stock_count),
         "faulty_inventory": int(faulty_inventory_count),
         "problem_stock": int(critical_stock_count),
+        "recent_stock_movements": [
+            {
+                "operation": movement.operation_type,
+                "title": movement.stock_item.title if movement.stock_item else "Stok",
+                "created_display": movement.created_at.strftime("%d.%m.%Y %H:%M") if movement.created_at else "",
+            }
+            for movement in recent_stock_movements
+        ],
     }
 
 
