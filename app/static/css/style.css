@@ -1800,3 +1800,49 @@ body.theme-okyanus .section-title {
     justify-content: flex-start;
   }
 }
+
+.stock-row-critical {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.stock-row-critical td {
+  border-top-color: rgba(220, 38, 38, 0.2);
+  border-bottom-color: rgba(220, 38, 38, 0.2);
+}
+
+@media (max-width: 767.98px) {
+  .table-responsive-stack .table-mobile-cards thead {
+    display: none;
+  }
+
+  .table-responsive-stack .table-mobile-cards,
+  .table-responsive-stack .table-mobile-cards tbody,
+  .table-responsive-stack .table-mobile-cards tr,
+  .table-responsive-stack .table-mobile-cards td {
+    display: block;
+    width: 100%;
+  }
+
+  .table-responsive-stack .table-mobile-cards tr {
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.5rem;
+    background: #fff;
+  }
+
+  .table-responsive-stack .table-mobile-cards td {
+    border: none;
+    padding: 0.35rem 0.5rem;
+    text-align: left !important;
+  }
+
+  .table-responsive-stack .table-mobile-cards td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+  }
+}

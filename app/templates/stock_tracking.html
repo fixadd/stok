@@ -76,8 +76,8 @@
 
         <div class="alert stock-action-alert d-none" id="stockActionAlert" role="alert"></div>
 
-        <div class="table-responsive">
-          <table class="table align-middle stock-table" id="stockTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
+        <div class="table-responsive table-responsive-stack">
+          <table class="table align-middle stock-table table-mobile-cards" id="stockTable" data-paginate data-page-size="20" data-paginate-items="tbody tr">
             <thead>
               <tr>
                 <th scope="col">Donanım Tipi</th>
@@ -92,8 +92,8 @@
             <tbody>
               {% for item in stock_items %}
               {% set in_stock_statuses = ['stokta', 'arizali'] %}
-              <tr class="stock-row{% if item.status not in in_stock_statuses %} d-none{% endif %}" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
-                <td>
+              <tr class="stock-row{% if item.quantity < 5 %} stock-row-critical{% endif %}{% if item.status not in in_stock_statuses %} d-none{% endif %}" data-stock-id="{{ item.id }}" data-category="{{ item.category }}" data-status="{{ item.status }}" data-search="{{ item.search_index }}">
+                <td data-label="Donanım Tipi">
                   {% set hardware_label = item.hardware_type or item.title %}
                   <div class="fw-semibold">{{ hardware_label }}</div>
                   {% set details = namespace(values=[]) %}
@@ -117,11 +117,11 @@
                 <td>
                   <span class="badge bg-soft-primary text-primary">{{ item.category_label }}</span>
                 </td>
-                <td>
+                <td data-label="Miktar">
                   <div class="fw-semibold">{{ item.quantity }}</div>
                   <div class="text-muted small">{{ item.unit }}</div>
                 </td>
-                <td>
+                <td data-label="Kaynak">
                   <div class="fw-semibold">{{ item.source_label }}</div>
                   {% if item.metadata.factory %}
                   <div class="text-muted small">{{ item.metadata.factory }}</div>
@@ -130,11 +130,11 @@
                 <td>
                   <span class="stock-status-badge {{ item.status_class }}">{{ item.status_label }}</span>
                 </td>
-                <td>
+                <td data-label="Tarih">
                   <div class="fw-semibold">{{ item.created_display }}</div>
                   <div class="text-muted small">{{ item.updated_display }}</div>
                 </td>
-                <td class="text-end">
+                <td data-label="İşlemler" class="text-end">
                   <div class="table-actions">
                     <button class="btn btn-outline-secondary btn-sm icon-button stock-detail-trigger" type="button" data-stock-id="{{ item.id }}" aria-label="Stok detayını görüntüle">
                       <i class="bi bi-eye"></i>
@@ -215,7 +215,7 @@
                 </td>
                 <td>{{ log.created_display }}</td>
                 <td>{{ log.note or '—' }}</td>
-                <td class="text-end">
+                <td data-label="İşlemler" class="text-end">
                   <button class="btn btn-outline-secondary btn-sm" type="button" data-log-detail-trigger data-log-id="{{ log.id }}" aria-label="Log detayını görüntüle">
                     <i class="bi bi-eye"></i>
                   </button>
@@ -443,6 +443,7 @@
   const stockSupportOptions = {{ stock_support_options | tojson }};
   const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
   const inStockStatuses = ['stokta', 'arizali'];
+  const criticalStockThreshold = 5;
   const stockLogMap = new Map();
   stockLogs.forEach((log) => {
     if (log && typeof log.id === 'number') {
@@ -862,6 +863,7 @@
     row.dataset.search = item.search_index || '';
     const isInStock = inStockStatuses.includes(item.status);
     row.classList.toggle('d-none', !isInStock);
+    row.classList.toggle('stock-row-critical', Number(item.quantity || 0) < criticalStockThreshold);
     const hardwareLabel = item.hardware_type || item.title;
     const brandParts = [];
     if (item.brand) brandParts.push(item.brand);
@@ -875,21 +877,21 @@
     if (item.inventory_no) detailParts.push(item.inventory_no);
     const detailText = detailParts.length ? detailParts.join(' • ') : '—';
     row.innerHTML = `
-      <td>
+      <td data-label="Donanım Tipi">
         <div class="fw-semibold">${safeText(hardwareLabel)}</div>
         <div class="text-muted small">${safeText(detailText)}</div>
       </td>
-      <td><span class="badge bg-soft-primary text-primary">${safeText(item.category_label)}</span></td>
-      <td>
+      <td data-label="Kategori"><span class="badge bg-soft-primary text-primary">${safeText(item.category_label)}</span></td>
+      <td data-label="Miktar">
         <div class="fw-semibold">${safeText(item.quantity)}</div>
         <div class="text-muted small">${safeText(item.unit)}</div>
       </td>
-      <td>
+      <td data-label="Kaynak">
         <div class="fw-semibold">${safeText(item.source_label)}</div>
         <div class="text-muted small">${safeText(item.metadata?.factory || '')}</div>
       </td>
-      <td><span class="stock-status-badge ${safeText(item.status_class)}">${safeText(item.status_label)}</span></td>
-      <td>
+      <td data-label="Durum"><span class="stock-status-badge ${safeText(item.status_class)}">${safeText(item.status_label)}</span></td>
+      <td data-label="Tarih">
         <div class="fw-semibold">${safeText(item.created_display)}</div>
         <div class="text-muted small">${safeText(item.updated_display)}</div>
       </td>
@@ -1400,7 +1402,7 @@
             actionQuantityInput.value = '1';
             actionQuantityInput.focus();
           }
-          showActionAlert('Miktar en az 1 olmalıdır.', 'danger');
+          showActionAlert('Negatif değer girilemez. Miktar en az 1 olmalıdır.', 'danger');
           return;
         }
         if (requestedQuantity > maxQuantity) {
@@ -1497,7 +1499,7 @@
           createQuantityInput.value = '1';
           createQuantityInput.focus();
         }
-        showActionAlert('Miktar en az 1 olmalıdır.', 'danger');
+        showActionAlert('Negatif değer girilemez. Miktar en az 1 olmalıdır.', 'danger');
         return;
       }
       const schema = getMetadataSchema(payload.category);
