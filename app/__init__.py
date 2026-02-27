@@ -35,6 +35,13 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from openpyxl import Workbook, load_workbook
+from .navigation import build_breadcrumbs, build_sidebar_sections
+from .routes.admin import register_admin_routes
+from .routes.auth import register_auth_routes
+from .routes.inventory import register_inventory_routes
+from .routes.information import register_information_routes
+from .routes.requests import register_request_routes
+from .routes.stock import register_stock_routes
 
 from .services.authz import current_actor_name, get_active_user, get_system_role, has_system_role, is_safe_redirect_target, set_active_user
 from .utils.parsing import parse_excel_date, parse_int_or_none, sanitize_input_text, sanitize_metadata_payload
@@ -841,6 +848,7 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_profile_preferences() -> dict[str, Any]:
         user = get_active_user()
+        sidebar_sections = build_sidebar_sections(user, None, request.endpoint)
         theme_key = "varsayilan"
         if user and user.preferred_theme in THEME_OPTIONS:
             theme_key = user.preferred_theme
@@ -855,193 +863,66 @@ def create_app() -> Flask:
             "system_role_labels": SYSTEM_ROLE_LABELS,
             "is_admin_user": has_system_role(user, "admin"),
             "is_super_admin": has_system_role(user, "superadmin"),
+            "sidebar_sections": sidebar_sections,
+            "build_breadcrumbs": build_breadcrumbs,
         }
 
-    @app.route("/giris", methods=["GET", "POST"])
-    def login():
-        if get_active_user():
-            next_param = request.args.get("next")
-            if next_param and is_safe_redirect_target(next_param):
-                return redirect(next_param)
-            return redirect(url_for("index"))
+    register_auth_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "is_safe_redirect_target": is_safe_redirect_target,
+            "active_users_query": active_users_query,
+            "User": User,
+            "func": func,
+            "set_active_user": set_active_user,
+            "record_activity": record_activity,
+            "current_actor_name": current_actor_name,
+            "db": db,
+        },
+    )
+    register_inventory_routes(
+        app,
+        {
+            "load_recent_activity": load_recent_activity,
+            "load_dashboard_metrics": load_dashboard_metrics,
+            "load_inventory_payload": load_inventory_payload,
+            "load_license_payload": load_license_payload,
+            "load_printer_payload": load_printer_payload,
+        },
+    )
+    register_stock_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "has_system_role": has_system_role,
+            "load_stock_payload": load_stock_payload,
+            "load_scrap_inventory_payload": load_scrap_inventory_payload,
+        },
+    )
 
-        error: str | None = None
-        next_param = request.args.get("next")
+    register_admin_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "has_system_role": has_system_role,
+            "load_admin_panel_payload": load_admin_panel_payload,
+            "SYSTEM_ROLE_LABELS": SYSTEM_ROLE_LABELS,
+        },
+    )
+    register_request_routes(
+        app,
+        {
+            "load_request_groups": load_request_groups,
+        },
+    )
 
-        if request.method == "POST":
-            username = (request.form.get("username") or "").strip()
-            password = (request.form.get("password") or "").strip()
-            next_param = request.form.get("next") or next_param
-
-            user = (
-                active_users_query()
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-                if username
-                else None
-            )
-
-            if user and user.password_hash and check_password_hash(user.password_hash, password):
-                session.clear()
-                session.permanent = True
-                set_active_user(user)
-                record_activity(
-                    area="auth",
-                    action="Oturum açıldı",
-                    actor=current_actor_name(),
-                    metadata={"user_id": user.id, "username": user.username},
-                )
-                db.session.commit()
-                target = next_param if is_safe_redirect_target(next_param) else None
-                if user.must_change_password:
-                    session.pop("post_password_change_redirect", None)
-                    if target:
-                        session["post_password_change_redirect"] = target
-                    return redirect(url_for("force_password_change"))
-                session.pop("post_password_change_redirect", None)
-                return redirect(target or url_for("index"))
-
-            error = "Kullanıcı adı veya şifre hatalı."
-
-        return render_template(
-            "login.html",
-            error=error,
-            next_target=next_param if is_safe_redirect_target(next_param) else "",
-        )
-
-    @app.route("/ilk-giris-sifre", methods=["GET", "POST"])
-    def force_password_change():
-        user = get_active_user()
-        if user is None:
-            flash("Lütfen önce oturum açın.", "warning")
-            return redirect(url_for("login"))
-
-        if not user.must_change_password:
-            target = session.pop("post_password_change_redirect", None)
-            if target and is_safe_redirect_target(target):
-                return redirect(target)
-            target = None
-        else:
-            query_target = request.args.get("next")
-            if query_target and is_safe_redirect_target(query_target):
-                session["post_password_change_redirect"] = query_target
-                target = query_target
-            else:
-                target = session.get("post_password_change_redirect")
-
-        error: str | None = None
-
-        if request.method == "POST":
-            new_password = (request.form.get("new_password") or "").strip()
-            confirm_password = (request.form.get("confirm_password") or "").strip()
-            form_target = request.form.get("next")
-            if form_target and is_safe_redirect_target(form_target):
-                session["post_password_change_redirect"] = form_target
-                target = form_target
-
-            if not new_password or not confirm_password:
-                error = "Lütfen yeni şifrenizi iki alana da yazın."
-            elif new_password != confirm_password:
-                error = "Yeni şifre ve doğrulama alanı eşleşmiyor."
-            elif len(new_password) < 8:
-                error = "Şifre en az 8 karakter olmalıdır."
-            elif new_password.lower() == user.username.lower():
-                error = "Şifreniz kullanıcı adınızla aynı olamaz."
-            else:
-                user.password_hash = generate_password_hash(new_password)
-                user.must_change_password = False
-                record_activity(
-                    area="auth",
-                    action="İlk giriş şifresi güncellendi",
-                    actor=current_actor_name(),
-                    metadata={"user_id": user.id, "username": user.username},
-                )
-                db.session.commit()
-                flash("Yeni şifreniz kaydedildi.", "success")
-                session.pop("post_password_change_redirect", None)
-                if target and is_safe_redirect_target(target):
-                    return redirect(target)
-                return redirect(url_for("index"))
-
-        return render_template(
-            "force_password_change.html",
-            error=error,
-            next_target=target if target and is_safe_redirect_target(target) else "",
-        )
-
-    @app.route("/cikis")
-    def logout():
-        user = get_active_user()
-        session.clear()
-        if user:
-            record_activity(
-                area="auth",
-                action="Oturum kapatıldı",
-                actor=f"{user.first_name} {user.last_name}".strip() or user.username,
-                metadata={"user_id": user.id, "username": user.username},
-            )
-            db.session.commit()
-        flash("Oturum kapatıldı.", "info")
-        return redirect(url_for("login"))
-
-    @app.route("/")
-    def index():
-        recent_activity = load_recent_activity()
-        dashboard = load_dashboard_metrics()
-        return render_template(
-            "index.html",
-            active_page="index",
-            recent_activity=recent_activity,
-            dashboard=dashboard,
-        )
-
-    @app.route("/envanter-takip")
-    def inventory_tracking():
-        payload = load_inventory_payload()
-        return render_template(
-            "inventory_tracking.html",
-            active_page="inventory_tracking",
-            **payload,
-        )
-
-    @app.route("/lisans-takip")
-    def license_tracking():
-        payload = load_license_payload()
-        return render_template(
-            "license_tracking.html",
-            active_page="license_tracking",
-            **payload,
-        )
-
-    @app.route("/yazici-takip")
-    def printer_tracking():
-        payload = load_printer_payload()
-        return render_template(
-            "printer_tracking.html",
-            active_page="printer_tracking",
-            **payload,
-        )
-
-    @app.route("/stok-takip")
-    def stock_tracking():
-        payload = load_stock_payload()
-        return render_template(
-            "stock_tracking.html",
-            active_page="stock_tracking",
-            can_manage_stock_data=has_system_role(get_active_user(), "admin"),
-            **payload,
-        )
-
-    @app.route("/hurdalar")
-    def scrap_inventory_page():
-        payload = load_scrap_inventory_payload()
-        can_restore = has_system_role(get_active_user(), "superadmin")
-        return render_template(
-            "scrap_inventory.html",
-            active_page="scrap_inventory",
-            can_restore_scrap=can_restore,
-            **payload,
-        )
+    register_information_routes(
+        app,
+        {
+            "load_information_payload": load_information_payload,
+        },
+    )
 
     @app.route("/profil")
     def profile():
@@ -1157,15 +1038,6 @@ def create_app() -> Flask:
         if content_type:
             response.headers["Content-Type"] = content_type
         return response
-
-    @app.route("/bilgiler")
-    def information_list():
-        payload = load_information_payload()
-        return render_template(
-            "information/list.html",
-            active_page="information",
-            **payload,
-        )
 
     @app.post("/bilgiler")
     def create_information_entry():
@@ -1306,25 +1178,6 @@ def create_app() -> Flask:
             entry=entry,
             categories=categories,
             mode="edit",
-        )
-
-    @app.route("/admin-panel")
-    def admin_panel():
-        user = get_active_user()
-        if not has_system_role(user, "admin"):
-            flash("Admin paneline erişmek için yetkiniz yok.", "danger")
-            return redirect(url_for("index"))
-        admin_payload = load_admin_panel_payload()
-        return render_template(
-            "admin_panel.html",
-            active_page="admin_panel",
-            can_manage_users=has_system_role(user, "superadmin"),
-            can_manage_data=has_system_role(user, "admin"),
-            system_role_choices=[
-                {"value": key, "label": SYSTEM_ROLE_LABELS[key]}
-                for key in ("user", "admin")
-            ],
-            **admin_payload,
         )
 
     @app.get("/admin-panel/data/export")
@@ -3660,16 +3513,6 @@ def create_app() -> Flask:
             for license_name in LicenseName.query.order_by(LicenseName.name)
         ]
         return jsonify({"items": names})
-
-    @app.route("/talep-takip")
-    def talep_takip():
-        payload = load_request_groups()
-
-        return render_template(
-            "talep_takip.html",
-            active_page="talep_takip",
-            **payload,
-        )
 
     @app.route("/islem-kayitlari")
     def activity_logs():
