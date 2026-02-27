@@ -21,7 +21,13 @@ def get_active_user() -> User | None:
     user_id = session.get("active_user_id")
     if not user_id:
         return None
-    return User.query.get(user_id)
+    user = User.query.get(user_id)
+    if user is None:
+        return None
+    if (user.employment_status or "aktif").strip().lower() != "aktif":
+        session.pop("active_user_id", None)
+        return None
+    return user
 
 
 def set_active_user(user: User | None) -> None:

@@ -20,6 +20,7 @@
           Arızalı Durum
           <span class="stock-faulty-counter">{{ stock_faulty_count }}</span>
         </button>
+        <a class="btn btn-outline-secondary d-flex align-items-center gap-2" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people"></i>Personel Lifecycle</a>
         <a class="btn btn-outline-primary d-flex align-items-center gap-2" href="{{ url_for('admin_panel', section='data-section') }}">
           <i class="bi bi-database"></i>
           Veritabanı İşlemleri
@@ -123,9 +124,8 @@
                 </td>
                 <td data-label="Kaynak">
                   <div class="fw-semibold">{{ item.source_label }}</div>
-                  {% if item.metadata.factory %}
-                  <div class="text-muted small">{{ item.metadata.factory }}</div>
-                  {% endif %}
+                  {% if item.metadata.factory %}<div class="text-muted small">{{ item.metadata.factory }}</div>{% endif %}
+                  {% if item.person_key %}<a class="small" href="{{ url_for('personnel_lifecycle.detail_page', person_key=item.person_key) }}">Personel detay</a>{% endif %}
                 </td>
                 <td>
                   <span class="stock-status-badge {{ item.status_class }}">{{ item.status_label }}</span>

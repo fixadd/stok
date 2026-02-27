@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -33,6 +33,11 @@ class User(db.Model):
     must_change_password = db.Column(
         db.Boolean, nullable=False, default=False, server_default=db.text("0")
     )
+    employment_status = db.Column(
+        db.String(16), nullable=False, default="aktif", server_default=db.text("'aktif'")
+    )
+    termination_date = db.Column(db.Date, nullable=True)
+    termination_note = db.Column(db.Text, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -45,6 +50,9 @@ class User(db.Model):
             "department": self.department,
             "preferred_theme": self.preferred_theme,
             "system_role": self.system_role,
+            "employment_status": self.employment_status,
+            "termination_date": self.termination_date.isoformat() if self.termination_date else None,
+            "termination_note": self.termination_note,
         }
 
 

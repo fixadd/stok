@@ -10,6 +10,9 @@
         <h1 class="h3 fw-bold mb-1">Admin Paneli</h1>
         <p class="text-muted mb-0">Kullanıcıları yönetin, ürün kataloğunu güncelleyin ve entegrasyonları yapılandırın.</p>
       </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people"></i> Personel Lifecycle</a>
+      </div>
       <div class="status-toggle admin-toggle d-inline-flex align-items-center">
         <button class="status-pill active" type="button" data-target="users-section">
           <span>Kullanıcılar</span>
@@ -40,10 +43,16 @@
         <p class="text-muted small mb-0">Sistemdeki kayıtları görüntüleyin veya yeni kullanıcı ekleyin.</p>
       </div>
       {% if can_manage_users %}
-      <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#userCreateModal">
-        <i class="bi bi-person-plus"></i>
-        Kullanıcı Ekle
-      </button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#userTransferModal">
+          <i class="bi bi-arrow-left-right"></i>
+          Devir Sihirbazı
+        </button>
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#userCreateModal">
+          <i class="bi bi-person-plus"></i>
+          Kullanıcı Ekle
+        </button>
+      </div>
       {% else %}
       <span class="badge rounded-pill bg-warning-subtle text-warning d-flex align-items-center gap-2">
         <i class="bi bi-lock"></i>
@@ -90,6 +99,7 @@
             <th scope="col">E-posta</th>
             <th scope="col">Yetki</th>
             <th scope="col">Şifre Durumu</th>
+            <th scope="col">İstihdam</th>
             <th scope="col" class="text-end">İşlemler</th>
           </tr>
         </thead>
@@ -124,15 +134,40 @@
               </span>
               {% endif %}
             </td>
+            <td>
+              {% if user.employment_status == 'pasif' %}
+              <span class="badge rounded-pill bg-secondary-subtle text-secondary">Pasif</span>
+              {% else %}
+              <span class="badge rounded-pill bg-success-subtle text-success">Aktif</span>
+              {% endif %}
+              {% if user.termination_date %}
+              <div class="small text-muted">{{ user.termination_date.strftime('%d.%m.%Y') }}</div>
+              {% endif %}
+            </td>
             <td class="text-end">
               {% if can_manage_users and user.id != active_user.id %}
-              <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline"
-                onsubmit='return confirm("{{ (user.first_name ~ ' ' ~ user.last_name ~ ' (' ~ user.username ~ ') kullanıcısını silmek istediğinize emin misiniz?')|escape }}");'>
-                <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" type="submit">
+              <div class="d-inline-flex gap-1">
+                {% if user.employment_status == 'pasif' %}
+                <form method="post" action="{{ url_for('reactivate_user', user_id=user.id) }}" class="d-inline">
+                  <button class="btn btn-outline-success btn-sm" type="submit">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Yeniden aktifleştir
+                  </button>
+                </form>
+                {% else %}
+                <button class="btn btn-outline-warning btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#userDeactivateModal"
+                  data-user-id="{{ user.id }}" data-user-name="{{ user.first_name }} {{ user.last_name }} ({{ user.username }})">
+                  <i class="bi bi-person-dash"></i>
+                  Pasife al
+                </button>
+                {% endif %}
+                <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" type="button"
+                  data-delete-user-id="{{ user.id }}"
+                  data-delete-user-name="{{ user.first_name }} {{ user.last_name }} ({{ user.username }})">
                   <i class="bi bi-trash3"></i>
                   Sil
                 </button>
-              </form>
+              </div>
               {% elif can_manage_users %}
               <span class="text-muted small">Aktif kullanıcı</span>
               {% else %}
@@ -1445,6 +1480,103 @@
     });
 
     renderLdapProfiles();
+
+    const userDeactivateModal = document.getElementById("userDeactivateModal");
+    userDeactivateModal?.addEventListener("show.bs.modal", (event) => {
+      const trigger = event.relatedTarget;
+      const userId = trigger?.dataset.userId || "";
+      const userName = trigger?.dataset.userName || "";
+      const form = userDeactivateModal.querySelector("form");
+      const label = userDeactivateModal.querySelector("[data-user-deactivate-name]");
+      if (label) {
+        label.textContent = userName;
+      }
+      if (form) {
+        form.action = `/admin-panel/users/${userId}/deactivate`;
+      }
+    });
+
+
+    document.querySelectorAll("[data-delete-user-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const userId = button.dataset.deleteUserId;
+        const userName = button.dataset.deleteUserName || "kullanıcı";
+        if (!window.confirm(`${userName} kullanıcısını silmek istediğinize emin misiniz?`)) {
+          return;
+        }
+        try {
+          const response = await fetch(`/admin-panel/users/${userId}/delete`, { method: "POST" });
+          const payload = await response.json();
+          if (!response.ok) {
+            alert(payload.error || "Kullanıcı silinemedi. Önce devir yapın.");
+            return;
+          }
+          window.location.reload();
+        } catch (error) {
+          alert("Sunucuya ulaşılamadı.");
+        }
+      });
+    });
+
+    const transferForm = document.getElementById("userTransferForm");
+    const transferPreviewBtn = document.getElementById("userTransferPreviewBtn");
+    const transferPreview = document.getElementById("userTransferPreview");
+
+    function buildTransferPayload(dryRun = true) {
+      const formData = new FormData(transferForm);
+      return {
+        target_user_id: Number(formData.get("new_user_id") || 0) || null,
+        delegate_user_id: Number(formData.get("delegate_user_id") || 0) || null,
+        new_department: (formData.get("new_department") || "").trim() || null,
+        new_factory_id: Number(formData.get("new_factory_id") || 0) || null,
+        dry_run: dryRun,
+      };
+    }
+
+    async function callTransferApi(dryRun = true) {
+      const feedback = document.getElementById("userTransferFeedback");
+      const oldUserId = Number(new FormData(transferForm).get("old_user_id") || 0);
+      if (!oldUserId) {
+        feedback.classList.remove("d-none");
+        feedback.classList.add("alert-danger");
+        feedback.textContent = "Eski kullanıcı seçimi zorunludur.";
+        return null;
+      }
+      const response = await fetch(`/api/users/${oldUserId}/transfer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildTransferPayload(dryRun)),
+      });
+      const payload = await response.json();
+      feedback.classList.remove("d-none", "alert-danger", "alert-success");
+      if (!response.ok) {
+        feedback.classList.add("alert-danger");
+        feedback.textContent = payload.error || "Transfer işlemi başarısız.";
+        return null;
+      }
+      feedback.classList.add("alert-success");
+      feedback.textContent = payload.message || "İşlem tamamlandı.";
+      return payload;
+    }
+
+    transferPreviewBtn?.addEventListener("click", async () => {
+      const payload = await callTransferApi(true);
+      if (!payload || !transferPreview) {
+        return;
+      }
+      const preview = payload.report?.preview || {};
+      transferPreview.classList.remove("d-none");
+      transferPreview.textContent = `Önizleme: ${preview.inventory_count || 0} envanter, ${preview.license_count || 0} lisans, ${preview.open_request_count || 0} açık talep etkilenecek.`;
+    });
+
+    transferForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = await callTransferApi(false);
+      if (!payload) {
+        return;
+      }
+      window.setTimeout(() => window.location.reload(), 900);
+    });
 
     if (ldapForm && ldapStatus) {
       ldapForm.addEventListener("submit", (event) => {

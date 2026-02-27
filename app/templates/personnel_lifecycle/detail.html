@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+
+{% block title %}Personel Süreç Detayı{% endblock %}
+
+{% block main %}
+{% if not_found %}
+<div class="content-card shadow-sm">
+  <h1 class="h4">Personel bulunamadı.</h1>
+  <a class="btn btn-outline-primary" href="{{ url_for('personnel_lifecycle.list_page') }}">Listeye dön</a>
+</div>
+{% else %}
+<div class="d-flex flex-column gap-4" data-person-key="{{ person.person_key }}">
+  <section class="content-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h1 class="h3 fw-bold mb-1">{{ person.name }}</h1>
+        <p class="text-muted mb-0">{{ person.department or 'Departman belirtilmedi' }}</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_tracking') }}">Envanter</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('stock_tracking') }}">Stok</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('talep_takip') }}">Talep</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_panel') }}">Admin</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('personnel_lifecycle.list_page') }}">Listeye dön</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-card shadow-sm">
+    <div class="d-flex flex-wrap gap-2" id="lifecycleActions">
+      <button class="btn btn-outline-primary" data-action="yer_degisikligi_baslat">Yer değişikliği başlat</button>
+      <button class="btn btn-outline-warning" data-action="ayrilis_baslat">Ayrılış başlat</button>
+      <button class="btn btn-outline-info" data-action="toplu_devir">Toplu devir</button>
+      <button class="btn btn-outline-secondary" data-action="toplu_iade">Toplu iade</button>
+      <button class="btn btn-danger" data-action="surec_kapat">Süreç kapat</button>
+    </div>
+    <div class="alert alert-soft mt-3 d-none" id="lifecycleActionFeedback"></div>
+  </section>
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <section class="content-card shadow-sm h-100">
+        <h2 class="h5">Son Aktiviteler</h2>
+        <ul class="list-group list-group-flush">
+          {% for activity in activities %}
+          <li class="list-group-item px-0">
+            <div class="fw-semibold">{{ activity.action }}</div>
+            <div class="text-muted small">{{ activity.description }}</div>
+            <div class="text-muted small">{{ activity.actor }} · {{ activity.created_at }}</div>
+          </li>
+          {% else %}<li class="list-group-item px-0 text-muted">Kayıt yok.</li>{% endfor %}
+        </ul>
+      </section>
+    </div>
+    <div class="col-lg-4">
+      <section class="content-card shadow-sm h-100">
+        <h2 class="h5">Son Atamalar</h2>
+        <ul class="list-group list-group-flush">
+          {% for assignment in stock_assignments %}
+          <li class="list-group-item px-0">
+            <div class="fw-semibold">{{ assignment.item }} ({{ assignment.quantity }})</div>
+            <div class="text-muted small">{{ assignment.department }} · {{ assignment.delivered_at }}</div>
+          </li>
+          {% else %}<li class="list-group-item px-0 text-muted">Kayıt yok.</li>{% endfor %}
+        </ul>
+      </section>
+    </div>
+    <div class="col-lg-4">
+      <section class="content-card shadow-sm h-100">
+        <h2 class="h5">İade / Devir Geçmişi</h2>
+        <ul class="list-group list-group-flush">
+          {% for row in transfer_history %}
+          <li class="list-group-item px-0">
+            <div class="fw-semibold">{{ row.action }}</div>
+            <div class="text-muted small">{{ row.created_at }}</div>
+          </li>
+          {% else %}<li class="list-group-item px-0 text-muted">Kayıt yok.</li>{% endfor %}
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if not not_found %}
+<script>
+(() => {
+  const container = document.querySelector('[data-person-key]');
+  if (!container) return;
+  const personKey = container.dataset.personKey;
+  const buttons = container.querySelectorAll('[data-action]');
+  const feedback = document.getElementById('lifecycleActionFeedback');
+
+  buttons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const action = button.dataset.action;
+      const response = await fetch(`{{ url_for('personnel_lifecycle.process_action', person_key='__PERSON__') }}`.replace('__PERSON__', personKey), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      feedback.classList.remove('d-none', 'alert-danger', 'alert-success');
+      if (!response.ok) {
+        feedback.classList.add('alert-danger');
+        feedback.textContent = data.error || 'İşlem başarısız.';
+        return;
+      }
+      feedback.classList.add('alert-success');
+      feedback.textContent = `${data.message} (${data.lifecycle_status})`;
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

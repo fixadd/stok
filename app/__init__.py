@@ -12,7 +12,7 @@ import tempfile
 
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from flask import (
     Flask,
@@ -38,6 +38,7 @@ from openpyxl import Workbook, load_workbook
 
 from .services.authz import current_actor_name, get_active_user, get_system_role, has_system_role, is_safe_redirect_target, set_active_user
 from .utils.parsing import parse_excel_date, parse_int_or_none, sanitize_input_text, sanitize_metadata_payload
+from .personnel_lifecycle import personnel_lifecycle_bp
 from .models import (
     Brand,
     Factory,
@@ -529,6 +530,61 @@ def ensure_user_profile_columns() -> None:
         db.session.commit()
 
 
+
+
+def ensure_user_employment_columns() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+    }
+    altered = False
+
+    if "employment_status" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN employment_status VARCHAR(16)"
+                " NOT NULL DEFAULT 'aktif'"
+            )
+        )
+        altered = True
+
+    if "termination_date" not in existing_columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_date DATE"))
+        altered = True
+
+    if "termination_note" not in existing_columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_note TEXT"))
+        altered = True
+
+    db.session.execute(
+        text(
+            "UPDATE users SET employment_status = 'aktif' "
+            "WHERE employment_status IS NULL OR TRIM(employment_status) = ''"
+        )
+    )
+
+    if altered:
+        db.session.commit()
+
+
+def user_is_active(user: User | None) -> bool:
+    if user is None:
+        return False
+    return (user.employment_status or "aktif").strip().lower() == "aktif"
+
+
+def active_users_query(include_inactive: bool = False):
+    query = User.query
+    if not include_inactive:
+        query = query.filter(func.lower(User.employment_status) == "aktif")
+    return query
+
+
+def active_user_by_id(user_id: int | None, *, include_inactive: bool = False) -> User | None:
+    if user_id is None:
+        return None
+    return active_users_query(include_inactive=include_inactive).filter(User.id == user_id).first()
+
 def ensure_request_line_category_column() -> None:
     existing_columns = {
         row[1]
@@ -728,10 +784,12 @@ def create_app() -> Flask:
     app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
+    app.register_blueprint(personnel_lifecycle_bp)
 
     with app.app_context():
         db.create_all()
         ensure_user_profile_columns()
+        ensure_user_employment_columns()
         ensure_request_line_category_column()
         ensure_stock_item_relation_columns()
         ensure_soft_delete_and_sku_columns()
@@ -816,7 +874,9 @@ def create_app() -> Flask:
             next_param = request.form.get("next") or next_param
 
             user = (
-                User.query.filter(func.lower(User.username) == username.lower()).first()
+                active_users_query()
+                .filter(func.lower(User.username) == username.lower())
+                .first()
                 if username
                 else None
             )
@@ -988,7 +1048,7 @@ def create_app() -> Flask:
         profile_user = get_active_user()
         can_switch_users = has_system_role(profile_user, "superadmin")
         users = (
-            User.query.order_by(User.first_name, User.last_name).all()
+            active_users_query().order_by(User.first_name, User.last_name).all()
             if can_switch_users
             else [profile_user] if profile_user else []
         )
@@ -1008,7 +1068,7 @@ def create_app() -> Flask:
             return redirect(url_for("profile"))
 
         user_id = parse_int_or_none(request.form.get("user_id"))
-        user = User.query.get(user_id) if user_id is not None else None
+        user = active_user_by_id(user_id) if user_id is not None else None
 
         if user is None:
             flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
@@ -1344,6 +1404,7 @@ def create_app() -> Flask:
 
             db.create_all()
             ensure_user_profile_columns()
+            ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
         except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
@@ -1668,6 +1729,7 @@ def create_app() -> Flask:
             db.drop_all()
             db.create_all()
             ensure_user_profile_columns()
+            ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
             if info_upload_dir.exists():
@@ -1751,26 +1813,55 @@ def create_app() -> Flask:
         flash("Yeni kullanıcı başarıyla oluşturuldu.", "success")
         return redirect(url_for("admin_panel"))
 
+
+
+    def _user_assignment_counts(user: User) -> dict[str, int]:
+        person_name = f"{user.first_name} {user.last_name}".strip()
+        inventory_count = InventoryItem.query.filter(
+            InventoryItem.responsible_user_id == user.id
+        ).count()
+        stock_assignment_count = 0
+        if person_name:
+            stock_assignment_count = StockAssignment.query.filter(
+                func.lower(StockAssignment.assigned_to) == person_name.lower()
+            ).count()
+        return {
+            "inventory_count": inventory_count,
+            "stock_assignment_count": stock_assignment_count,
+            "total": inventory_count + stock_assignment_count,
+        }
+
     @app.post("/admin-panel/users/<int:user_id>/delete")
     def delete_user(user_id: int):
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            flash("Kullanıcı silmek için süper admin yetkisi gerekir.", "danger")
-            return redirect(url_for("admin_panel"))
+            return jsonify(json_error("Kullanıcı silmek için süper admin yetkisi gerekir.")), 403
 
-        user = User.query.get(user_id)
+        user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
-            flash("Silinmek istenen kullanıcı bulunamadı.", "danger")
-            return redirect(url_for("admin_panel"))
+            return jsonify(json_error("Silinmek istenen kullanıcı bulunamadı.")), 404
+
+        link_counts = _user_assignment_counts(user)
+        if link_counts["total"] > 0:
+            return (
+                jsonify(
+                    json_error(
+                        "Kullanıcıya bağlı zimmet/atama kayıtları var; önce devir yapın."
+                    )
+                    | {"counts": link_counts}
+                ),
+                400,
+            )
 
         active_user = get_active_user()
         was_active_user = active_user is not None and active_user.id == user.id
 
         display_name = f"{user.first_name} {user.last_name}".strip()
-        if display_name:
-            description = f"{display_name} ({user.username}) kullanıcısı silindi."
-        else:
-            description = f"{user.username} kullanıcısı silindi."
+        description = (
+            f"{display_name} ({user.username}) kullanıcısı silindi."
+            if display_name
+            else f"{user.username} kullanıcısı silindi."
+        )
 
         metadata = {"user_id": user.id, "email": user.email}
 
@@ -1781,8 +1872,7 @@ def create_app() -> Flask:
                 .count()
             )
             if remaining_superadmins == 0:
-                flash("Son süper admin kullanıcısı silinemez.", "warning")
-                return redirect(url_for("admin_panel"))
+                return jsonify(json_error("Son süper admin kullanıcısı silinemez.")), 400
 
         db.session.delete(user)
         record_activity(
@@ -1797,7 +1887,294 @@ def create_app() -> Flask:
         if was_active_user:
             session.clear()
 
-        flash("Kullanıcı başarıyla silindi.", "success")
+        return jsonify({"message": "Kullanıcı başarıyla silindi."})
+
+    def _run_user_transfer(
+        old_user: User,
+        target_user: User,
+        delegate_user: User | None,
+        *,
+        new_department: str | None,
+        new_factory: Factory | None,
+        dry_run: bool,
+    ) -> dict[str, Any]:
+        old_name = f"{old_user.first_name} {old_user.last_name}".strip()
+        target_name = f"{target_user.first_name} {target_user.last_name}".strip()
+        delegate_name = (
+            f"{delegate_user.first_name} {delegate_user.last_name}".strip()
+            if delegate_user
+            else target_name
+        )
+
+        inventory_items = (
+            InventoryItem.query.options(joinedload(InventoryItem.licenses))
+            .filter(InventoryItem.responsible_user_id == old_user.id)
+            .all()
+        )
+        license_rows = [
+            license
+            for item in inventory_items
+            for license in (item.licenses or [])
+        ]
+        open_requests = (
+            RequestOrder.query.join(RequestOrder.group)
+            .filter(RequestGroup.key == "acik")
+            .filter(func.lower(RequestOrder.requested_by) == old_name.lower())
+            .all()
+            if old_name
+            else []
+        )
+
+        preview = {
+            "inventory_count": len(inventory_items),
+            "license_count": len(license_rows),
+            "open_request_count": len(open_requests),
+        }
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": preview,
+                "success": {"inventory": [], "licenses": [], "requests": []},
+                "failed": {"inventory": [], "licenses": [], "requests": []},
+            }
+
+        success = {"inventory": [], "licenses": [], "requests": []}
+        failed = {"inventory": [], "licenses": [], "requests": []}
+
+        for item in inventory_items:
+            try:
+                with db.session.begin_nested():
+                    item.responsible_user_id = target_user.id
+                    if new_department:
+                        item.department = new_department
+                    if new_factory:
+                        item.factory_id = new_factory.id
+                    note = (
+                        f"{old_name} → {target_name} transferi"
+                        + (f" · Vekil: {delegate_name}" if delegate_user else "")
+                    )
+                    add_inventory_event(item, "Personel transferi", note)
+                    db.session.flush()
+                    success["inventory"].append({"id": item.id, "inventory_no": item.inventory_no})
+            except Exception as exc:
+                failed["inventory"].append({"id": item.id, "inventory_no": item.inventory_no, "error": str(exc)})
+
+        for license in license_rows:
+            try:
+                with db.session.begin_nested():
+                    record_activity(
+                        area="lisans",
+                        action="Lisans transfer edildi",
+                        description=f"{license.name} · {old_name} -> {target_name}",
+                        actor=current_actor_name(),
+                        metadata={"license_id": license.id, "item_id": license.item_id},
+                    )
+                    db.session.flush()
+                    success["licenses"].append({"id": license.id, "name": license.name})
+            except Exception as exc:
+                failed["licenses"].append({"id": license.id, "name": license.name, "error": str(exc)})
+
+        for order in open_requests:
+            try:
+                with db.session.begin_nested():
+                    order.requested_by = delegate_name or target_name
+                    if new_department:
+                        order.department = new_department
+                    record_activity(
+                        area="talep",
+                        action="Açık talep transfer edildi",
+                        description=f"{order.order_no} · {old_name} -> {order.requested_by}",
+                        actor=current_actor_name(),
+                        metadata={"order_id": order.id, "order_no": order.order_no},
+                    )
+                    db.session.flush()
+                    success["requests"].append({"id": order.id, "order_no": order.order_no})
+            except Exception as exc:
+                failed["requests"].append({"id": order.id, "order_no": order.order_no, "error": str(exc)})
+
+        record_activity(
+            area="kullanici",
+            action="Personel transferi tamamlandı",
+            description=(
+                f"{old_user.username} -> {target_user.username} | "
+                f"Envanter: {len(success['inventory'])}, Lisans: {len(success['licenses'])}, Talep: {len(success['requests'])}"
+            ),
+            actor=current_actor_name(),
+            metadata={
+                "old_user_id": old_user.id,
+                "target_user_id": target_user.id,
+                "delegate_user_id": delegate_user.id if delegate_user else None,
+                "new_department": new_department,
+                "new_factory_id": new_factory.id if new_factory else None,
+                "failed_counts": {k: len(v) for k, v in failed.items()},
+            },
+        )
+
+        db.session.commit()
+        return {"dry_run": False, "preview": preview, "success": success, "failed": failed}
+
+    @app.post("/api/users/<int:user_id>/transfer")
+    def transfer_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+
+        old_user = active_user_by_id(user_id, include_inactive=True)
+        if old_user is None:
+            return jsonify(json_error("Transfer edilecek kullanıcı bulunamadı.")), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify(json_error("Geçersiz istek gövdesi.")), 400
+
+        target_user_id = parse_int_or_none(data.get("target_user_id"))
+        delegate_user_id = parse_int_or_none(data.get("delegate_user_id"))
+        dry_run = bool(data.get("dry_run", True))
+        new_department = sanitize_input_text(data.get("new_department")) or None
+        new_factory_id = parse_int_or_none(data.get("new_factory_id"))
+
+        target_user = active_user_by_id(target_user_id)
+        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
+
+        if target_user is None:
+            return jsonify(json_error("Yeni sorumlu kullanıcı geçerli değil.")), 400
+        if delegate_user_id and delegate_user is None:
+            return jsonify(json_error("Vekil kullanıcı geçerli değil.")), 400
+        if new_factory_id and new_factory is None:
+            return jsonify(json_error("Yeni fabrika seçimi geçerli değil.")), 400
+
+        report = _run_user_transfer(
+            old_user,
+            target_user,
+            delegate_user,
+            new_department=new_department,
+            new_factory=new_factory,
+            dry_run=dry_run,
+        )
+        return jsonify({
+            "message": "Transfer önizlemesi hazır." if dry_run else "Transfer işlemi tamamlandı.",
+            "report": report,
+        })
+
+    @app.post("/admin-panel/users/transfer")
+    def transfer_user_assignments():
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+
+        old_user_id = parse_int_or_none(request.form.get("old_user_id"))
+        target_user_id = parse_int_or_none(request.form.get("new_user_id"))
+        delegate_user_id = parse_int_or_none(request.form.get("delegate_user_id"))
+        new_department = sanitize_input_text(request.form.get("new_department")) or None
+        new_factory_id = parse_int_or_none(request.form.get("new_factory_id"))
+
+        if old_user_id is None:
+            return jsonify(json_error("Eski kullanıcı seçimi zorunludur.")), 400
+
+        old_user = active_user_by_id(old_user_id, include_inactive=True)
+        target_user = active_user_by_id(target_user_id)
+        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
+
+        if old_user is None:
+            return jsonify(json_error("Transfer edilecek kullanıcı bulunamadı.")), 404
+        if target_user is None:
+            return jsonify(json_error("Yeni sorumlu kullanıcı geçerli değil.")), 400
+        if delegate_user_id and delegate_user is None:
+            return jsonify(json_error("Vekil kullanıcı geçerli değil.")), 400
+        if new_factory_id and new_factory is None:
+            return jsonify(json_error("Yeni fabrika seçimi geçerli değil.")), 400
+
+        report = _run_user_transfer(
+            old_user,
+            target_user,
+            delegate_user,
+            new_department=new_department,
+            new_factory=new_factory,
+            dry_run=False,
+        )
+        return jsonify({"message": "Transfer işlemi tamamlandı.", "report": report})
+
+    @app.post("/admin-panel/users/<int:user_id>/deactivate")
+    def deactivate_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlem için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        user = active_user_by_id(user_id, include_inactive=True)
+        if user is None:
+            flash("Kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        if (user.employment_status or "aktif").lower() == "pasif":
+            flash("Kullanıcı zaten pasif durumda.", "info")
+            return redirect(url_for("admin_panel"))
+
+        if user.system_role == "superadmin":
+            remaining_superadmins = (
+                active_users_query(include_inactive=True)
+                .filter(func.lower(User.system_role) == "superadmin")
+                .filter(func.lower(User.employment_status) == "aktif")
+                .filter(User.id != user.id)
+                .count()
+            )
+            if remaining_superadmins == 0:
+                flash("Son aktif süper admin pasife alınamaz.", "warning")
+                return redirect(url_for("admin_panel"))
+
+        user.employment_status = "pasif"
+        user.termination_note = sanitize_input_text(request.form.get("termination_note"), max_length=512)
+        user.termination_date = date.today()
+
+        record_activity(
+            area="kullanici",
+            action="Kullanici pasife alindi",
+            description=f"{user.username} pasife alındı.",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "employment_status": "pasif"},
+        )
+        db.session.commit()
+
+        if active_user and active_user.id == user.id:
+            session.clear()
+            flash("Hesabınız pasife alındı.", "warning")
+            return redirect(url_for("login"))
+
+        flash("Kullanıcı pasife alındı.", "success")
+        return redirect(url_for("admin_panel"))
+
+    @app.post("/admin-panel/users/<int:user_id>/reactivate")
+    def reactivate_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlem için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        user = active_user_by_id(user_id, include_inactive=True)
+        if user is None:
+            flash("Kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        if (user.employment_status or "aktif").lower() == "aktif":
+            flash("Kullanıcı zaten aktif durumda.", "info")
+            return redirect(url_for("admin_panel"))
+
+        user.employment_status = "aktif"
+        user.termination_note = None
+        user.termination_date = None
+
+        record_activity(
+            area="kullanici",
+            action="Kullanici aktive edildi",
+            description=f"{user.username} yeniden aktifleştirildi.",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "employment_status": "aktif"},
+        )
+        db.session.commit()
+
+        flash("Kullanıcı yeniden aktifleştirildi.", "success")
         return redirect(url_for("admin_panel"))
 
     @app.post("/admin-panel/users/<int:user_id>/role")
@@ -1806,7 +2183,7 @@ def create_app() -> Flask:
         if not has_system_role(active_user, "superadmin"):
             return jsonify(json_error("Bu işlemi yapmak için süper admin yetkisi gerekir.")), 403
 
-        user = User.query.get(user_id)
+        user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
             return jsonify(json_error("Kullanıcı bulunamadı.")), 404
 
@@ -2045,7 +2422,7 @@ def create_app() -> Flask:
         hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2117,7 +2494,7 @@ def create_app() -> Flask:
         hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2176,7 +2553,7 @@ def create_app() -> Flask:
         department = sanitize_input_text(data.get("department"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -3360,7 +3737,7 @@ def load_inventory_payload() -> dict:
             "name": f"{user.first_name} {user.last_name}",
             "department": user.department,
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
     departments_set.update({user["department"] for user in users if user["department"]})
     departments = sorted(departments_set)
@@ -3438,7 +3815,7 @@ def load_printer_payload() -> dict[str, Any]:
             "name": f"{user.first_name} {user.last_name}",
             "department": user.department,
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
 
     inventory_catalog = [
@@ -3475,6 +3852,36 @@ def load_printer_payload() -> dict[str, Any]:
         "status_choices": status_choices,
     }
 
+
+
+
+def lifecycle_flags_payload(status: str | None) -> dict[str, bool]:
+    return {
+        "is_active": status == "aktif",
+        "is_location_changed": status == "yer_degisti",
+        "is_exit_pending": status == "ayrilis_bekliyor",
+        "is_exited": status == "ayrildi",
+    }
+
+
+def get_person_lifecycle_status(person_name: str | None) -> str | None:
+    if not person_name:
+        return None
+    normalized = quote_plus(person_name.strip().lower())
+    if not normalized:
+        return None
+    activity = (
+        ActivityLog.query.filter(
+            ActivityLog.area == "personnel_lifecycle",
+            ActivityLog.metadata_json.isnot(None),
+            ActivityLog.metadata_json["person_key"].as_string() == normalized,
+        )
+        .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
+        .first()
+    )
+    if not activity or not activity.metadata_payload:
+        return None
+    return activity.metadata_payload.get("lifecycle_status")
 
 def normalize_stock_category(value: str | None, fallback: str = "envanter") -> str:
     if not value:
@@ -3575,6 +3982,10 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
 
     allow_operations = status_value == "stokta"
 
+    person_name = metadata.get("responsible") or (item.responsible_user.first_name + " " + item.responsible_user.last_name if item and item.responsible_user else None)
+    person_key = quote_plus((person_name or "").strip().lower()) if person_name else ""
+    lifecycle_status = get_person_lifecycle_status(person_name)
+
     return {
         "id": stock_item.id,
         "sku": stock_item.sku or "",
@@ -3609,6 +4020,9 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         "created_display": created_display,
         "updated_display": updated_display,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
         "allow_operations": allow_operations,
         "serial_no": stock_item.serial_no or (item.serial_no if item else "") or metadata.get("serial_no", ""),
         "warranty_end_date": (stock_item.warranty_end_date.isoformat() if stock_item.warranty_end_date else ""),
@@ -3926,6 +4340,9 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         item.ifs_no,
     ]
 
+    person_key = quote_plus((responsible or "").strip().lower()) if responsible else ""
+    lifecycle_status = get_person_lifecycle_status(responsible)
+
     return {
         "id": item.id,
         "inventory_no": item.inventory_no,
@@ -3953,6 +4370,9 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "history": history,
         "licenses": licenses,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
     }
 
 
@@ -4050,7 +4470,7 @@ def load_license_payload() -> dict[str, Any]:
             "email": user.email,
             "department": user.department or "",
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
 
     inventory_options = [
@@ -4131,6 +4551,9 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
             ]
         )
 
+    person_key = quote_plus((order.requested_by or "").strip().lower()) if order.requested_by else ""
+    lifecycle_status = get_person_lifecycle_status(order.requested_by)
+
     return {
         "id": order.id,
         "order_no": order.order_no,
@@ -4142,6 +4565,9 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
         "total_quantity": sum(line["quantity"] for line in lines_payload),
         "search_index": " ".join(token for token in search_tokens if token).lower(),
         "group_key": group_key,
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
     }
 
 
@@ -4756,7 +5182,7 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
     responsible_names = [
         f"{user.first_name} {user.last_name}".strip()
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
         if (user.first_name or user.last_name)
     ]
 
@@ -4785,7 +5211,7 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
 
 def load_admin_panel_payload() -> dict:
-    users = User.query.order_by(User.first_name, User.last_name).all()
+    users = active_users_query(include_inactive=True).order_by(User.first_name, User.last_name).all()
     stock_support_options = build_stock_support_options()
     department_options = [
         {"id": name, "name": name} for name in stock_support_options.get("departments", [])
