@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block title %}Personel Lifecycle{% endblock %}
+
+{% block main %}
+<div class="d-flex flex-column gap-4">
+  <section class="content-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Personel Lifecycle</h1>
+        <p class="text-muted mb-0">Personel süreç durumları, zimmet özetleri ve açık talepler tek ekranda.</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% for value, label in lifecycle_status_labels.items() %}
+        <span class="badge rounded-pill bg-light text-dark">{{ label }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="content-card shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle" data-paginate data-page-size="20" data-paginate-items="tbody tr">
+        <thead>
+          <tr>
+            <th>Personel</th>
+            <th>Durum</th>
+            <th>Envanter</th>
+            <th>Stok Ataması</th>
+            <th>Açık Talep</th>
+            <th class="text-end">Detay</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for person in people %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ person.name }}</div>
+              <div class="text-muted small">{{ person.department or '—' }}</div>
+            </td>
+            <td><span class="badge rounded-pill {{ person.status_class }}">{{ person.status_label }}</span></td>
+            <td>{{ person.inventory_count }}</td>
+            <td>{{ person.stock_assignment_count }}</td>
+            <td>{{ person.open_request_count }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('personnel_lifecycle.detail_page', person_key=person.person_key) }}">
+                <i class="bi bi-arrow-right"></i>
+                Detay
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted">Kayıt bulunamadı.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

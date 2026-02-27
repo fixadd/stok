@@ -1,3 +1,109 @@
+
+<div class="modal fade" id="userTransferModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Devir Sihirbazı</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Seçili eski kullanıcıdan yeni kullanıcıya envanter, lisans ve açık talepleri toplu devredin.</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory_tracking') }}">Envanter</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('license_tracking') }}">Lisans</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('talep_takip') }}">Talep</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('stock_tracking') }}">Stok</a>
+        </div>
+        <div class="alert d-none" id="userTransferFeedback" role="alert"></div>
+        <div class="alert alert-soft d-none" id="userTransferPreview"></div>
+        <form id="userTransferForm" class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="transferOldUser">Eski Kullanıcı</label>
+            <select class="form-select" id="transferOldUser" name="old_user_id" required>
+              <option value="">Seçiniz</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="transferNewUser">Yeni Kullanıcı (aktif)</label>
+            <select class="form-select" id="transferNewUser" name="new_user_id" required>
+              <option value="">Seçiniz</option>
+              {% for user in users if user.employment_status == 'aktif' %}
+              <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="transferDelegateUser">Yeni Vekil (opsiyonel)</label>
+            <select class="form-select" id="transferDelegateUser" name="delegate_user_id">
+              <option value="">Seçiniz</option>
+              {% for user in users if user.employment_status == 'aktif' %}
+              <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="transferNewDepartment">Yeni Departman (opsiyonel)</label>
+            <input class="form-control" id="transferNewDepartment" name="new_department" placeholder="Örn. IT Operasyon">
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="on" id="transferDepartment" name="update_department">
+              <label class="form-check-label" for="transferDepartment">Departmanı yeni kullanıcıya göre güncelle</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="on" id="transferFactory" name="update_factory">
+              <label class="form-check-label" for="transferFactory">Fabrikayı güncelle</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="transferFactorySelect">Yeni Fabrika</label>
+            <select class="form-select" id="transferFactorySelect" name="new_factory_id">
+              <option value="">Seçiniz</option>
+              {% for factory in product_options.factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-info" id="userTransferPreviewBtn">Önizleme</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+            <button type="submit" class="btn btn-primary">Devri Başlat</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="userDeactivateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Kullanıcıyı Pasife Al</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2"><strong data-user-deactivate-name>Seçili kullanıcı</strong> pasife alınacak.</p>
+        <p class="text-muted small">Pasife alınan kullanıcı sistemde giriş yapamaz ve atama ekranlarında görünmez.</p>
+        <form method="post" action="#" class="d-flex flex-column gap-3">
+          <div>
+            <label class="form-label" for="terminationNote">Ayrılış notu</label>
+            <textarea class="form-control" id="terminationNote" name="termination_note" rows="3" placeholder="Opsiyonel not"></textarea>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+            <button type="submit" class="btn btn-warning">Pasife al</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal fade" id="userCreateModal" tabindex="-1" aria-labelledby="userCreateModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">

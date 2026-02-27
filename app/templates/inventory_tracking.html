@@ -22,6 +22,7 @@
           <i class="bi bi-plus-lg"></i>
           Ekle
         </button>
+        <a class="btn btn-outline-secondary d-flex align-items-center gap-2" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people"></i>Personel Lifecycle</a>
         <button class="btn btn-warning inventory-faulty-button d-flex align-items-center gap-2" type="button">
           <i class="bi bi-exclamation-triangle"></i>
           Arızalı Durum
@@ -86,7 +87,8 @@
               <div class="text-muted small" data-field="department">{{ item.department or '—' }}</div>
             </td>
             <td>
-              <div class="fw-semibold" data-field="responsible">{{ item.responsible or '—' }}</div>
+              <div class="fw-semibold" data-field="responsible">{{ item.responsible or '—' }}
+                {% if item.person_key %}<a class="ms-2 small" href="{{ url_for('personnel_lifecycle.detail_page', person_key=item.person_key) }}">Detay</a>{% endif %}</div>
               <div class="text-muted small" data-field="computer_name">{{ item.computer_name or '—' }}</div>
             </td>
             <td>

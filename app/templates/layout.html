@@ -72,6 +72,14 @@
                 <span>Talep Takip</span>
               </div>
             </a>
+            <a class="nav-link {{ 'active' if active_page == 'personnel_lifecycle' else '' }}" href="{{ url_for('personnel_lifecycle.list_page') }}">
+              <div class="sidebar-card d-flex align-items-center">
+                <div class="icon-wrapper me-3">
+                  <i class="bi bi-people"></i>
+                </div>
+                <span>Personel Lifecycle</span>
+              </div>
+            </a>
             <a class="nav-link {{ 'active' if active_page == 'information' else '' }}" href="{{ url_for('information_list') }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
