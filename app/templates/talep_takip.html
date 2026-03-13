@@ -31,6 +31,7 @@
                     <li><a class="dropdown-item" href="#"><i class="bi bi-download me-2"></i>Dışa Aktar</a></li>
                   </ul>
                 </div>
+                <a class="btn btn-outline-secondary" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people me-2"></i>Personel Lifecycle</a>
                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newRequestModal">
                   <i class="bi bi-plus-circle me-2"></i>Talep Aç
                 </button>
@@ -80,6 +81,7 @@
                       <div>
                         <span class="order-label text-uppercase small text-muted">Sipariş No</span>
                         <h4 class="order-number mb-0">{{ order.order_no }}</h4>
+                        {% if order.person_key %}<a class="small" href="{{ url_for('personnel_lifecycle.detail_page', person_key=order.person_key) }}">{{ order.requested_by }} detayı</a>{% endif %}
                       </div>
                       <div class="order-meta d-flex flex-wrap align-items-center gap-2">
                         <span class="meta-chip"><i class="bi bi-person"></i>{{ order.requested_by }}</span>

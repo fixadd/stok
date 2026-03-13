@@ -20,6 +20,7 @@
           Arızalı Durum
           <span class="stock-faulty-counter">{{ stock_faulty_count }}</span>
         </button>
+        <a class="btn btn-outline-secondary d-flex align-items-center gap-2" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people"></i>Personel Lifecycle</a>
         <a class="btn btn-outline-primary d-flex align-items-center gap-2" href="{{ url_for('admin_panel', section='data-section') }}">
           <i class="bi bi-database"></i>
           Veritabanı İşlemleri
@@ -119,13 +120,12 @@
                 </td>
                 <td data-label="Miktar">
                   <div class="fw-semibold">{{ item.quantity }}</div>
-                  <div class="text-muted small">{{ item.unit }}</div>
+                  <div class="text-muted small">{{ item.unit }}{% if item.is_critical %} · <span class="text-danger fw-semibold">Kritik</span>{% endif %}</div>
                 </td>
                 <td data-label="Kaynak">
                   <div class="fw-semibold">{{ item.source_label }}</div>
-                  {% if item.metadata.factory %}
-                  <div class="text-muted small">{{ item.metadata.factory }}</div>
-                  {% endif %}
+                  {% if item.metadata.factory %}<div class="text-muted small">{{ item.metadata.factory }}</div>{% endif %}
+                  {% if item.person_key %}<a class="small" href="{{ url_for('personnel_lifecycle.detail_page', person_key=item.person_key) }}">Personel detay</a>{% endif %}
                 </td>
                 <td>
                   <span class="stock-status-badge {{ item.status_class }}">{{ item.status_label }}</span>
@@ -303,6 +303,12 @@
                 <dd class="col-sm-7" data-stock-detail="department">—</dd>
                 <dt class="col-sm-5 text-muted small">Not</dt>
                 <dd class="col-sm-7" data-stock-detail="note">—</dd>
+                <dt class="col-sm-5 text-muted small">SKU</dt>
+                <dd class="col-sm-7" data-stock-detail="sku">—</dd>
+                <dt class="col-sm-5 text-muted small">Garanti</dt>
+                <dd class="col-sm-7" data-stock-detail="warranty">—</dd>
+                <dt class="col-sm-5 text-muted small">QR</dt>
+                <dd class="col-sm-7" data-stock-detail="qr"><a href="#" target="_blank" rel="noopener">—</a></dd>
               </dl>
             </div>
           </div>
@@ -473,6 +479,9 @@
         inventory: detailModalEl.querySelector('[data-stock-detail="inventory"]'),
         department: detailModalEl.querySelector('[data-stock-detail="department"]'),
         note: detailModalEl.querySelector('[data-stock-detail="note"]'),
+        sku: detailModalEl.querySelector('[data-stock-detail="sku"]'),
+        warranty: detailModalEl.querySelector('[data-stock-detail="warranty"]'),
+        qr: detailModalEl.querySelector('[data-stock-detail="qr"] a'),
         subtitle: detailModalEl.querySelector('[data-stock-detail="subtitle"]'),
         titleLabel: detailModalEl.querySelector('[data-stock-detail="title"]'),
       }
@@ -884,7 +893,7 @@
       <td data-label="Kategori"><span class="badge bg-soft-primary text-primary">${safeText(item.category_label)}</span></td>
       <td data-label="Miktar">
         <div class="fw-semibold">${safeText(item.quantity)}</div>
-        <div class="text-muted small">${safeText(item.unit)}</div>
+        <div class="text-muted small">${safeText(item.unit)}${item.is_critical ? ' · <span class="text-danger fw-semibold">Kritik</span>' : ''}</div>
       </td>
       <td data-label="Kaynak">
         <div class="fw-semibold">${safeText(item.source_label)}</div>
@@ -940,7 +949,7 @@
           detailFields.category.textContent = safeText(item.category_label);
         }
         if (detailFields.quantity) {
-          detailFields.quantity.textContent = `${safeText(item.quantity)} ${safeText(item.unit)}`;
+          detailFields.quantity.innerHTML = `${safeText(item.quantity)} ${safeText(item.unit)} ${item.is_critical ? '<span class="badge bg-danger-subtle text-danger-emphasis ms-2">Kritik</span>' : ''}`;
         }
         if (detailFields.status) {
           detailFields.status.textContent = safeText(item.status_label);
@@ -957,6 +966,16 @@
         }
         if (detailFields.note) {
           detailFields.note.textContent = safeText(item.note);
+        }
+        if (detailFields.sku) {
+          detailFields.sku.textContent = safeText(item.sku || '');
+        }
+        if (detailFields.warranty) {
+          detailFields.warranty.textContent = safeText(item.warranty_end_date || '');
+        }
+        if (detailFields.qr) {
+          detailFields.qr.href = item.qr_code_url || '#';
+          detailFields.qr.textContent = item.qr_code_url ? 'Görüntüle' : '—';
         }
         if (detailFields.subtitle) {
           detailFields.subtitle.textContent = `${safeText(item.created_display)} · ${safeText(item.updated_display)}`;

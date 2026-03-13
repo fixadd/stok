@@ -159,7 +159,6 @@
     const items = getItems(element, selector);
 
     const availableItems = [];
-    const filteredItems = [];
 
     items.forEach((item) => {
       const isFiltered =
@@ -167,7 +166,7 @@
         item.dataset.searchHidden === 'true' ||
         item.hidden === true;
       if (isFiltered) {
-        filteredItems.push(item);
+        hideItem(item);
       } else {
         availableItems.push(item);
       }
@@ -193,10 +192,6 @@
       } else {
         hideItem(item);
       }
-    });
-
-    filteredItems.forEach((item) => {
-      showItem(item);
     });
 
     if (totalItems === 0) {

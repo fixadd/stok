@@ -58,7 +58,7 @@
           </section>
 
           <section class="row g-4">
-            <div class="col-12">
+            <div class="col-12 col-xl-7">
               <div class="content-card shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <h5 class="mb-0">Son Aktiviteler</h5>
@@ -89,6 +89,24 @@
                   {% else %}
                     <li class="py-3 text-muted fst-italic">Henüz kayıtlı bir aktivite bulunmuyor.</li>
                   {% endif %}
+                </ul>
+              </div>
+            </div>
+            <div class="col-12 col-xl-5">
+              <div class="content-card shadow-sm h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="mb-0">Son Stok Hareketleri</h5>
+                  <a class="btn btn-link btn-sm" href="{{ url_for('stock_tracking') }}">Stok Ekranı</a>
+                </div>
+                <ul class="list-unstyled mb-0">
+                  {% for movement in dashboard.recent_stock_movements %}
+                  <li class="py-2{% if not loop.last %} border-bottom{% endif %}">
+                    <div class="fw-semibold">{{ movement.title }}</div>
+                    <div class="small text-muted">{{ movement.operation }} · {{ movement.created_display }}</div>
+                  </li>
+                  {% else %}
+                  <li class="py-2 text-muted">Henüz stok hareketi yok.</li>
+                  {% endfor %}
                 </ul>
               </div>
             </div>

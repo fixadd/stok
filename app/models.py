@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -33,6 +33,11 @@ class User(db.Model):
     must_change_password = db.Column(
         db.Boolean, nullable=False, default=False, server_default=db.text("0")
     )
+    employment_status = db.Column(
+        db.String(16), nullable=False, default="aktif", server_default=db.text("'aktif'")
+    )
+    termination_date = db.Column(db.Date, nullable=True)
+    termination_note = db.Column(db.Text, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -45,6 +50,9 @@ class User(db.Model):
             "department": self.department,
             "preferred_theme": self.preferred_theme,
             "system_role": self.system_role,
+            "employment_status": self.employment_status,
+            "termination_date": self.termination_date.isoformat() if self.termination_date else None,
+            "termination_note": self.termination_note,
         }
 
 
@@ -365,6 +373,10 @@ class InventoryLicense(db.Model):
 
 class StockItem(db.Model):
     __tablename__ = "stock_items"
+    __table_args__ = (
+        db.Index("ix_stock_items_reference_code", "reference_code"),
+        db.Index("ix_stock_items_title", "title"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     source_type = db.Column(db.String(32), nullable=False, default="manual")
@@ -397,6 +409,8 @@ class StockItem(db.Model):
     )
     status = db.Column(db.String(32), nullable=False, default="stokta")
     note = db.Column(db.String(256), nullable=True)
+    serial_no = db.Column(db.String(128), nullable=True)
+    warranty_end_date = db.Column(db.Date, nullable=True)
     metadata_json = db.Column("metadata", db.JSON, nullable=True)
     is_deleted = db.Column(
         db.Boolean, nullable=False, default=False, server_default=db.text("0")
@@ -425,6 +439,18 @@ class StockItem(db.Model):
         cascade="all, delete-orphan",
         back_populates="stock_item",
         order_by="StockMovement.created_at.desc()",
+    )
+    assignments = db.relationship(
+        "StockAssignment",
+        cascade="all, delete-orphan",
+        back_populates="stock_item",
+        order_by="StockAssignment.created_at.desc()",
+    )
+    audit_trails = db.relationship(
+        "StockAuditLog",
+        cascade="all, delete-orphan",
+        back_populates="stock_item",
+        order_by="StockAuditLog.created_at.desc()",
     )
 
     @property
@@ -504,6 +530,44 @@ class StockMovement(db.Model):
             "new_quantity": self.new_quantity,
             "created_at": self.created_at,
         }
+
+
+class StockAuditLog(db.Model):
+    __tablename__ = "stok_hareketleri"
+
+    id = db.Column(db.Integer, primary_key=True)
+    stock_item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    old_quantity = db.Column(db.Integer, nullable=False)
+    new_quantity = db.Column(db.Integer, nullable=False)
+    performed_by = db.Column(db.String(128), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    stock_item = db.relationship("StockItem", back_populates="audit_trails")
+
+
+class StockAssignment(db.Model):
+    __tablename__ = "stock_assignments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    stock_item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    assigned_to = db.Column(db.String(128), nullable=False)
+    assigned_department = db.Column(db.String(128), nullable=True)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    delivery_note = db.Column(db.String(512), nullable=True)
+    delivered_by = db.Column(db.String(128), nullable=False)
+    delivered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    receipt_code = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    stock_item = db.relationship("StockItem", back_populates="assignments")
 
 
 def find_existing_by_name(model: type[NamedEntityMixin], name: str):

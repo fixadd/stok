@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from collections import Counter
 from uuid import uuid4
 
@@ -12,7 +12,7 @@ import tempfile
 
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from flask import (
     Flask,
@@ -35,7 +35,17 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from openpyxl import Workbook, load_workbook
+from .navigation import build_breadcrumbs, build_sidebar_sections
+from .routes.admin import register_admin_routes
+from .routes.auth import register_auth_routes
+from .routes.inventory import register_inventory_routes
+from .routes.information import register_information_routes
+from .routes.requests import register_request_routes
+from .routes.stock import register_stock_routes
 
+from .services.authz import current_actor_name, get_active_user, get_system_role, has_system_role, is_safe_redirect_target, set_active_user
+from .utils.parsing import parse_excel_date, parse_int_or_none, sanitize_input_text, sanitize_metadata_payload
+from .personnel_lifecycle import personnel_lifecycle_bp
 from .models import (
     Brand,
     Factory,
@@ -64,6 +74,8 @@ from .models import (
     StockLog,
     StockMovement,
     StockUnit,
+    StockAssignment,
+    StockAuditLog,
 )
 
 
@@ -525,6 +537,61 @@ def ensure_user_profile_columns() -> None:
         db.session.commit()
 
 
+
+
+def ensure_user_employment_columns() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+    }
+    altered = False
+
+    if "employment_status" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN employment_status VARCHAR(16)"
+                " NOT NULL DEFAULT 'aktif'"
+            )
+        )
+        altered = True
+
+    if "termination_date" not in existing_columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_date DATE"))
+        altered = True
+
+    if "termination_note" not in existing_columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_note TEXT"))
+        altered = True
+
+    db.session.execute(
+        text(
+            "UPDATE users SET employment_status = 'aktif' "
+            "WHERE employment_status IS NULL OR TRIM(employment_status) = ''"
+        )
+    )
+
+    if altered:
+        db.session.commit()
+
+
+def user_is_active(user: User | None) -> bool:
+    if user is None:
+        return False
+    return (user.employment_status or "aktif").strip().lower() == "aktif"
+
+
+def active_users_query(include_inactive: bool = False):
+    query = User.query
+    if not include_inactive:
+        query = query.filter(func.lower(User.employment_status) == "aktif")
+    return query
+
+
+def active_user_by_id(user_id: int | None, *, include_inactive: bool = False) -> User | None:
+    if user_id is None:
+        return None
+    return active_users_query(include_inactive=include_inactive).filter(User.id == user_id).first()
+
 def ensure_request_line_category_column() -> None:
     existing_columns = {
         row[1]
@@ -601,63 +668,77 @@ def ensure_soft_delete_and_sku_columns() -> None:
         db.session.commit()
 
 
+def ensure_stock_enterprise_columns() -> None:
+    stock_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
+    }
+    altered = False
+
+    column_specs = {
+        "serial_no": "ALTER TABLE stock_items ADD COLUMN serial_no VARCHAR(128)",
+        "warranty_end_date": "ALTER TABLE stock_items ADD COLUMN warranty_end_date DATE",
+    }
+    for column_name, ddl in column_specs.items():
+        if column_name not in stock_columns:
+            db.session.execute(text(ddl))
+            altered = True
+
+    existing_indexes = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA index_list(stock_items)")).fetchall()
+    }
+    index_specs = {
+        "ix_stock_items_reference_code": "CREATE INDEX ix_stock_items_reference_code ON stock_items(reference_code)",
+        "ix_stock_items_title": "CREATE INDEX ix_stock_items_title ON stock_items(title)",
+    }
+    for index_name, ddl in index_specs.items():
+        if index_name not in existing_indexes:
+            db.session.execute(text(ddl))
+            altered = True
+
+    assignment_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "assigned_to": "assigned_to VARCHAR(128) NOT NULL",
+        "assigned_department": "assigned_department VARCHAR(128)",
+        "quantity": "quantity INTEGER NOT NULL DEFAULT 1",
+        "delivery_note": "delivery_note VARCHAR(512)",
+        "delivered_by": "delivered_by VARCHAR(128) NOT NULL",
+        "delivered_at": "delivered_at DATETIME NOT NULL",
+        "receipt_code": "receipt_code VARCHAR(64) NOT NULL UNIQUE",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+    audit_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "old_quantity": "old_quantity INTEGER NOT NULL",
+        "new_quantity": "new_quantity INTEGER NOT NULL",
+        "performed_by": "performed_by VARCHAR(128) NOT NULL",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+
+    def ensure_table(table_name: str, columns: dict[str, str]) -> None:
+        nonlocal altered
+        existing = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+            {"name": table_name},
+        ).scalar()
+        if existing:
+            return
+        ddl = f"CREATE TABLE {table_name} (" + ", ".join(columns.values()) + ")"
+        db.session.execute(text(ddl))
+        altered = True
+
+    ensure_table("stock_assignments", assignment_columns)
+    ensure_table("stok_hareketleri", audit_columns)
+
+    if altered:
+        db.session.commit()
 
 
-def get_active_user() -> User | None:
-    user_id = session.get("active_user_id")
-    if user_id is None:
-        return None
-
-    user: User | None = User.query.get(user_id)
-    if user is None:
-        session.pop("active_user_id", None)
-    return user
 
 
-def set_active_user(user: User | None) -> None:
-    if user is None:
-        session.pop("active_user_id", None)
-    else:
-        session["active_user_id"] = user.id
-
-
-def get_system_role(user: User | None) -> str:
-    if user is None:
-        return "user"
-    role = (user.system_role or "user").strip().lower()
-    return role if role in SYSTEM_ROLE_LEVELS else "user"
-
-
-def has_system_role(user: User | None, required: str) -> bool:
-    required_role = (required or "user").strip().lower()
-    if required_role not in SYSTEM_ROLE_LEVELS:
-        required_role = "user"
-    user_role = get_system_role(user)
-    return SYSTEM_ROLE_LEVELS[user_role] >= SYSTEM_ROLE_LEVELS[required_role]
-
-
-def current_actor_name() -> str:
-    user = get_active_user()
-    if not user:
-        return DEFAULT_EVENT_ACTOR
-    full_name = f"{user.first_name} {user.last_name}".strip()
-    return full_name or user.username or DEFAULT_EVENT_ACTOR
-
-
-def is_safe_redirect_target(target: str | None) -> bool:
-    if not target:
-        return False
-    target = target.strip()
-    if not target:
-        return False
-    if target.startswith("//"):
-        return False
-    parsed_target = urlparse(target)
-    if parsed_target.scheme and parsed_target.scheme not in {"http", "https"}:
-        return False
-    if parsed_target.netloc and parsed_target.netloc != urlparse(request.host_url).netloc:
-        return False
-    return True
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -670,25 +751,9 @@ def split_license_name(value: str) -> tuple[str, str]:
 
 
 
-def sanitize_input_text(value: Any, *, max_length: int = 256) -> str:
-    raw = "" if value is None else str(value)
-    cleaned = raw.replace("\x00", "").strip()
-    cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;")
-    suspicious_sql_tokens = ["--", "/*", "*/", ";", " xp_", " union ", " drop ", " delete "]
-    lowered = f" {cleaned.lower()} "
-    for token in suspicious_sql_tokens:
-        lowered = lowered.replace(token, " ")
-    return lowered.strip()[:max_length]
-
-
-def sanitize_metadata_payload(payload: Any) -> dict[str, str]:
-    if not isinstance(payload, dict):
-        return {}
-    return {
-        sanitize_input_text(key, max_length=64): sanitize_input_text(value, max_length=256)
-        for key, value in payload.items()
-        if sanitize_input_text(key, max_length=64)
-    }
+def build_qr_code_url(sku: str) -> str:
+    code = sanitize_input_text(sku, max_length=64)
+    return f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={code}" if code else ""
 
 
 def generate_unique_sku(prefix: str) -> str:
@@ -726,13 +791,16 @@ def create_app() -> Flask:
     app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
+    app.register_blueprint(personnel_lifecycle_bp)
 
     with app.app_context():
         db.create_all()
         ensure_user_profile_columns()
+        ensure_user_employment_columns()
         ensure_request_line_category_column()
         ensure_stock_item_relation_columns()
         ensure_soft_delete_and_sku_columns()
+        ensure_stock_enterprise_columns()
         seed_initial_data()
 
     @app.before_request
@@ -780,6 +848,7 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_profile_preferences() -> dict[str, Any]:
         user = get_active_user()
+        sidebar_sections = build_sidebar_sections(user, None, request.endpoint)
         theme_key = "varsayilan"
         if user and user.preferred_theme in THEME_OPTIONS:
             theme_key = user.preferred_theme
@@ -794,198 +863,73 @@ def create_app() -> Flask:
             "system_role_labels": SYSTEM_ROLE_LABELS,
             "is_admin_user": has_system_role(user, "admin"),
             "is_super_admin": has_system_role(user, "superadmin"),
+            "sidebar_sections": sidebar_sections,
+            "build_breadcrumbs": build_breadcrumbs,
         }
 
-    @app.route("/giris", methods=["GET", "POST"])
-    def login():
-        if get_active_user():
-            next_param = request.args.get("next")
-            if next_param and is_safe_redirect_target(next_param):
-                return redirect(next_param)
-            return redirect(url_for("index"))
+    register_auth_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "is_safe_redirect_target": is_safe_redirect_target,
+            "active_users_query": active_users_query,
+            "User": User,
+            "func": func,
+            "set_active_user": set_active_user,
+            "record_activity": record_activity,
+            "current_actor_name": current_actor_name,
+            "db": db,
+        },
+    )
+    register_inventory_routes(
+        app,
+        {
+            "load_recent_activity": load_recent_activity,
+            "load_dashboard_metrics": load_dashboard_metrics,
+            "load_inventory_payload": load_inventory_payload,
+            "load_license_payload": load_license_payload,
+            "load_printer_payload": load_printer_payload,
+        },
+    )
+    register_stock_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "has_system_role": has_system_role,
+            "load_stock_payload": load_stock_payload,
+            "load_scrap_inventory_payload": load_scrap_inventory_payload,
+        },
+    )
 
-        error: str | None = None
-        next_param = request.args.get("next")
+    register_admin_routes(
+        app,
+        {
+            "get_active_user": get_active_user,
+            "has_system_role": has_system_role,
+            "load_admin_panel_payload": load_admin_panel_payload,
+            "SYSTEM_ROLE_LABELS": SYSTEM_ROLE_LABELS,
+        },
+    )
+    register_request_routes(
+        app,
+        {
+            "load_request_groups": load_request_groups,
+        },
+    )
 
-        if request.method == "POST":
-            username = (request.form.get("username") or "").strip()
-            password = (request.form.get("password") or "").strip()
-            next_param = request.form.get("next") or next_param
-
-            user = (
-                User.query.filter(func.lower(User.username) == username.lower()).first()
-                if username
-                else None
-            )
-
-            if user and user.password_hash and check_password_hash(user.password_hash, password):
-                session.clear()
-                session.permanent = True
-                set_active_user(user)
-                record_activity(
-                    area="auth",
-                    action="Oturum açıldı",
-                    actor=current_actor_name(),
-                    metadata={"user_id": user.id, "username": user.username},
-                )
-                db.session.commit()
-                target = next_param if is_safe_redirect_target(next_param) else None
-                if user.must_change_password:
-                    session.pop("post_password_change_redirect", None)
-                    if target:
-                        session["post_password_change_redirect"] = target
-                    return redirect(url_for("force_password_change"))
-                session.pop("post_password_change_redirect", None)
-                return redirect(target or url_for("index"))
-
-            error = "Kullanıcı adı veya şifre hatalı."
-
-        return render_template(
-            "login.html",
-            error=error,
-            next_target=next_param if is_safe_redirect_target(next_param) else "",
-        )
-
-    @app.route("/ilk-giris-sifre", methods=["GET", "POST"])
-    def force_password_change():
-        user = get_active_user()
-        if user is None:
-            flash("Lütfen önce oturum açın.", "warning")
-            return redirect(url_for("login"))
-
-        if not user.must_change_password:
-            target = session.pop("post_password_change_redirect", None)
-            if target and is_safe_redirect_target(target):
-                return redirect(target)
-            target = None
-        else:
-            query_target = request.args.get("next")
-            if query_target and is_safe_redirect_target(query_target):
-                session["post_password_change_redirect"] = query_target
-                target = query_target
-            else:
-                target = session.get("post_password_change_redirect")
-
-        error: str | None = None
-
-        if request.method == "POST":
-            new_password = (request.form.get("new_password") or "").strip()
-            confirm_password = (request.form.get("confirm_password") or "").strip()
-            form_target = request.form.get("next")
-            if form_target and is_safe_redirect_target(form_target):
-                session["post_password_change_redirect"] = form_target
-                target = form_target
-
-            if not new_password or not confirm_password:
-                error = "Lütfen yeni şifrenizi iki alana da yazın."
-            elif new_password != confirm_password:
-                error = "Yeni şifre ve doğrulama alanı eşleşmiyor."
-            elif len(new_password) < 8:
-                error = "Şifre en az 8 karakter olmalıdır."
-            elif new_password.lower() == user.username.lower():
-                error = "Şifreniz kullanıcı adınızla aynı olamaz."
-            else:
-                user.password_hash = generate_password_hash(new_password)
-                user.must_change_password = False
-                record_activity(
-                    area="auth",
-                    action="İlk giriş şifresi güncellendi",
-                    actor=current_actor_name(),
-                    metadata={"user_id": user.id, "username": user.username},
-                )
-                db.session.commit()
-                flash("Yeni şifreniz kaydedildi.", "success")
-                session.pop("post_password_change_redirect", None)
-                if target and is_safe_redirect_target(target):
-                    return redirect(target)
-                return redirect(url_for("index"))
-
-        return render_template(
-            "force_password_change.html",
-            error=error,
-            next_target=target if target and is_safe_redirect_target(target) else "",
-        )
-
-    @app.route("/cikis")
-    def logout():
-        user = get_active_user()
-        session.clear()
-        if user:
-            record_activity(
-                area="auth",
-                action="Oturum kapatıldı",
-                actor=f"{user.first_name} {user.last_name}".strip() or user.username,
-                metadata={"user_id": user.id, "username": user.username},
-            )
-            db.session.commit()
-        flash("Oturum kapatıldı.", "info")
-        return redirect(url_for("login"))
-
-    @app.route("/")
-    def index():
-        recent_activity = load_recent_activity()
-        dashboard = load_dashboard_metrics()
-        return render_template(
-            "index.html",
-            active_page="index",
-            recent_activity=recent_activity,
-            dashboard=dashboard,
-        )
-
-    @app.route("/envanter-takip")
-    def inventory_tracking():
-        payload = load_inventory_payload()
-        return render_template(
-            "inventory_tracking.html",
-            active_page="inventory_tracking",
-            **payload,
-        )
-
-    @app.route("/lisans-takip")
-    def license_tracking():
-        payload = load_license_payload()
-        return render_template(
-            "license_tracking.html",
-            active_page="license_tracking",
-            **payload,
-        )
-
-    @app.route("/yazici-takip")
-    def printer_tracking():
-        payload = load_printer_payload()
-        return render_template(
-            "printer_tracking.html",
-            active_page="printer_tracking",
-            **payload,
-        )
-
-    @app.route("/stok-takip")
-    def stock_tracking():
-        payload = load_stock_payload()
-        return render_template(
-            "stock_tracking.html",
-            active_page="stock_tracking",
-            can_manage_stock_data=has_system_role(get_active_user(), "admin"),
-            **payload,
-        )
-
-    @app.route("/hurdalar")
-    def scrap_inventory_page():
-        payload = load_scrap_inventory_payload()
-        can_restore = has_system_role(get_active_user(), "superadmin")
-        return render_template(
-            "scrap_inventory.html",
-            active_page="scrap_inventory",
-            can_restore_scrap=can_restore,
-            **payload,
-        )
+    register_information_routes(
+        app,
+        {
+            "load_information_payload": load_information_payload,
+        },
+    )
 
     @app.route("/profil")
     def profile():
         profile_user = get_active_user()
         can_switch_users = has_system_role(profile_user, "superadmin")
         users = (
-            User.query.order_by(User.first_name, User.last_name).all()
+            active_users_query().order_by(User.first_name, User.last_name).all()
             if can_switch_users
             else [profile_user] if profile_user else []
         )
@@ -1005,7 +949,7 @@ def create_app() -> Flask:
             return redirect(url_for("profile"))
 
         user_id = parse_int_or_none(request.form.get("user_id"))
-        user = User.query.get(user_id) if user_id is not None else None
+        user = active_user_by_id(user_id) if user_id is not None else None
 
         if user is None:
             flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
@@ -1094,15 +1038,6 @@ def create_app() -> Flask:
         if content_type:
             response.headers["Content-Type"] = content_type
         return response
-
-    @app.route("/bilgiler")
-    def information_list():
-        payload = load_information_payload()
-        return render_template(
-            "information/list.html",
-            active_page="information",
-            **payload,
-        )
 
     @app.post("/bilgiler")
     def create_information_entry():
@@ -1245,25 +1180,6 @@ def create_app() -> Flask:
             mode="edit",
         )
 
-    @app.route("/admin-panel")
-    def admin_panel():
-        user = get_active_user()
-        if not has_system_role(user, "admin"):
-            flash("Admin paneline erişmek için yetkiniz yok.", "danger")
-            return redirect(url_for("index"))
-        admin_payload = load_admin_panel_payload()
-        return render_template(
-            "admin_panel.html",
-            active_page="admin_panel",
-            can_manage_users=has_system_role(user, "superadmin"),
-            can_manage_data=has_system_role(user, "admin"),
-            system_role_choices=[
-                {"value": key, "label": SYSTEM_ROLE_LABELS[key]}
-                for key in ("user", "admin")
-            ],
-            **admin_payload,
-        )
-
     @app.get("/admin-panel/data/export")
     def export_database():
         user = get_active_user()
@@ -1341,6 +1257,7 @@ def create_app() -> Flask:
 
             db.create_all()
             ensure_user_profile_columns()
+            ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
         except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
@@ -1398,6 +1315,10 @@ def create_app() -> Flask:
             "Kaynak",
             "Referans",
             "Not",
+            "Seri No",
+            "Garanti Bitiş",
+            "SKU",
+            "QR URL",
             "Fabrika",
             "Departman",
             "Sorumlu",
@@ -1422,6 +1343,10 @@ def create_app() -> Flask:
                     serialized.get("source_label"),
                     serialized.get("reference_code"),
                     serialized.get("note"),
+                    serialized.get("serial_no"),
+                    serialized.get("warranty_end_date"),
+                    serialized.get("sku"),
+                    serialized.get("qr_code_url"),
                     metadata.get("factory"),
                     metadata.get("department"),
                     metadata.get("responsible"),
@@ -1505,6 +1430,8 @@ def create_app() -> Flask:
                 "kaynak": "source_type",
                 "referans": "reference_code",
                 "not": "note",
+                "seri no": "serial_no",
+                "garanti bitiş": "warranty_end_date",
                 "fabrika": "factory",
                 "departman": "department",
                 "sorumlu": "responsible",
@@ -1569,6 +1496,8 @@ def create_app() -> Flask:
                 unit_value = str(pick("unit") or "").strip() or None
                 reference_code = str(pick("reference_code") or "").strip() or None
                 note_value = str(pick("note") or "").strip() or None
+                serial_no = str(pick("serial_no") or "").strip() or None
+                warranty_end_date = parse_excel_date(pick("warranty_end_date"))
 
                 metadata = {
                     "hardware_type": str(pick("hardware_type") or "").strip() or None,
@@ -1588,6 +1517,9 @@ def create_app() -> Flask:
                     status=status_value,
                     reference_code=reference_code,
                     note=note_value,
+                    sku=generate_unique_sku("STK"),
+                    serial_no=serial_no,
+                    warranty_end_date=warranty_end_date,
                 )
                 stock_item.metadata_payload = {k: v for k, v in metadata.items() if v}
                 db.session.add(stock_item)
@@ -1600,6 +1532,12 @@ def create_app() -> Flask:
                     performed_by=current_actor,
                     quantity_change=quantity,
                     note=note_value,
+                )
+                record_stock_audit(
+                    stock_item,
+                    old_quantity=0,
+                    new_quantity=quantity,
+                    performed_by=current_actor,
                 )
 
                 imported_count += 1
@@ -1644,6 +1582,7 @@ def create_app() -> Flask:
             db.drop_all()
             db.create_all()
             ensure_user_profile_columns()
+            ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
             if info_upload_dir.exists():
@@ -1727,26 +1666,55 @@ def create_app() -> Flask:
         flash("Yeni kullanıcı başarıyla oluşturuldu.", "success")
         return redirect(url_for("admin_panel"))
 
+
+
+    def _user_assignment_counts(user: User) -> dict[str, int]:
+        person_name = f"{user.first_name} {user.last_name}".strip()
+        inventory_count = InventoryItem.query.filter(
+            InventoryItem.responsible_user_id == user.id
+        ).count()
+        stock_assignment_count = 0
+        if person_name:
+            stock_assignment_count = StockAssignment.query.filter(
+                func.lower(StockAssignment.assigned_to) == person_name.lower()
+            ).count()
+        return {
+            "inventory_count": inventory_count,
+            "stock_assignment_count": stock_assignment_count,
+            "total": inventory_count + stock_assignment_count,
+        }
+
     @app.post("/admin-panel/users/<int:user_id>/delete")
     def delete_user(user_id: int):
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            flash("Kullanıcı silmek için süper admin yetkisi gerekir.", "danger")
-            return redirect(url_for("admin_panel"))
+            return jsonify(json_error("Kullanıcı silmek için süper admin yetkisi gerekir.")), 403
 
-        user = User.query.get(user_id)
+        user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
-            flash("Silinmek istenen kullanıcı bulunamadı.", "danger")
-            return redirect(url_for("admin_panel"))
+            return jsonify(json_error("Silinmek istenen kullanıcı bulunamadı.")), 404
+
+        link_counts = _user_assignment_counts(user)
+        if link_counts["total"] > 0:
+            return (
+                jsonify(
+                    json_error(
+                        "Kullanıcıya bağlı zimmet/atama kayıtları var; önce devir yapın."
+                    )
+                    | {"counts": link_counts}
+                ),
+                400,
+            )
 
         active_user = get_active_user()
         was_active_user = active_user is not None and active_user.id == user.id
 
         display_name = f"{user.first_name} {user.last_name}".strip()
-        if display_name:
-            description = f"{display_name} ({user.username}) kullanıcısı silindi."
-        else:
-            description = f"{user.username} kullanıcısı silindi."
+        description = (
+            f"{display_name} ({user.username}) kullanıcısı silindi."
+            if display_name
+            else f"{user.username} kullanıcısı silindi."
+        )
 
         metadata = {"user_id": user.id, "email": user.email}
 
@@ -1757,8 +1725,7 @@ def create_app() -> Flask:
                 .count()
             )
             if remaining_superadmins == 0:
-                flash("Son süper admin kullanıcısı silinemez.", "warning")
-                return redirect(url_for("admin_panel"))
+                return jsonify(json_error("Son süper admin kullanıcısı silinemez.")), 400
 
         db.session.delete(user)
         record_activity(
@@ -1773,7 +1740,294 @@ def create_app() -> Flask:
         if was_active_user:
             session.clear()
 
-        flash("Kullanıcı başarıyla silindi.", "success")
+        return jsonify({"message": "Kullanıcı başarıyla silindi."})
+
+    def _run_user_transfer(
+        old_user: User,
+        target_user: User,
+        delegate_user: User | None,
+        *,
+        new_department: str | None,
+        new_factory: Factory | None,
+        dry_run: bool,
+    ) -> dict[str, Any]:
+        old_name = f"{old_user.first_name} {old_user.last_name}".strip()
+        target_name = f"{target_user.first_name} {target_user.last_name}".strip()
+        delegate_name = (
+            f"{delegate_user.first_name} {delegate_user.last_name}".strip()
+            if delegate_user
+            else target_name
+        )
+
+        inventory_items = (
+            InventoryItem.query.options(joinedload(InventoryItem.licenses))
+            .filter(InventoryItem.responsible_user_id == old_user.id)
+            .all()
+        )
+        license_rows = [
+            license
+            for item in inventory_items
+            for license in (item.licenses or [])
+        ]
+        open_requests = (
+            RequestOrder.query.join(RequestOrder.group)
+            .filter(RequestGroup.key == "acik")
+            .filter(func.lower(RequestOrder.requested_by) == old_name.lower())
+            .all()
+            if old_name
+            else []
+        )
+
+        preview = {
+            "inventory_count": len(inventory_items),
+            "license_count": len(license_rows),
+            "open_request_count": len(open_requests),
+        }
+        if dry_run:
+            return {
+                "dry_run": True,
+                "preview": preview,
+                "success": {"inventory": [], "licenses": [], "requests": []},
+                "failed": {"inventory": [], "licenses": [], "requests": []},
+            }
+
+        success = {"inventory": [], "licenses": [], "requests": []}
+        failed = {"inventory": [], "licenses": [], "requests": []}
+
+        for item in inventory_items:
+            try:
+                with db.session.begin_nested():
+                    item.responsible_user_id = target_user.id
+                    if new_department:
+                        item.department = new_department
+                    if new_factory:
+                        item.factory_id = new_factory.id
+                    note = (
+                        f"{old_name} → {target_name} transferi"
+                        + (f" · Vekil: {delegate_name}" if delegate_user else "")
+                    )
+                    add_inventory_event(item, "Personel transferi", note)
+                    db.session.flush()
+                    success["inventory"].append({"id": item.id, "inventory_no": item.inventory_no})
+            except Exception as exc:
+                failed["inventory"].append({"id": item.id, "inventory_no": item.inventory_no, "error": str(exc)})
+
+        for license in license_rows:
+            try:
+                with db.session.begin_nested():
+                    record_activity(
+                        area="lisans",
+                        action="Lisans transfer edildi",
+                        description=f"{license.name} · {old_name} -> {target_name}",
+                        actor=current_actor_name(),
+                        metadata={"license_id": license.id, "item_id": license.item_id},
+                    )
+                    db.session.flush()
+                    success["licenses"].append({"id": license.id, "name": license.name})
+            except Exception as exc:
+                failed["licenses"].append({"id": license.id, "name": license.name, "error": str(exc)})
+
+        for order in open_requests:
+            try:
+                with db.session.begin_nested():
+                    order.requested_by = delegate_name or target_name
+                    if new_department:
+                        order.department = new_department
+                    record_activity(
+                        area="talep",
+                        action="Açık talep transfer edildi",
+                        description=f"{order.order_no} · {old_name} -> {order.requested_by}",
+                        actor=current_actor_name(),
+                        metadata={"order_id": order.id, "order_no": order.order_no},
+                    )
+                    db.session.flush()
+                    success["requests"].append({"id": order.id, "order_no": order.order_no})
+            except Exception as exc:
+                failed["requests"].append({"id": order.id, "order_no": order.order_no, "error": str(exc)})
+
+        record_activity(
+            area="kullanici",
+            action="Personel transferi tamamlandı",
+            description=(
+                f"{old_user.username} -> {target_user.username} | "
+                f"Envanter: {len(success['inventory'])}, Lisans: {len(success['licenses'])}, Talep: {len(success['requests'])}"
+            ),
+            actor=current_actor_name(),
+            metadata={
+                "old_user_id": old_user.id,
+                "target_user_id": target_user.id,
+                "delegate_user_id": delegate_user.id if delegate_user else None,
+                "new_department": new_department,
+                "new_factory_id": new_factory.id if new_factory else None,
+                "failed_counts": {k: len(v) for k, v in failed.items()},
+            },
+        )
+
+        db.session.commit()
+        return {"dry_run": False, "preview": preview, "success": success, "failed": failed}
+
+    @app.post("/api/users/<int:user_id>/transfer")
+    def transfer_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+
+        old_user = active_user_by_id(user_id, include_inactive=True)
+        if old_user is None:
+            return jsonify(json_error("Transfer edilecek kullanıcı bulunamadı.")), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify(json_error("Geçersiz istek gövdesi.")), 400
+
+        target_user_id = parse_int_or_none(data.get("target_user_id"))
+        delegate_user_id = parse_int_or_none(data.get("delegate_user_id"))
+        dry_run = bool(data.get("dry_run", True))
+        new_department = sanitize_input_text(data.get("new_department")) or None
+        new_factory_id = parse_int_or_none(data.get("new_factory_id"))
+
+        target_user = active_user_by_id(target_user_id)
+        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
+
+        if target_user is None:
+            return jsonify(json_error("Yeni sorumlu kullanıcı geçerli değil.")), 400
+        if delegate_user_id and delegate_user is None:
+            return jsonify(json_error("Vekil kullanıcı geçerli değil.")), 400
+        if new_factory_id and new_factory is None:
+            return jsonify(json_error("Yeni fabrika seçimi geçerli değil.")), 400
+
+        report = _run_user_transfer(
+            old_user,
+            target_user,
+            delegate_user,
+            new_department=new_department,
+            new_factory=new_factory,
+            dry_run=dry_run,
+        )
+        return jsonify({
+            "message": "Transfer önizlemesi hazır." if dry_run else "Transfer işlemi tamamlandı.",
+            "report": report,
+        })
+
+    @app.post("/admin-panel/users/transfer")
+    def transfer_user_assignments():
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+
+        old_user_id = parse_int_or_none(request.form.get("old_user_id"))
+        target_user_id = parse_int_or_none(request.form.get("new_user_id"))
+        delegate_user_id = parse_int_or_none(request.form.get("delegate_user_id"))
+        new_department = sanitize_input_text(request.form.get("new_department")) or None
+        new_factory_id = parse_int_or_none(request.form.get("new_factory_id"))
+
+        if old_user_id is None:
+            return jsonify(json_error("Eski kullanıcı seçimi zorunludur.")), 400
+
+        old_user = active_user_by_id(old_user_id, include_inactive=True)
+        target_user = active_user_by_id(target_user_id)
+        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
+
+        if old_user is None:
+            return jsonify(json_error("Transfer edilecek kullanıcı bulunamadı.")), 404
+        if target_user is None:
+            return jsonify(json_error("Yeni sorumlu kullanıcı geçerli değil.")), 400
+        if delegate_user_id and delegate_user is None:
+            return jsonify(json_error("Vekil kullanıcı geçerli değil.")), 400
+        if new_factory_id and new_factory is None:
+            return jsonify(json_error("Yeni fabrika seçimi geçerli değil.")), 400
+
+        report = _run_user_transfer(
+            old_user,
+            target_user,
+            delegate_user,
+            new_department=new_department,
+            new_factory=new_factory,
+            dry_run=False,
+        )
+        return jsonify({"message": "Transfer işlemi tamamlandı.", "report": report})
+
+    @app.post("/admin-panel/users/<int:user_id>/deactivate")
+    def deactivate_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlem için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        user = active_user_by_id(user_id, include_inactive=True)
+        if user is None:
+            flash("Kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        if (user.employment_status or "aktif").lower() == "pasif":
+            flash("Kullanıcı zaten pasif durumda.", "info")
+            return redirect(url_for("admin_panel"))
+
+        if user.system_role == "superadmin":
+            remaining_superadmins = (
+                active_users_query(include_inactive=True)
+                .filter(func.lower(User.system_role) == "superadmin")
+                .filter(func.lower(User.employment_status) == "aktif")
+                .filter(User.id != user.id)
+                .count()
+            )
+            if remaining_superadmins == 0:
+                flash("Son aktif süper admin pasife alınamaz.", "warning")
+                return redirect(url_for("admin_panel"))
+
+        user.employment_status = "pasif"
+        user.termination_note = sanitize_input_text(request.form.get("termination_note"), max_length=512)
+        user.termination_date = date.today()
+
+        record_activity(
+            area="kullanici",
+            action="Kullanici pasife alindi",
+            description=f"{user.username} pasife alındı.",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "employment_status": "pasif"},
+        )
+        db.session.commit()
+
+        if active_user and active_user.id == user.id:
+            session.clear()
+            flash("Hesabınız pasife alındı.", "warning")
+            return redirect(url_for("login"))
+
+        flash("Kullanıcı pasife alındı.", "success")
+        return redirect(url_for("admin_panel"))
+
+    @app.post("/admin-panel/users/<int:user_id>/reactivate")
+    def reactivate_user(user_id: int):
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlem için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        user = active_user_by_id(user_id, include_inactive=True)
+        if user is None:
+            flash("Kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("admin_panel"))
+
+        if (user.employment_status or "aktif").lower() == "aktif":
+            flash("Kullanıcı zaten aktif durumda.", "info")
+            return redirect(url_for("admin_panel"))
+
+        user.employment_status = "aktif"
+        user.termination_note = None
+        user.termination_date = None
+
+        record_activity(
+            area="kullanici",
+            action="Kullanici aktive edildi",
+            description=f"{user.username} yeniden aktifleştirildi.",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "employment_status": "aktif"},
+        )
+        db.session.commit()
+
+        flash("Kullanıcı yeniden aktifleştirildi.", "success")
         return redirect(url_for("admin_panel"))
 
     @app.post("/admin-panel/users/<int:user_id>/role")
@@ -1782,7 +2036,7 @@ def create_app() -> Flask:
         if not has_system_role(active_user, "superadmin"):
             return jsonify(json_error("Bu işlemi yapmak için süper admin yetkisi gerekir.")), 403
 
-        user = User.query.get(user_id)
+        user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
             return jsonify(json_error("Kullanıcı bulunamadı.")), 404
 
@@ -2021,7 +2275,7 @@ def create_app() -> Flask:
         hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2093,7 +2347,7 @@ def create_app() -> Flask:
         hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2152,7 +2406,7 @@ def create_app() -> Flask:
         department = sanitize_input_text(data.get("department"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
-        responsible_user = User.query.get(responsible_user_id) if responsible_user_id else None
+        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2393,6 +2647,8 @@ def create_app() -> Flask:
         actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
         reference_code = sanitize_input_text(data.get("reference_code")) or None
         unit = sanitize_input_text(data.get("unit"), max_length=32) or None
+        serial_no = sanitize_input_text(data.get("serial_no"), max_length=128) or None
+        warranty_end_date = parse_excel_date(data.get("warranty_end_date"))
 
         try:
             metadata_payload = prepare_stock_metadata(
@@ -2426,6 +2682,8 @@ def create_app() -> Flask:
                 unit_id=unit_ref.id if unit_ref else None,
                 note=note or None,
                 sku=generate_unique_sku("STK"),
+                serial_no=serial_no,
+                warranty_end_date=warranty_end_date,
             )
             stock_item.metadata_payload = {
                 k: v for k, v in metadata_payload.items() if v
@@ -2447,6 +2705,12 @@ def create_app() -> Flask:
                 old_quantity=0,
                 new_quantity=stock_item.quantity,
                 user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=0,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
@@ -2519,6 +2783,7 @@ def create_app() -> Flask:
         remaining_quantity = max(0, previous_quantity - quantity)
 
         active_user = get_active_user()
+        remaining_item_id: int | None = None
         with db.session.begin():
             stock_item.quantity = quantity
             stock_item.metadata_payload = combined_metadata or None
@@ -2574,6 +2839,24 @@ def create_app() -> Flask:
                 new_quantity=stock_item.quantity,
                 user=active_user,
             )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
+            )
+            receipt_code = generate_unique_sku("ZIM")
+            assignment_record = StockAssignment(
+                stock_item_id=stock_item.id,
+                assigned_to=(stock_item.metadata_payload or {}).get("responsible") or "Belirtilmedi",
+                assigned_department=(stock_item.metadata_payload or {}).get("department") or None,
+                quantity=quantity,
+                delivery_note=note or None,
+                delivered_by=actor,
+                delivered_at=datetime.utcnow(),
+                receipt_code=receipt_code,
+            )
+            db.session.add(assignment_record)
             if remaining_item:
                 record_stock_movement(
                     remaining_item,
@@ -2653,6 +2936,12 @@ def create_app() -> Flask:
                 new_quantity=stock_item.quantity,
                 user=active_user,
             )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
@@ -2704,6 +2993,12 @@ def create_app() -> Flask:
                 old_quantity=previous_quantity,
                 new_quantity=0,
                 user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=0,
+                performed_by=actor,
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
@@ -3219,16 +3514,6 @@ def create_app() -> Flask:
         ]
         return jsonify({"items": names})
 
-    @app.route("/talep-takip")
-    def talep_takip():
-        payload = load_request_groups()
-
-        return render_template(
-            "talep_takip.html",
-            active_page="talep_takip",
-            **payload,
-        )
-
     @app.route("/islem-kayitlari")
     def activity_logs():
         if not has_system_role(get_active_user(), "admin"):
@@ -3295,7 +3580,7 @@ def load_inventory_payload() -> dict:
             "name": f"{user.first_name} {user.last_name}",
             "department": user.department,
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
     departments_set.update({user["department"] for user in users if user["department"]})
     departments = sorted(departments_set)
@@ -3373,7 +3658,7 @@ def load_printer_payload() -> dict[str, Any]:
             "name": f"{user.first_name} {user.last_name}",
             "department": user.department,
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
 
     inventory_catalog = [
@@ -3410,6 +3695,36 @@ def load_printer_payload() -> dict[str, Any]:
         "status_choices": status_choices,
     }
 
+
+
+
+def lifecycle_flags_payload(status: str | None) -> dict[str, bool]:
+    return {
+        "is_active": status == "aktif",
+        "is_location_changed": status == "yer_degisti",
+        "is_exit_pending": status == "ayrilis_bekliyor",
+        "is_exited": status == "ayrildi",
+    }
+
+
+def get_person_lifecycle_status(person_name: str | None) -> str | None:
+    if not person_name:
+        return None
+    normalized = quote_plus(person_name.strip().lower())
+    if not normalized:
+        return None
+    activity = (
+        ActivityLog.query.filter(
+            ActivityLog.area == "personnel_lifecycle",
+            ActivityLog.metadata_json.isnot(None),
+            ActivityLog.metadata_json["person_key"].as_string() == normalized,
+        )
+        .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
+        .first()
+    )
+    if not activity or not activity.metadata_payload:
+        return None
+    return activity.metadata_payload.get("lifecycle_status")
 
 def normalize_stock_category(value: str | None, fallback: str = "envanter") -> str:
     if not value:
@@ -3510,6 +3825,10 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
 
     allow_operations = status_value == "stokta"
 
+    person_name = metadata.get("responsible") or (item.responsible_user.first_name + " " + item.responsible_user.last_name if item and item.responsible_user else None)
+    person_key = quote_plus((person_name or "").strip().lower()) if person_name else ""
+    lifecycle_status = get_person_lifecycle_status(person_name)
+
     return {
         "id": stock_item.id,
         "sku": stock_item.sku or "",
@@ -3544,7 +3863,14 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         "created_display": created_display,
         "updated_display": updated_display,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
         "allow_operations": allow_operations,
+        "serial_no": stock_item.serial_no or (item.serial_no if item else "") or metadata.get("serial_no", ""),
+        "warranty_end_date": (stock_item.warranty_end_date.isoformat() if stock_item.warranty_end_date else ""),
+        "qr_code_url": build_qr_code_url(stock_item.sku or ""),
+        "is_critical": status_value == "stokta" and int(stock_item.quantity or 0) < 5,
     }
 
 
@@ -3661,6 +3987,8 @@ def load_stock_payload() -> dict[str, Any]:
 
     support_options = build_stock_support_options()
 
+    assignments = StockAssignment.query.order_by(StockAssignment.created_at.desc()).limit(100).all()
+
     return {
         "stock_items": stock_items,
         "stock_logs": [serialize_stock_log(log) for log in logs],
@@ -3670,6 +3998,20 @@ def load_stock_payload() -> dict[str, Any]:
         "stock_metadata_config": STOCK_METADATA_FIELDS,
         "stock_support_options": support_options,
         "stock_user_assignments": user_assignments,
+        "stock_assignments": [
+            {
+                "id": assignment.id,
+                "stock_item_id": assignment.stock_item_id,
+                "assigned_to": assignment.assigned_to,
+                "assigned_department": assignment.assigned_department or "",
+                "quantity": assignment.quantity,
+                "delivery_note": assignment.delivery_note or "",
+                "delivered_by": assignment.delivered_by,
+                "delivered_at": assignment.delivered_at.strftime("%d.%m.%Y %H:%M") if assignment.delivered_at else "",
+                "receipt_code": assignment.receipt_code,
+            }
+            for assignment in assignments
+        ],
     }
 
 
@@ -3841,6 +4183,9 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         item.ifs_no,
     ]
 
+    person_key = quote_plus((responsible or "").strip().lower()) if responsible else ""
+    lifecycle_status = get_person_lifecycle_status(responsible)
+
     return {
         "id": item.id,
         "inventory_no": item.inventory_no,
@@ -3868,6 +4213,9 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "history": history,
         "licenses": licenses,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
     }
 
 
@@ -3965,7 +4313,7 @@ def load_license_payload() -> dict[str, Any]:
             "email": user.email,
             "department": user.department or "",
         }
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
     ]
 
     inventory_options = [
@@ -4046,6 +4394,9 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
             ]
         )
 
+    person_key = quote_plus((order.requested_by or "").strip().lower()) if order.requested_by else ""
+    lifecycle_status = get_person_lifecycle_status(order.requested_by)
+
     return {
         "id": order.id,
         "order_no": order.order_no,
@@ -4057,6 +4408,9 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
         "total_quantity": sum(line["quantity"] for line in lines_payload),
         "search_index": " ".join(token for token in search_tokens if token).lower(),
         "group_key": group_key,
+        "person_key": person_key,
+        "lifecycle_status": lifecycle_status,
+        "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
     }
 
 
@@ -4256,6 +4610,23 @@ def record_stock_movement(
     )
     db.session.add(movement)
     return movement
+
+
+def record_stock_audit(
+    stock_item: StockItem,
+    *,
+    old_quantity: int,
+    new_quantity: int,
+    performed_by: str,
+) -> StockAuditLog:
+    audit = StockAuditLog(
+        stock_item=stock_item,
+        old_quantity=max(0, int(old_quantity)),
+        new_quantity=max(0, int(new_quantity)),
+        performed_by=(performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR,
+    )
+    db.session.add(audit)
+    return audit
 
 
 def record_stock_log(
@@ -4485,19 +4856,6 @@ def create_stock_item_from_request_line(
     return stock_item
 
 
-def parse_int_or_none(value: Any) -> int | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        value = value.strip()
-        if not value:
-            return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def prepare_stock_metadata(
     category: str,
     payload: Any,
@@ -4627,6 +4985,12 @@ def load_dashboard_metrics() -> dict[str, Any]:
     critical_stock_count = StockItem.query.filter(
         StockItem.status.in_(["arizali", "hurda"])
     ).count()
+    recent_stock_movements = (
+        StockMovement.query.options(joinedload(StockMovement.stock_item))
+        .order_by(StockMovement.created_at.desc())
+        .limit(5)
+        .all()
+    )
 
     return {
         "available_stock": int(available_stock),
@@ -4636,6 +5000,14 @@ def load_dashboard_metrics() -> dict[str, Any]:
         "critical_alerts": int(faulty_inventory_count + critical_stock_count),
         "faulty_inventory": int(faulty_inventory_count),
         "problem_stock": int(critical_stock_count),
+        "recent_stock_movements": [
+            {
+                "operation": movement.operation_type,
+                "title": movement.stock_item.title if movement.stock_item else "Stok",
+                "created_display": movement.created_at.strftime("%d.%m.%Y %H:%M") if movement.created_at else "",
+            }
+            for movement in recent_stock_movements
+        ],
     }
 
 
@@ -4653,7 +5025,7 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
     responsible_names = [
         f"{user.first_name} {user.last_name}".strip()
-        for user in User.query.order_by(User.first_name, User.last_name)
+        for user in active_users_query().order_by(User.first_name, User.last_name)
         if (user.first_name or user.last_name)
     ]
 
@@ -4682,7 +5054,7 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
 
 def load_admin_panel_payload() -> dict:
-    users = User.query.order_by(User.first_name, User.last_name).all()
+    users = active_users_query(include_inactive=True).order_by(User.first_name, User.last_name).all()
     stock_support_options = build_stock_support_options()
     department_options = [
         {"id": name, "name": name} for name in stock_support_options.get("departments", [])

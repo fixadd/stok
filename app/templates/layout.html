@@ -11,125 +11,23 @@
   <body class="bg-soft {{ active_theme_class | default('') }}">
     <div class="page-wrapper d-flex">
       <aside class="sidebar d-flex flex-column p-4">
-        <div class="sidebar-header mb-4">
-          <h5 class="text-uppercase text-muted mb-1">Genel</h5>
-          <a class="nav-link px-0 {{ 'active' if active_page == 'index' else '' }}" href="{{ url_for('index') }}">
-            <div class="sidebar-card d-flex align-items-center">
-              <div class="icon-wrapper me-3">
-                <i class="bi bi-house"></i>
-              </div>
-              <span class="fw-semibold">Ana Sayfa</span>
-            </div>
-          </a>
-        </div>
-
+        {% for section in sidebar_sections %}
         <div class="sidebar-section mb-4">
-          <p class="section-title text-uppercase text-muted">Envanter</p>
+          <p class="section-title text-uppercase text-muted">{{ section.title }}</p>
           <nav class="nav flex-column">
-            <a class="nav-link {{ 'active' if active_page == 'inventory_tracking' else '' }}" href="{{ url_for('inventory_tracking') }}">
+            {% for item in section.nav_items %}
+            <a class="nav-link {{ 'active' if item.key == active_page else '' }}" href="{{ url_for(item.endpoint) }}">
               <div class="sidebar-card d-flex align-items-center">
                 <div class="icon-wrapper me-3">
-                  <i class="bi bi-box-seam"></i>
+                  <i class="bi {{ item.icon }}"></i>
                 </div>
-                <span>Envanter Takip</span>
+                <span class="{{ 'fw-semibold' if section.key == 'general' else '' }}">{{ item.title }}</span>
               </div>
             </a>
-            <a class="nav-link {{ 'active' if active_page == 'license_tracking' else '' }}" href="{{ url_for('license_tracking') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-key"></i>
-                </div>
-                <span>Lisans Takip</span>
-              </div>
-            </a>
-            <a class="nav-link {{ 'active' if active_page == 'printer_tracking' else '' }}" href="{{ url_for('printer_tracking') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-printer"></i>
-                </div>
-                <span>Yazıcı Takip</span>
-              </div>
-            </a>
-            <a class="nav-link {{ 'active' if active_page == 'stock_tracking' else '' }}" href="{{ url_for('stock_tracking') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-bar-chart"></i>
-                </div>
-                <span>Stok Takip</span>
-              </div>
-            </a>
+            {% endfor %}
           </nav>
         </div>
-
-        <div class="sidebar-section mb-4">
-          <p class="section-title text-uppercase text-muted">İşlemler</p>
-          <nav class="nav flex-column">
-            <a class="nav-link {{ 'active' if active_page == 'talep_takip' else '' }}" href="{{ url_for('talep_takip') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-file-earmark-text"></i>
-                </div>
-                <span>Talep Takip</span>
-              </div>
-            </a>
-            <a class="nav-link {{ 'active' if active_page == 'information' else '' }}" href="{{ url_for('information_list') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-info-circle"></i>
-                </div>
-                <span>Bilgiler</span>
-              </div>
-            </a>
-            <a class="nav-link {{ 'active' if active_page == 'scrap_inventory' else '' }}" href="{{ url_for('scrap_inventory_page') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-trash"></i>
-                </div>
-                <span>Hurdalar</span>
-              </div>
-            </a>
-          </nav>
-        </div>
-
-        <div class="sidebar-section mb-4">
-          <p class="section-title text-uppercase text-muted">Ayarlar</p>
-          <nav class="nav flex-column">
-            <a class="nav-link {{ 'active' if active_page == 'profile' else '' }}" href="{{ url_for('profile') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-person"></i>
-                </div>
-                <span>Profil</span>
-              </div>
-            </a>
-            {% if is_admin_user %}
-            <a class="nav-link {{ 'active' if active_page == 'admin_panel' else '' }}" href="{{ url_for('admin_panel') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-speedometer2"></i>
-                </div>
-                <span>Admin Paneli</span>
-              </div>
-            </a>
-            <a class="nav-link {{ 'active' if active_page == 'activity_logs' else '' }}" href="{{ url_for('activity_logs') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-journal-text"></i>
-                </div>
-                <span>Kayıtlar</span>
-              </div>
-            </a>
-            {% endif %}
-            <a class="nav-link" href="{{ url_for('logout') }}">
-              <div class="sidebar-card d-flex align-items-center">
-                <div class="icon-wrapper me-3">
-                  <i class="bi bi-box-arrow-right"></i>
-                </div>
-                <span>Çıkış</span>
-              </div>
-            </a>
-          </nav>
-        </div>
+        {% endfor %}
       </aside>
 
       <main class="main-content flex-grow-1 p-5">
@@ -145,6 +43,22 @@
           </a>
         </div>
         {% endif %}
+
+        {% set resolved_breadcrumbs = build_breadcrumbs(active_page, request.endpoint) %}
+        {% if resolved_breadcrumbs %}
+        <nav aria-label="breadcrumb" class="mb-3">
+          <ol class="breadcrumb mb-0">
+            {% for crumb in resolved_breadcrumbs %}
+              {% if loop.last %}
+              <li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
+              {% else %}
+              <li class="breadcrumb-item"><a href="{{ url_for(crumb.endpoint) }}">{{ crumb.title }}</a></li>
+              {% endif %}
+            {% endfor %}
+          </ol>
+        </nav>
+        {% endif %}
+        {% block breadcrumb %}{% endblock %}
         {% block main %}{% endblock %}
       </main>
     </div>
