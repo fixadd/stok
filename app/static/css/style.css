@@ -1846,3 +1846,69 @@ body.theme-okyanus .section-title {
     text-transform: uppercase;
   }
 }
+
+.maintenance-hero-card {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+}
+
+.maintenance-hero-icon {
+  align-items: center;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  border-radius: 22px;
+  box-shadow: 0 18px 45px rgba(37, 99, 235, 0.22);
+  color: #fff;
+  display: inline-flex;
+  font-size: 2rem;
+  height: 68px;
+  justify-content: center;
+  width: 68px;
+}
+
+.maintenance-search-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  min-width: min(100%, 360px);
+  padding: 1rem;
+}
+
+.maintenance-stat-pill {
+  align-items: center;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 999px;
+  color: #1d4ed8;
+  display: inline-flex;
+  font-weight: 700;
+  padding: 0.55rem 0.9rem;
+}
+
+.maintenance-stat-pill.warning {
+  background: rgba(245, 158, 11, 0.11);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.maintenance-table tbody tr[data-maintenance-row] {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.maintenance-table tbody tr[data-maintenance-row]:hover {
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: inset 4px 0 0 #3b82f6;
+}
+
+.maintenance-history-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.maintenance-history-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1rem;
+}

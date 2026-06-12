@@ -5,7 +5,6 @@ from typing import Any
 
 from .services.authz import has_system_role
 
-
 NAV_ITEMS: dict[str, dict[str, Any]] = {
     "index": {
         "title": "Ana Sayfa",
@@ -37,6 +36,14 @@ NAV_ITEMS: dict[str, dict[str, Any]] = {
         "icon": "bi-printer",
         "min_role": "user",
         "parent": "index",
+        "section": "inventory",
+    },
+    "maintenance_tracking": {
+        "title": "Bakım Takip",
+        "endpoint": "maintenance_tracking",
+        "icon": "bi-tools",
+        "min_role": "user",
+        "parent": "inventory_tracking",
         "section": "inventory",
     },
     "stock_tracking": {
@@ -133,7 +140,9 @@ def resolve_active_nav_key(active_page: str | None, endpoint: str | None) -> str
     return None
 
 
-def build_sidebar_sections(user, active_page: str | None, endpoint: str | None) -> list[dict[str, Any]]:
+def build_sidebar_sections(
+    user, active_page: str | None, endpoint: str | None
+) -> list[dict[str, Any]]:
     active_key = resolve_active_nav_key(active_page, endpoint)
     sections: list[dict[str, Any]] = []
     for section_key, section_title in NAV_SECTIONS.items():
@@ -153,11 +162,15 @@ def build_sidebar_sections(user, active_page: str | None, endpoint: str | None) 
                 }
             )
         if items:
-            sections.append({"key": section_key, "title": section_title, "nav_items": items})
+            sections.append(
+                {"key": section_key, "title": section_title, "nav_items": items}
+            )
     return sections
 
 
-def build_breadcrumbs(active_page: str | None, endpoint: str | None) -> list[dict[str, str]]:
+def build_breadcrumbs(
+    active_page: str | None, endpoint: str | None
+) -> list[dict[str, str]]:
     active_key = resolve_active_nav_key(active_page, endpoint)
     if not active_key:
         return []

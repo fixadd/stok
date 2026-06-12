@@ -3,7 +3,14 @@ import tempfile
 import unittest
 
 from app import create_app
-from app.models import User, db
+from app.models import (
+    HardwareType,
+    InventoryEvent,
+    InventoryItem,
+    InventoryMaintenance,
+    User,
+    db,
+)
 
 
 class SmokeRouteTests(unittest.TestCase):
@@ -18,7 +25,9 @@ class SmokeRouteTests(unittest.TestCase):
             admin = User.query.filter_by(username="admin").first()
             admin.must_change_password = False
             self.admin_id = admin.id
-            user = User.query.filter(User.system_role == "user").order_by(User.id).first()
+            user = (
+                User.query.filter(User.system_role == "user").order_by(User.id).first()
+            )
             user.must_change_password = False
             self.user_id = user.id
             db.session.commit()
@@ -37,7 +46,14 @@ class SmokeRouteTests(unittest.TestCase):
 
     def test_home_inventory_stock_requests_admin_access(self):
         self.login_as(self.admin_id)
-        for path in ["/", "/envanter-takip", "/stok-takip", "/talep-takip", "/admin-panel"]:
+        for path in [
+            "/",
+            "/envanter-takip",
+            "/bakim",
+            "/stok-takip",
+            "/talep-takip",
+            "/admin-panel",
+        ]:
             with self.subTest(path=path):
                 resp = self.client.get(path)
                 self.assertEqual(resp.status_code, 200)
@@ -49,6 +65,39 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertIn("Stok Takip", html)
         self.assertIn("breadcrumb", html)
         self.assertIn("Ana Sayfa", html)
+
+    def test_create_maintenance_record_adds_inventory_event(self):
+        self.login_as(self.admin_id)
+        with self.app.app_context():
+            computer_type = HardwareType.query.filter(
+                HardwareType.name.ilike("%laptop%")
+            ).first()
+            item = InventoryItem.query.filter_by(
+                hardware_type_id=computer_type.id
+            ).first()
+            item_id = item.id
+
+        resp = self.client.post(
+            f"/api/inventory/{item_id}/maintenance",
+            json={
+                "performed_at": "2026-06-12T10:30",
+                "performed_by": "BT Ekibi",
+                "note": "Fan temizliği ve termal bakım yapıldı.",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+
+        with self.app.app_context():
+            self.assertEqual(
+                InventoryMaintenance.query.filter_by(item_id=item_id).count(), 1
+            )
+            self.assertIsNotNone(
+                InventoryEvent.query.filter_by(
+                    item_id=item_id,
+                    event_type="Bakım Yapıldı",
+                    performed_by="BT Ekibi",
+                ).first()
+            )
 
     def test_admin_access_control_for_regular_user(self):
         self.login_as(self.user_id)
