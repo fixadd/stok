@@ -10,7 +10,7 @@
           </header>
 
           <section class="row g-4 mb-5">
-            <div class="col-md-6 col-xl-4">
+            <div class="col-md-6 col-xl-3">
               <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('stock_tracking') }}">
                 <div class="d-flex align-items-center mb-3">
                   <div class="content-icon bg-primary text-white me-3">
@@ -25,7 +25,7 @@
                 <span class="fw-semibold">Stok Takipine Git <i class="bi bi-arrow-right"></i></span>
               </a>
             </div>
-            <div class="col-md-6 col-xl-4">
+            <div class="col-md-6 col-xl-3">
               <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('talep_takip') }}">
                 <div class="d-flex align-items-center mb-3">
                   <div class="content-icon bg-success text-white me-3">
@@ -40,7 +40,7 @@
                 <span class="fw-semibold">Talep Takibine Git <i class="bi bi-arrow-right"></i></span>
               </a>
             </div>
-            <div class="col-md-6 col-xl-4">
+            <div class="col-md-6 col-xl-3">
               <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('inventory_tracking') }}">
                 <div class="d-flex align-items-center mb-3">
                   <div class="content-icon bg-warning text-white me-3">
@@ -51,8 +51,23 @@
                     <div class="fs-3 fw-bold text-dark">{{ dashboard.critical_alerts }}</div>
                   </div>
                 </div>
-                <p class="text-muted mb-2">{{ dashboard.faulty_inventory }} arızalı envanter, {{ dashboard.problem_stock }} uyarıdaki stok kaydı bulunuyor. Önceliklendirmek için tıklayın.</p>
+                <p class="text-muted mb-2">{{ dashboard.faulty_inventory }} arızalı envanter, {{ dashboard.problem_stock }} uyarıdaki stok kaydı ve {{ dashboard.maintenance_due_count }} gecikmiş bakım kritik hesaba dahil.</p>
                 <span class="fw-semibold">Envanterleri Aç <i class="bi bi-arrow-right"></i></span>
+              </a>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('maintenance_tracking') }}">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="content-icon bg-info text-white me-3">
+                    <i class="bi bi-tools"></i>
+                  </div>
+                  <div>
+                    <h6 class="text-uppercase text-muted small mb-1">Bakım Zamanı Gelenler</h6>
+                    <div class="fs-3 fw-bold text-dark">{{ dashboard.maintenance_due_count }}</div>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">{{ dashboard.maintenance_due_count }} cihazın bakımı gecikmiş veya bakım kaydı yok. {{ dashboard.maintenance_warning_count }} cihazın bakımı 1 ay içinde planlanmalı.</p>
+                <span class="fw-semibold">Bakım Sayfasına Git <i class="bi bi-arrow-right"></i></span>
               </a>
             </div>
           </section>

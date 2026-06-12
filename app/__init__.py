@@ -3864,7 +3864,6 @@ def load_maintenance_payload() -> dict[str, Any]:
     )
 
     computers: list[dict[str, Any]] = []
-    overdue_threshold = datetime.utcnow() - timedelta(days=180)
     for item in items:
         if not is_computer_hardware_type(
             item.hardware_type.name if item.hardware_type else None
@@ -3877,15 +3876,9 @@ def load_maintenance_payload() -> dict[str, Any]:
             serialize_maintenance_record(record) for record in item.maintenances
         ]
         last_maintenance = item.maintenances[0] if item.maintenances else None
-        if last_maintenance is None:
-            maintenance_status = "Kayıt bekliyor"
-            maintenance_status_class = "text-bg-warning-subtle text-warning"
-        elif last_maintenance.performed_at < overdue_threshold:
-            maintenance_status = "Bakım zamanı geldi"
-            maintenance_status_class = "text-bg-danger-subtle text-danger"
-        else:
-            maintenance_status = "Güncel"
-            maintenance_status_class = "text-bg-success-subtle text-success"
+        maintenance_bucket = resolve_maintenance_bucket(last_maintenance)
+        maintenance_status = maintenance_bucket["label"]
+        maintenance_status_class = maintenance_bucket["class"]
 
         responsible = (
             f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
@@ -5417,6 +5410,68 @@ def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
     return filtered
 
 
+def maintenance_candidate_items_query():
+    return InventoryItem.query.options(
+        joinedload(InventoryItem.hardware_type),
+        joinedload(InventoryItem.maintenances),
+    )
+
+
+def resolve_maintenance_bucket(
+    last_maintenance: InventoryMaintenance | None,
+) -> dict[str, str]:
+    if last_maintenance is None:
+        return {
+            "key": "due",
+            "label": "Bakım kaydı yok",
+            "class": "text-bg-danger-subtle text-danger",
+        }
+
+    days_since = (datetime.utcnow().date() - last_maintenance.performed_at.date()).days
+    if days_since >= 365:
+        return {
+            "key": "due",
+            "label": "Bakım zamanı geldi",
+            "class": "text-bg-danger-subtle text-danger",
+        }
+    if 335 <= days_since <= 364:
+        return {
+            "key": "warning",
+            "label": "1 ay kaldı",
+            "class": "text-bg-warning-subtle text-warning",
+        }
+    return {
+        "key": "current",
+        "label": "Güncel",
+        "class": "text-bg-success-subtle text-success",
+    }
+
+
+def load_maintenance_dashboard_counts() -> dict[str, int]:
+    due_count = 0
+    warning_count = 0
+    items = maintenance_candidate_items_query().all()
+    for item in items:
+        if not is_computer_hardware_type(
+            item.hardware_type.name if item.hardware_type else None
+        ):
+            continue
+        if (item.status or "").lower() in {"hurda", "stokta"}:
+            continue
+
+        last_maintenance = item.maintenances[0] if item.maintenances else None
+        bucket = resolve_maintenance_bucket(last_maintenance)["key"]
+        if bucket == "due":
+            due_count += 1
+        elif bucket == "warning":
+            warning_count += 1
+
+    return {
+        "maintenance_due_count": due_count,
+        "maintenance_warning_count": warning_count,
+    }
+
+
 def load_dashboard_metrics() -> dict[str, Any]:
     available_stock = (
         db.session.query(func.sum(StockItem.quantity))
@@ -5439,6 +5494,7 @@ def load_dashboard_metrics() -> dict[str, Any]:
     critical_stock_count = StockItem.query.filter(
         StockItem.status.in_(["arizali", "hurda"])
     ).count()
+    maintenance_counts = load_maintenance_dashboard_counts()
     recent_stock_movements = (
         StockMovement.query.options(joinedload(StockMovement.stock_item))
         .order_by(StockMovement.created_at.desc())
@@ -5446,14 +5502,24 @@ def load_dashboard_metrics() -> dict[str, Any]:
         .all()
     )
 
+    critical_alerts = (
+        faulty_inventory_count
+        + critical_stock_count
+        + maintenance_counts["maintenance_due_count"]
+    )
+
     return {
         "available_stock": int(available_stock),
         "total_stock": int(total_stock),
         "open_requests": int(open_request_count),
         "total_requests": int(total_request_count),
-        "critical_alerts": int(faulty_inventory_count + critical_stock_count),
+        "critical_alerts": int(critical_alerts),
         "faulty_inventory": int(faulty_inventory_count),
         "problem_stock": int(critical_stock_count),
+        "maintenance_due_count": int(maintenance_counts["maintenance_due_count"]),
+        "maintenance_warning_count": int(
+            maintenance_counts["maintenance_warning_count"]
+        ),
         "recent_stock_movements": [
             {
                 "operation": movement.operation_type,

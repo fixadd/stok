@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from app import create_app
+from app import create_app, load_dashboard_metrics
 from app.models import (
     HardwareType,
     InventoryEvent,
@@ -65,6 +65,26 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertIn("Stok Takip", html)
         self.assertIn("breadcrumb", html)
         self.assertIn("Ana Sayfa", html)
+
+    def test_dashboard_includes_maintenance_counts(self):
+        self.login_as(self.admin_id)
+        with self.app.app_context():
+            metrics = load_dashboard_metrics()
+
+        self.assertIn("maintenance_due_count", metrics)
+        self.assertIn("maintenance_warning_count", metrics)
+        self.assertGreaterEqual(metrics["maintenance_due_count"], 1)
+        self.assertEqual(
+            metrics["critical_alerts"],
+            metrics["faulty_inventory"]
+            + metrics["problem_stock"]
+            + metrics["maintenance_due_count"],
+        )
+
+        resp = self.client.get("/")
+        html = resp.get_data(as_text=True)
+        self.assertIn("Bakım Zamanı Gelenler", html)
+        self.assertIn("/bakim", html)
 
     def test_create_maintenance_record_adds_inventory_event(self):
         self.login_as(self.admin_id)
