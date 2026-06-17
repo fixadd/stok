@@ -1,5 +1,6 @@
 import os
 from datetime import date
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -40,6 +41,33 @@ class SmokeRouteTests(unittest.TestCase):
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
             session["active_user_id"] = user_id
+
+    def test_database_path_environment_overrides_data_dir(self):
+        with tempfile.TemporaryDirectory() as data_dir, tempfile.TemporaryDirectory() as root_dir:
+            custom_database_path = os.path.join(
+                root_dir, "external", "backup", "stok.db"
+            )
+            previous_data_dir = os.environ.get("DATA_DIR")
+            previous_database_path = os.environ.get("DATABASE_PATH")
+            os.environ["DATA_DIR"] = data_dir
+            os.environ["DATABASE_PATH"] = custom_database_path
+            try:
+                custom_app = create_app()
+                with custom_app.app_context():
+                    self.assertEqual(
+                        custom_app.config["DATABASE_PATH"], Path(custom_database_path)
+                    )
+                    self.assertTrue(Path(custom_database_path).parent.exists())
+                    self.assertEqual(custom_app.config["DATA_DIR"], Path(data_dir))
+            finally:
+                if previous_data_dir is None:
+                    os.environ.pop("DATA_DIR", None)
+                else:
+                    os.environ["DATA_DIR"] = previous_data_dir
+                if previous_database_path is None:
+                    os.environ.pop("DATABASE_PATH", None)
+                else:
+                    os.environ["DATABASE_PATH"] = previous_database_path
 
     def test_login_page(self):
         resp = self.client.get("/giris")

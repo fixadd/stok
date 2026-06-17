@@ -817,7 +817,13 @@ def create_app() -> Flask:
         data_dir = project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    database_path = data_dir / "stok.db"
+    database_path_env = os.environ.get("DATABASE_PATH")
+    if database_path_env:
+        database_path = Path(database_path_env)
+    else:
+        database_path = data_dir / "stok.db"
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
     info_upload_dir = data_dir / "info_uploads"
     info_upload_dir.mkdir(parents=True, exist_ok=True)
 
