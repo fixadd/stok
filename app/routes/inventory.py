@@ -39,12 +39,3 @@ def register_inventory_routes(app, deps):
             active_page="printer_tracking",
             **payload,
         )
-
-    @app.route("/bakim")
-    def maintenance_tracking():
-        payload = deps["load_maintenance_payload"]()
-        return render_template(
-            "maintenance_tracking.html",
-            active_page="maintenance_tracking",
-            **payload,
-        )

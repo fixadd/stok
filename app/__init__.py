@@ -39,6 +39,7 @@ from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
+from .routes.maintenance import register_maintenance_routes
 from .routes.information import register_information_routes
 from .routes.requests import register_request_routes
 from .routes.stock import register_stock_routes
@@ -938,7 +939,13 @@ def create_app() -> Flask:
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
             "load_printer_payload": load_printer_payload,
+        },
+    )
+    register_maintenance_routes(
+        app,
+        {
             "load_maintenance_payload": load_maintenance_payload,
+            "create_maintenance_record": create_maintenance_record,
         },
     )
     register_stock_routes(
@@ -2583,60 +2590,6 @@ def create_app() -> Flask:
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
 
-    @app.post("/api/inventory/<int:item_id>/maintenance")
-    def create_inventory_maintenance(item_id: int):
-        item = get_inventory_item_with_relations(item_id)
-        if item is None:
-            return json_error("Envanter kaydı bulunamadı."), 404
-        if not is_computer_hardware_type(
-            item.hardware_type.name if item.hardware_type else None
-        ):
-            return (
-                json_error(
-                    "Bakım kaydı yalnızca bilgisayar envanterleri için oluşturulabilir."
-                ),
-                400,
-            )
-
-        data = request.get_json(silent=True) or {}
-        if not isinstance(data, dict):
-            return json_error("Geçersiz JSON gövdesi."), 400
-
-        performed_by = (
-            sanitize_input_text(data.get("performed_by"), max_length=128)
-            or current_actor_name()
-        )
-        note = sanitize_input_text(data.get("note"), max_length=2000)
-        performed_at_value = (data.get("performed_at") or "").strip()
-        performed_at = datetime.utcnow()
-        if performed_at_value:
-            try:
-                performed_at = datetime.fromisoformat(performed_at_value)
-            except ValueError:
-                return json_error("Bakım tarihi geçerli bir tarih olmalıdır."), 400
-
-        maintenance = InventoryMaintenance(
-            item=item,
-            performed_at=performed_at,
-            performed_by=performed_by,
-            note=note or None,
-        )
-        db.session.add(maintenance)
-        db.session.flush()
-
-        event_note_parts = [f"Bakım tarihi: {performed_at.strftime('%d.%m.%Y %H:%M')}"]
-        if note:
-            event_note_parts.append(note)
-        add_inventory_event(
-            item,
-            "Bakım Yapıldı",
-            " • ".join(event_note_parts),
-            performed_by=performed_by,
-        )
-        db.session.commit()
-
-        return jsonify({"maintenance": serialize_maintenance_record(maintenance)}), 201
-
     @app.post("/api/inventory/<int:item_id>/mark-faulty")
     def mark_inventory_faulty(item_id: int):
         item = get_inventory_item_with_relations(item_id)
@@ -3853,6 +3806,59 @@ def load_inventory_payload() -> dict:
         "departments": departments,
         "status_choices": status_choices,
     }
+
+
+def create_maintenance_record(item_id: int, data: Any) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+    if not is_computer_hardware_type(
+        item.hardware_type.name if item.hardware_type else None
+    ):
+        return (
+            json_error(
+                "Bakım kaydı yalnızca bilgisayar envanterleri için oluşturulabilir."
+            ),
+            400,
+        )
+
+    if not isinstance(data, dict):
+        return json_error("Geçersiz JSON gövdesi."), 400
+
+    performed_by = (
+        sanitize_input_text(data.get("performed_by"), max_length=128)
+        or current_actor_name()
+    )
+    note = sanitize_input_text(data.get("note"), max_length=2000)
+    performed_at_value = (data.get("performed_at") or "").strip()
+    performed_at = datetime.utcnow()
+    if performed_at_value:
+        try:
+            performed_at = datetime.fromisoformat(performed_at_value)
+        except ValueError:
+            return json_error("Bakım tarihi geçerli bir tarih olmalıdır."), 400
+
+    maintenance = InventoryMaintenance(
+        item=item,
+        performed_at=performed_at,
+        performed_by=performed_by,
+        note=note or None,
+    )
+    db.session.add(maintenance)
+    db.session.flush()
+
+    event_note_parts = [f"Bakım tarihi: {performed_at.strftime('%d.%m.%Y %H:%M')}"]
+    if note:
+        event_note_parts.append(note)
+    add_inventory_event(
+        item,
+        "Bakım Yapıldı",
+        " • ".join(event_note_parts),
+        performed_by=performed_by,
+    )
+    db.session.commit()
+
+    return {"maintenance": serialize_maintenance_record(maintenance)}, 201
 
 
 def load_maintenance_payload() -> dict[str, Any]:
