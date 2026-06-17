@@ -1912,3 +1912,33 @@ body.theme-okyanus .section-title {
   border-radius: 16px;
   padding: 1rem;
 }
+
+.maintenance-table tbody tr.maintenance-row-overdue {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.maintenance-table tbody tr.maintenance-row-overdue:hover {
+  background: rgba(220, 38, 38, 0.12);
+  box-shadow: inset 4px 0 0 #dc2626;
+}
+
+.maintenance-table tbody tr.maintenance-row-warning {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.maintenance-table tbody tr.maintenance-row-warning:hover {
+  background: rgba(245, 158, 11, 0.15);
+  box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+.maintenance-badge-overdue {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.maintenance-badge-warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  font-weight: 700;
+}

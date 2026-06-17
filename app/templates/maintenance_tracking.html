@@ -56,7 +56,7 @@
         <tbody>
           {% if maintenance_items %}
             {% for item in maintenance_items %}
-            <tr data-maintenance-row data-item-id="{{ item.id }}" data-search-index="{{ item.search_index }}" role="button" tabindex="0">
+            <tr class="{{ item.maintenance_row_class }}" data-maintenance-row data-item-id="{{ item.id }}" data-search-index="{{ item.search_index }}" role="button" tabindex="0">
               <td class="fw-semibold">{{ item.inventory_no }}</td>
               <td>{{ item.computer_name or '-' }}<div class="small text-muted">{{ item.hardware_type }}</div></td>
               <td>{{ item.responsible }}</td>

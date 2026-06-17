@@ -1,8 +1,9 @@
 import os
+from datetime import date
 import tempfile
 import unittest
 
-from app import create_app, load_dashboard_metrics
+from app import calculate_maintenance_status, create_app, load_dashboard_metrics
 from app.models import (
     HardwareType,
     InventoryEvent,
@@ -65,6 +66,29 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertIn("Stok Takip", html)
         self.assertIn("breadcrumb", html)
         self.assertIn("Ana Sayfa", html)
+
+    def test_calculate_maintenance_status_thresholds(self):
+        today = date(2026, 6, 17)
+
+        self.assertEqual(
+            calculate_maintenance_status(None, today=today)["status"], "none"
+        )
+        self.assertEqual(
+            calculate_maintenance_status(date(2025, 6, 17), today=today)["status"],
+            "overdue",
+        )
+        self.assertEqual(
+            calculate_maintenance_status(date(2025, 7, 17), today=today)["status"],
+            "warning",
+        )
+        self.assertEqual(
+            calculate_maintenance_status(date(2025, 7, 17), today=today)["label"],
+            "1 ay içinde bakım",
+        )
+        self.assertEqual(
+            calculate_maintenance_status(date(2025, 7, 18), today=today)["status"],
+            "ok",
+        )
 
     def test_maintenance_breadcrumb_follows_stock_parent(self):
         self.login_as(self.admin_id)

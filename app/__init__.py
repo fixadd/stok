@@ -3876,9 +3876,14 @@ def load_maintenance_payload() -> dict[str, Any]:
             serialize_maintenance_record(record) for record in item.maintenances
         ]
         last_maintenance = item.maintenances[0] if item.maintenances else None
-        maintenance_bucket = resolve_maintenance_bucket(last_maintenance)
-        maintenance_status = maintenance_bucket["label"]
-        maintenance_status_class = maintenance_bucket["class"]
+        maintenance_status_payload = calculate_maintenance_status(
+            last_maintenance.performed_at if last_maintenance else None
+        )
+        maintenance_status = maintenance_status_payload["label"]
+        maintenance_status_key = maintenance_status_payload["status"]
+        maintenance_status_class = maintenance_status_badge_class(
+            maintenance_status_key
+        )
 
         responsible = (
             f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
@@ -3912,15 +3917,17 @@ def load_maintenance_payload() -> dict[str, Any]:
                 "department": item.department or "",
                 "brand_model": brand_model or "-",
                 "hardware_type": item.hardware_type.name if item.hardware_type else "",
-                "last_maintenance_at": (
-                    format_datetime_display(
-                        last_maintenance.performed_at, include_time=False
-                    )
-                    if last_maintenance
-                    else "-"
-                ),
+                "last_maintenance_at": maintenance_status_payload[
+                    "last_maintenance_display"
+                ],
+                "days_since_maintenance": maintenance_status_payload[
+                    "days_since_maintenance"
+                ],
+                "days_until_due": maintenance_status_payload["days_until_due"],
                 "maintenance_status": maintenance_status,
+                "maintenance_status_key": maintenance_status_key,
                 "maintenance_status_class": maintenance_status_class,
+                "maintenance_row_class": maintenance_row_class(maintenance_status_key),
                 "maintenances": maintenances,
                 "search_index": " ".join(
                     token for token in search_tokens if token
@@ -3932,7 +3939,9 @@ def load_maintenance_payload() -> dict[str, Any]:
         "maintenance_items": computers,
         "maintenance_total_count": len(computers),
         "maintenance_due_count": sum(
-            1 for item in computers if item["maintenance_status"] != "Güncel"
+            1
+            for item in computers
+            if item["maintenance_status_key"] in {"overdue", "none", "warning"}
         ),
     }
 
@@ -5417,34 +5426,60 @@ def maintenance_candidate_items_query():
     )
 
 
-def resolve_maintenance_bucket(
-    last_maintenance: InventoryMaintenance | None,
-) -> dict[str, str]:
-    if last_maintenance is None:
+def calculate_maintenance_status(
+    last_maintenance_at: date | datetime | None, today: date | None = None
+) -> dict[str, Any]:
+    check_date = today or datetime.utcnow().date()
+    if last_maintenance_at is None:
         return {
-            "key": "due",
+            "last_maintenance_display": "-",
+            "days_since_maintenance": None,
+            "days_until_due": None,
+            "status": "none",
             "label": "Bakım kaydı yok",
-            "class": "text-bg-danger-subtle text-danger",
         }
 
-    days_since = (datetime.utcnow().date() - last_maintenance.performed_at.date()).days
-    if days_since >= 365:
-        return {
-            "key": "due",
-            "label": "Bakım zamanı geldi",
-            "class": "text-bg-danger-subtle text-danger",
-        }
-    if 335 <= days_since <= 364:
-        return {
-            "key": "warning",
-            "label": "1 ay kaldı",
-            "class": "text-bg-warning-subtle text-warning",
-        }
+    maintenance_date = (
+        last_maintenance_at.date()
+        if isinstance(last_maintenance_at, datetime)
+        else last_maintenance_at
+    )
+    days_since_maintenance = (check_date - maintenance_date).days
+    days_until_due = 365 - days_since_maintenance
+
+    if days_since_maintenance >= 365:
+        status = "overdue"
+        label = "Bakım gecikti"
+    elif 335 <= days_since_maintenance < 365:
+        status = "warning"
+        label = "1 ay içinde bakım"
+    else:
+        status = "ok"
+        label = "Güncel"
+
     return {
-        "key": "current",
-        "label": "Güncel",
-        "class": "text-bg-success-subtle text-success",
+        "last_maintenance_display": maintenance_date.strftime("%d.%m.%Y"),
+        "days_since_maintenance": days_since_maintenance,
+        "days_until_due": days_until_due,
+        "status": status,
+        "label": label,
     }
+
+
+def maintenance_status_badge_class(status: str) -> str:
+    if status in {"overdue", "none"}:
+        return "maintenance-badge-overdue"
+    if status == "warning":
+        return "maintenance-badge-warning"
+    return "text-bg-success-subtle text-success"
+
+
+def maintenance_row_class(status: str) -> str:
+    if status in {"overdue", "none"}:
+        return "maintenance-row-overdue"
+    if status == "warning":
+        return "maintenance-row-warning"
+    return ""
 
 
 def load_maintenance_dashboard_counts() -> dict[str, int]:
@@ -5460,10 +5495,12 @@ def load_maintenance_dashboard_counts() -> dict[str, int]:
             continue
 
         last_maintenance = item.maintenances[0] if item.maintenances else None
-        bucket = resolve_maintenance_bucket(last_maintenance)["key"]
-        if bucket == "due":
+        maintenance_status = calculate_maintenance_status(
+            last_maintenance.performed_at if last_maintenance else None
+        )["status"]
+        if maintenance_status in {"overdue", "none"}:
             due_count += 1
-        elif bucket == "warning":
+        elif maintenance_status == "warning":
             warning_count += 1
 
     return {
