@@ -66,6 +66,24 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertIn("breadcrumb", html)
         self.assertIn("Ana Sayfa", html)
 
+    def test_maintenance_breadcrumb_follows_stock_parent(self):
+        self.login_as(self.admin_id)
+        resp = self.client.get("/bakim")
+        html = resp.get_data(as_text=True)
+
+        self.assertEqual(resp.status_code, 200)
+        breadcrumb_start = html.index('<ol class="breadcrumb')
+        breadcrumb_end = html.index("</ol>", breadcrumb_start)
+        breadcrumb_html = html[breadcrumb_start:breadcrumb_end]
+
+        self.assertIn('href="/stok-takip"', breadcrumb_html)
+        self.assertLess(
+            breadcrumb_html.index("Ana Sayfa"), breadcrumb_html.index("Stok Takip")
+        )
+        self.assertLess(
+            breadcrumb_html.index("Stok Takip"), breadcrumb_html.index("Bakım")
+        )
+
     def test_dashboard_includes_maintenance_counts(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
