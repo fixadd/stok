@@ -393,7 +393,6 @@ img {
 .stock-header,
 .request-header,
 .license-header,
-.printer-header,
 .inventory-header {
   width: 100%;
 
@@ -412,7 +411,6 @@ img {
 .stock-header h1,
 .request-header h1,
 .license-header h1,
-.printer-header h1,
 .inventory-header h1 {
   margin: 0;
 
@@ -428,7 +426,6 @@ img {
 .stock-header p,
 .request-header p,
 .license-header p,
-.printer-header p,
 .inventory-header p {
   margin: 5px 0 0 !important;
 
@@ -1418,7 +1415,7 @@ small {
   .stock-header,
   .request-header,
   .license-header,
-  .printer-header,
+
   .inventory-header {
     align-items: flex-start;
 
@@ -1429,7 +1426,7 @@ small {
   .stock-header h1,
   .request-header h1,
   .license-header h1,
-  .printer-header h1,
+
   .inventory-header h1 {
     font-size: 1.15rem;
   }
