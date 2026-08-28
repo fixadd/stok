@@ -9,7 +9,6 @@ import os
 import shutil
 import sqlite3
 import tempfile
-import subprocess
 
 from pathlib import Path
 from typing import Any
@@ -811,28 +810,6 @@ def create_app() -> Flask:
 
            
 
-    def _postgres_connection_parts():
-        database_url = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-
-        if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise RuntimeError("PostgreSQL veritabanı yapılandırması bulunamadı.")
-
-        parsed = urlparse(
-            database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-        )
-
-        if not parsed.hostname or not parsed.path:
-            raise RuntimeError("PostgreSQL bağlantı bilgileri geçersiz.")
-
-        return {
-            "host": parsed.hostname,
-            "port": str(parsed.port or 5432),
-            "user": parsed.username or "",
-            "password": parsed.password or "",
-            "database": parsed.path.lstrip("/"),
-        }
-
-
     @app.get("/admin-panel/data/export")
     def export_database():
         user = get_active_user()
@@ -842,210 +819,25 @@ def create_app() -> Flask:
             )
             return redirect(url_for("admin_panel", section="data-section"))
 
-        try:
-            connection = _postgres_connection_parts()
+        database_path = get_database_path()
+        if not database_path.exists():
+            flash("Veritabanı dosyası bulunamadı.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
 
-            timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".dump",
-            ) as tmp:
-                backup_path = Path(tmp.name)
+        record_activity(
+            area="sistem",
+            action="Veritabanı yedeği indirildi",
+            description="Sistem yöneticisi mevcut veritabanını indirdi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
 
-            env = os.environ.copy()
-            env["PGPASSWORD"] = connection["password"]
-
-            result = subprocess.run(
-                [
-                    "pg_dump",
-                    "-Fc",
-                    "--no-owner",
-                    "--no-privileges",
-                    "-h",
-                    connection["host"],
-                    "-p",
-                    connection["port"],
-                    "-U",
-                    connection["user"],
-                    "-d",
-                    connection["database"],
-                    "-f",
-                    str(backup_path),
-                ],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-
-            if result.returncode != 0:
-                current_app.logger.error(
-                    "PostgreSQL backup başarısız: %s",
-                    result.stderr.strip(),
-                )
-                backup_path.unlink(missing_ok=True)
-                flash("PostgreSQL veritabanı yedeği oluşturulamadı.", "danger")
-                return redirect(
-                    url_for("admin_panel", section="data-section")
-                )
-
-            record_activity(
-                area="sistem",
-                action="PostgreSQL veritabanı yedeği indirildi",
-                description="Sistem yöneticisi PostgreSQL veritabanının tam yedeğini indirdi.",
-                actor=current_actor_name(),
-            )
-            db.session.commit()
-
-            response = send_file(
-                backup_path,
-                as_attachment=True,
-                download_name=f"stok-postgresql-{timestamp}.dump",
-                mimetype="application/octet-stream",
-            )
-
-            @after_this_request
-            def remove_backup_file(response):
-                backup_path.unlink(missing_ok=True)
-                return response
-
-            return response
-
-        except Exception:
-            current_app.logger.exception(
-                "PostgreSQL veritabanı dışa aktarılamadı"
-            )
-            flash("PostgreSQL veritabanı yedeği oluşturulamadı.", "danger")
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
-
-    @app.post("/admin-panel/data/import")
-    def import_database_backup():
-        user = get_active_user()
-        if not has_system_role(user, "superadmin"):
-            flash(
-                "Veri içe aktarma işlemi için süper admin yetkisi gerekir.",
-                "danger",
-            )
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
-        file: FileStorage | None = request.files.get("data_file")
-
-        if file is None or not file.filename:
-            flash("Lütfen bir PostgreSQL yedeği seçin.", "warning")
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
-        filename = secure_filename(file.filename)
-        extension = Path(filename).suffix.lower()
-
-        if extension != ".dump":
-            flash(
-                "Yalnızca PostgreSQL .dump yedekleri içe aktarılabilir.",
-                "warning",
-            )
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
-        temp_path: Path | None = None
-
-        try:
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".dump",
-            ) as tmp:
-                file.save(tmp.name)
-                temp_path = Path(tmp.name)
-
-            connection = _postgres_connection_parts()
-
-            env = os.environ.copy()
-            env["PGPASSWORD"] = connection["password"]
-
-            db.session.remove()
-            db.engine.dispose()
-
-            result = subprocess.run(
-                [
-                    "pg_restore",
-                    "--clean",
-                    "--if-exists",
-                    "--no-owner",
-                    "--no-privileges",
-                    "-h",
-                    connection["host"],
-                    "-p",
-                    connection["port"],
-                    "-U",
-                    connection["user"],
-                    "-d",
-                    connection["database"],
-                    str(temp_path),
-                ],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
-
-            if result.returncode != 0:
-                current_app.logger.error(
-                    "PostgreSQL restore başarısız: %s",
-                    result.stderr.strip(),
-                )
-                flash(
-                    "PostgreSQL veritabanı yedeği geri yüklenemedi.",
-                    "danger",
-                )
-                return redirect(
-                    url_for("admin_panel", section="data-section")
-                )
-
-            db.session.remove()
-
-            record_activity(
-                area="sistem",
-                action="PostgreSQL veritabanı yedeği geri yüklendi",
-                description="Sistem yöneticisi PostgreSQL veritabanını bir yedekten geri yükledi.",
-                actor=current_actor_name(),
-            )
-            db.session.commit()
-
-            flash(
-                "PostgreSQL veritabanı yedeği başarıyla geri yüklendi.",
-                "success",
-            )
-
-        except subprocess.TimeoutExpired:
-            current_app.logger.exception(
-                "PostgreSQL restore zaman aşımına uğradı"
-            )
-            flash(
-                "PostgreSQL geri yükleme işlemi zaman aşımına uğradı.",
-                "danger",
-            )
-
-        except Exception:
-            current_app.logger.exception(
-                "PostgreSQL veritabanı içe aktarılamadı"
-            )
-            flash(
-                "PostgreSQL veritabanı yedeği geri yüklenemedi.",
-                "danger",
-            )
-
-        finally:
-            if temp_path:
-                temp_path.unlink(missing_ok=True)
-
-        return redirect(
-            url_for("admin_panel", section="data-section")
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return send_file(
+            database_path,
+            as_attachment=True,
+            download_name=f"stok-veritabani-{timestamp}.db",
+            mimetype="application/x-sqlite3",
         )
 
     @app.post("/admin-panel/data/stock/import-excel")
