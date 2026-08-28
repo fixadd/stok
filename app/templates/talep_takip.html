@@ -1,12 +1,12 @@
 {% extends "layout.html" %}
 
-{% block title %}Talep Takip · Stok Yönetim Paneli{% endblock %}
+{% block title %}Talep Takip Â· Stok YÃ¶netim Paneli{% endblock %}
 
 {% block main %}
         <div class="d-flex flex-column h-100">
           <header class="mb-4">
             <h1 class="display-6 fw-bold mb-2">Talep Takip</h1>
-            <p class="text-muted mb-0">Taleplerinizi durumlarýna göre izleyin, yeni talepler açýn ve stok süreçlerini tek noktadan yönetin.</p>
+            <p class="text-muted mb-0">Taleplerinizi durumlarÄ±na gÃ¶re izleyin, yeni talepler aÃ§Ä±n ve stok sÃ¼reÃ§lerini tek noktadan yÃ¶netin.</p>
           </header>
 
           <section class="content-card shadow-sm mb-4">
@@ -31,12 +31,12 @@
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li>
                       <a class="dropdown-item" href="#">
-                        <i class="bi bi-upload me-2"></i>Ýçe Aktar
+                        <i class="bi bi-upload me-2"></i>Ä°Ã§e Aktar
                       </a>
                     </li>
                     <li>
                       <a class="dropdown-item" href="#">
-                        <i class="bi bi-download me-2"></i>Dýþa Aktar
+                        <i class="bi bi-download me-2"></i>DÄ±ÅŸa Aktar
                       </a>
                     </li>
                   </ul>
@@ -47,7 +47,7 @@
                 </a>
 
                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newRequestModal">
-                  <i class="bi bi-plus-circle me-2"></i>Talep Aç
+                  <i class="bi bi-plus-circle me-2"></i>Talep AÃ§
                 </button>
               </div>
             </div>
@@ -64,7 +64,7 @@
                   type="search"
                   class="form-control"
                   id="talep-search"
-                  placeholder="Sipariþ no, ekip veya ürün arayýn"
+                  placeholder="SipariÅŸ no, ekip veya Ã¼rÃ¼n arayÄ±n"
                 >
               </div>
             </div>
@@ -83,7 +83,7 @@
               </div>
 
               <span class="badge rounded-pill bg-primary-subtle text-primary" data-visible-count>
-                {{ request_groups[0].orders|length }} Sipariþ
+                {{ request_groups[0].orders|length }} SipariÅŸ
               </span>
             </div>
 
@@ -122,7 +122,7 @@
 
                       <div>
                         <span class="order-label text-uppercase small text-muted">
-                          Sipariþ No
+                          SipariÅŸ No
                         </span>
 
                         <h4 class="order-number mb-0">
@@ -134,7 +134,7 @@
                           class="small"
                           href="{{ url_for('personnel_lifecycle.detail_page', person_key=order.person_key) }}"
                         >
-                          {{ order.requested_by }} detayý
+                          {{ order.requested_by }} detayÄ±
                         </a>
                         {% endif %}
                       </div>
@@ -158,7 +158,7 @@
 
                         <span class="meta-chip">
                           <i class="bi bi-box-seam"></i>
-                          {{ order.item_count }} kalem · {{ order.total_quantity }} adet
+                          {{ order.item_count }} kalem Â· {{ order.total_quantity }} adet
                         </span>
 
                       </div>
@@ -170,14 +170,14 @@
 
                         <thead>
                           <tr>
-                            <th scope="col">Donaným Tipi</th>
+                            <th scope="col">DonanÄ±m Tipi</th>
                             <th scope="col">Kategori</th>
                             <th scope="col">Marka</th>
                             <th scope="col">Model</th>
                             <th scope="col" class="text-center">Miktar</th>
                             <th scope="col">Tarih</th>
-                            <th scope="col">Açýklama</th>
-                            <th scope="col" class="text-end">Ýþlemler</th>
+                            <th scope="col">AÃ§Ä±klama</th>
+                            <th scope="col" class="text-end">Ä°ÅŸlemler</th>
                           </tr>
                         </thead>
 
@@ -232,7 +232,7 @@
                                     data-bs-toggle="dropdown"
                                     aria-expanded="false"
                                   >
-                                    Ýþlemler
+                                    Ä°ÅŸlemler
                                   </button>
 
                                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
@@ -244,7 +244,7 @@
                                         data-action="stok"
                                         data-order-id="{{ order.id }}"
                                         data-order-no="{{ order.order_no }}"
-                                        data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                        data-item-label="{{ item.hardware_type }} Â· {{ item.brand }} {{ item.model }}"
                                         data-category="{{ item.category }}"
                                         data-line-id="{{ item.id }}"
                                         data-max-quantity="{{ item.quantity }}"
@@ -268,7 +268,7 @@
                                         data-action="cancel"
                                         data-order-id="{{ order.id }}"
                                         data-order-no="{{ order.order_no }}"
-                                        data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                        data-item-label="{{ item.hardware_type }} Â· {{ item.brand }} {{ item.model }}"
                                         data-category="{{ item.category }}"
                                         data-line-id="{{ item.id }}"
                                         data-max-quantity="{{ item.quantity }}"
@@ -277,7 +277,7 @@
                                         data-bs-target="#requestActionModal"
                                       >
                                         <i class="bi bi-x-circle"></i>
-                                        Ýptal Et
+                                        Ä°ptal Et
                                       </button>
                                     </li>
 
@@ -287,7 +287,7 @@
 
                               {% else %}
 
-                              <span class="text-muted small">—</span>
+                              <span class="text-muted small">â€”</span>
 
                               {% endif %}
 
@@ -339,7 +339,7 @@
         </div>
 
 
-        <!-- YENÝ TALEP MODALI -->
+        <!-- YENÄ° TALEP MODALI -->
 
         <div
           class="modal fade"
@@ -358,11 +358,11 @@
                 <div>
 
                   <h5 class="modal-title" id="newRequestLabel">
-                    Yeni Talep Aç
+                    Yeni Talep AÃ§
                   </h5>
 
                   <p class="text-muted mb-0 small">
-                    Sipariþ numarasý belirleyin, talepleri satýr satýr ekleyin.
+                    SipariÅŸ numarasÄ± belirleyin, talepleri satÄ±r satÄ±r ekleyin.
                   </p>
 
                 </div>
@@ -385,7 +385,7 @@
                     <div class="col-md-6">
 
                       <label class="form-label">
-                        Sipariþ No
+                        SipariÅŸ No
                       </label>
 
                       <input
@@ -411,7 +411,7 @@
                         {% if active_user %}
                           {{ active_user.first_name }} {{ active_user.last_name }}
                         {% else %}
-                          —
+                          â€”
                         {% endif %}
                       </div>
 
@@ -427,7 +427,7 @@
                         {% if active_user and active_user.department %}
                           {{ active_user.department }}
                         {% else %}
-                          —
+                          â€”
                         {% endif %}
                       </div>
 
@@ -445,7 +445,7 @@
                         <div class="col-md-4 col-lg-2">
 
                           <label class="form-label">
-                            Ürün Tipi
+                            ÃœrÃ¼n Tipi
                           </label>
 
                           <select
@@ -454,7 +454,7 @@
                             required
                           >
                             <option value="cevre_birimi">
-                              Çevre Birimi
+                              Ã‡evre Birimi
                             </option>
 
                             <option value="envanter">
@@ -462,7 +462,7 @@
                             </option>
 
                             <option value="yazici">
-                              IP Yazýcý
+                              IP YazÄ±cÄ±
                             </option>
 
                             <option value="lisans">
@@ -476,14 +476,14 @@
                         <div class="col-md-4 col-lg-3">
 
                           <label class="form-label">
-                            Donaným Tipi
+                            DonanÄ±m Tipi
                           </label>
 
                           <input
                             class="form-control"
                             name="hardware_type[]"
                             list="hardware-types"
-                            placeholder="Örn. Laptop"
+                            placeholder="Ã–rn. Laptop"
                             required
                           >
 
@@ -518,7 +518,7 @@
                             class="form-control"
                             name="brand[]"
                             list="hardware-brands"
-                            placeholder="Örn. Dell"
+                            placeholder="Ã–rn. Dell"
                           >
 
                         </div>
@@ -534,7 +534,7 @@
                             class="form-control"
                             name="model[]"
                             list="hardware-models"
-                            placeholder="Model adý"
+                            placeholder="Model adÄ±"
                           >
 
                         </div>
@@ -543,7 +543,7 @@
                         <div class="col-md-8 col-lg-2">
 
                           <label class="form-label">
-                            Açýklama
+                            AÃ§Ä±klama
                           </label>
 
                           <input
@@ -563,7 +563,7 @@
                             data-remove-row
                           >
                             <i class="bi bi-dash-circle me-1"></i>
-                            Satýrý Sil
+                            SatÄ±rÄ± Sil
                           </button>
 
                         </div>
@@ -583,7 +583,7 @@
                       data-add-row
                     >
                       <i class="bi bi-plus-lg me-1"></i>
-                      Satýr Ekle
+                      SatÄ±r Ekle
                     </button>
 
                     <div class="d-flex align-items-center gap-2">
@@ -593,14 +593,14 @@
                         type="button"
                         data-bs-dismiss="modal"
                       >
-                        Vazgeç
+                        VazgeÃ§
                       </button>
 
                       <button
                         class="btn btn-primary"
                         type="submit"
                       >
-                        Talep Aç
+                        Talep AÃ§
                       </button>
 
                     </div>
@@ -615,7 +615,7 @@
         </div>
 
 
-        <!-- YENÝ SATIR TEMPLATE -->
+        <!-- YENÄ° SATIR TEMPLATE -->
 
         <template id="request-row-template">
 
@@ -626,7 +626,7 @@
               <div class="col-md-4 col-lg-2">
 
                 <label class="form-label">
-                  Ürün Tipi
+                  ÃœrÃ¼n Tipi
                 </label>
 
                 <select
@@ -635,7 +635,7 @@
                   required
                 >
                   <option value="cevre_birimi">
-                    Çevre Birimi
+                    Ã‡evre Birimi
                   </option>
 
                   <option value="envanter">
@@ -643,7 +643,7 @@
                   </option>
 
                   <option value="yazici">
-                    IP Yazýcý
+                    IP YazÄ±cÄ±
                   </option>
 
                   <option value="lisans">
@@ -657,14 +657,14 @@
               <div class="col-md-4 col-lg-3">
 
                 <label class="form-label">
-                  Donaným Tipi
+                  DonanÄ±m Tipi
                 </label>
 
                 <input
                   class="form-control"
                   name="hardware_type[]"
                   list="hardware-types"
-                  placeholder="Örn. Laptop"
+                  placeholder="Ã–rn. Laptop"
                   required
                 >
 
@@ -699,7 +699,7 @@
                   class="form-control"
                   name="brand[]"
                   list="hardware-brands"
-                  placeholder="Örn. Dell"
+                  placeholder="Ã–rn. Dell"
                 >
 
               </div>
@@ -715,7 +715,7 @@
                   class="form-control"
                   name="model[]"
                   list="hardware-models"
-                  placeholder="Model adý"
+                  placeholder="Model adÄ±"
                 >
 
               </div>
@@ -724,7 +724,7 @@
               <div class="col-md-8 col-lg-2">
 
                 <label class="form-label">
-                  Açýklama
+                  AÃ§Ä±klama
                 </label>
 
                 <input
@@ -744,7 +744,7 @@
                   data-remove-row
                 >
                   <i class="bi bi-dash-circle me-1"></i>
-                  Satýrý Sil
+                  SatÄ±rÄ± Sil
                 </button>
 
               </div>
@@ -756,7 +756,7 @@
         </template>
 
 
-        <!-- DONANIM LÝSTELERÝ -->
+        <!-- DONANIM LÄ°STELERÄ° -->
 
         <datalist id="hardware-types">
           {% for option in hardware_catalog.types %}
@@ -777,7 +777,7 @@
         </datalist>
 
 
-        <!-- TALEP ÝÞLEM MODALI -->
+        <!-- TALEP Ä°ÅžLEM MODALI -->
 
         <div
           class="modal fade"
@@ -794,7 +794,7 @@
               <div class="modal-header border-0 pb-0">
 
                 <h5 class="modal-title" id="requestActionLabel">
-                  Talep Ýþlemi
+                  Talep Ä°ÅŸlemi
                 </h5>
 
                 <button
@@ -810,7 +810,7 @@
               <div class="modal-body">
 
                 <p class="mb-3" data-action-message>
-                  Seçili talep satýrý için iþlem yapýn.
+                  SeÃ§ili talep satÄ±rÄ± iÃ§in iÅŸlem yapÄ±n.
                 </p>
 
 
@@ -820,7 +820,7 @@
                   data-single-info
                 >
                   <i class="bi bi-exclamation-circle me-2"></i>
-                  Bu satýr 1 adet içeriyor, iþlem tüm adetler için uygulanacak.
+                  Bu satÄ±r 1 adet iÃ§eriyor, iÅŸlem tÃ¼m adetler iÃ§in uygulanacak.
                 </div>
 
 
@@ -830,7 +830,7 @@
                     class="form-label"
                     for="action-quantity"
                   >
-                    Ýþlem Yapýlacak Miktar
+                    Ä°ÅŸlem YapÄ±lacak Miktar
                   </label>
 
                   <input
@@ -864,11 +864,11 @@
                     class="form-check-label"
                     for="ipPrinterToggle"
                   >
-                    IP yazýcý olarak kaydet
+                    IP yazÄ±cÄ± olarak kaydet
                   </label>
 
                   <div class="form-text">
-                    Seçildiðinde IP yazýcý alanlarý görüntülenir.
+                    SeÃ§ildiÄŸinde IP yazÄ±cÄ± alanlarÄ± gÃ¶rÃ¼ntÃ¼lenir.
                   </div>
 
                 </div>
@@ -887,7 +887,7 @@
                     class="form-control-plaintext bg-light border rounded px-3 py-2"
                     data-action-category-label
                   >
-                    —
+                    â€”
                   </div>
 
                   <input
@@ -896,7 +896,7 @@
                   >
 
                   <div class="form-text">
-                    Kategoriye göre zorunlu bilgileri doldurun.
+                    Kategoriye gÃ¶re zorunlu bilgileri doldurun.
                   </div>
 
                 </div>
@@ -924,7 +924,7 @@
                   ></textarea>
 
                   <label for="action-note">
-                    Not / Açýklama
+                    Not / AÃ§Ä±klama
                   </label>
 
                 </div>
@@ -939,7 +939,7 @@
                   class="btn btn-outline-secondary"
                   data-bs-dismiss="modal"
                 >
-                  Vazgeç
+                  VazgeÃ§
                 </button>
 
                 <button
@@ -947,7 +947,7 @@
                   class="btn btn-primary"
                   data-confirm-action
                 >
-                  Ýþlemi Kaydet
+                  Ä°ÅŸlemi Kaydet
                 </button>
 
               </div>
@@ -1064,19 +1064,19 @@ document.addEventListener('DOMContentLoaded', function () {
   let modelDatalistCounter = 0;
 
 
-  /* TALep SAHÝBÝ */
+  /* TALep SAHÄ°BÄ° */
 
   if (requestOwnerDisplay) {
 
     requestOwnerDisplay.textContent =
-      (requestOwnerInfo && requestOwnerInfo.name) || '—';
+      (requestOwnerInfo && requestOwnerInfo.name) || 'â€”';
 
   }
 
   if (requestOwnerDepartment) {
 
     const departmentLabel =
-      (requestOwnerInfo && requestOwnerInfo.department) || '—';
+      (requestOwnerInfo && requestOwnerInfo.department) || 'â€”';
 
     requestOwnerDepartment.textContent =
       `Departman: ${departmentLabel}`;
@@ -1704,7 +1704,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* SATIR MODEL LÝSTESÝ */
+  /* SATIR MODEL LÄ°STESÄ° */
 
   function attachRowEnhancements(row) {
 
@@ -1812,7 +1812,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* KATEGORÝ TESPÝTÝ */
+  /* KATEGORÄ° TESPÄ°TÄ° */
 
   function guessCategoryFromTrigger(trigger) {
 
@@ -1837,7 +1837,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     if (
-      hardwareType.includes('çevre') ||
+      hardwareType.includes('Ã§evre') ||
       hardwareType.includes('cevre')
     ) {
 
@@ -1847,7 +1847,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     if (
-      hardwareType.includes('yazýcý') ||
+      hardwareType.includes('yazÄ±cÄ±') ||
       hardwareType.includes('yazici')
     ) {
 
@@ -1904,7 +1904,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     return (
-      hardware.includes('yazýcý') ||
+      hardware.includes('yazÄ±cÄ±') ||
       hardware.includes('yazici')
     );
 
@@ -1997,7 +1997,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* SÝPARÝÞ KARTI OLUÞTUR */
+  /* SÄ°PARÄ°Åž KARTI OLUÅžTUR */
 
   function createOrderCard(order) {
 
@@ -2032,7 +2032,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       <span class="meta-chip">
         <i class="bi bi-box-seam"></i>
-        ${escapeHtml(order.item_count)} kalem ·
+        ${escapeHtml(order.item_count)} kalem Â·
         ${escapeHtml(order.total_quantity)} adet
       </span>
     `;
@@ -2047,14 +2047,14 @@ document.addEventListener('DOMContentLoaded', function () {
         .map((line) => {
 
           const itemLabel =
-            `${escapeHtml(line.hardware_type)} · ` +
+            `${escapeHtml(line.hardware_type)} Â· ` +
             `${escapeHtml(line.brand)} ` +
             `${escapeHtml(line.model)}`;
 
           const note =
             line.note
               ? escapeHtml(line.note)
-              : '—';
+              : 'â€”';
 
 
           const actionsHtml =
@@ -2073,7 +2073,7 @@ document.addEventListener('DOMContentLoaded', function () {
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                     >
-                      Ýþlemler
+                      Ä°ÅŸlemler
                     </button>
 
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm">
@@ -2123,7 +2123,7 @@ document.addEventListener('DOMContentLoaded', function () {
                           data-bs-target="#requestActionModal"
                         >
                           <i class="bi bi-x-circle"></i>
-                          Ýptal Et
+                          Ä°ptal Et
                         </button>
 
                       </li>
@@ -2134,7 +2134,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 </div>
               `
-              : '<span class="text-muted small">—</span>';
+              : '<span class="text-muted small">â€”</span>';
 
 
           return `
@@ -2195,7 +2195,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div>
 
           <span class="order-label text-uppercase small text-muted">
-            Sipariþ No
+            SipariÅŸ No
           </span>
 
           <h4 class="order-number mb-0">
@@ -2219,14 +2219,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             <tr>
 
-              <th scope="col">Donaným Tipi</th>
+              <th scope="col">DonanÄ±m Tipi</th>
               <th scope="col">Kategori</th>
               <th scope="col">Marka</th>
               <th scope="col">Model</th>
               <th scope="col" class="text-center">Miktar</th>
               <th scope="col">Tarih</th>
-              <th scope="col">Açýklama</th>
-              <th scope="col" class="text-end">Ýþlemler</th>
+              <th scope="col">AÃ§Ä±klama</th>
+              <th scope="col" class="text-end">Ä°ÅŸlemler</th>
 
             </tr>
 
@@ -2343,7 +2343,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* GRUP GÖRÜNÜRLÜÐÜ */
+  /* GRUP GÃ–RÃœNÃœRLÃœÄžÃœ */
 
   function updateGroupVisibility(
     status
@@ -2512,7 +2512,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (visibleCount) {
 
       visibleCount.textContent =
-        `${visibleOrders} Sipariþ`;
+        `${visibleOrders} SipariÅŸ`;
 
     }
 
@@ -2583,7 +2583,7 @@ document.addEventListener('DOMContentLoaded', function () {
   );
 
 
-  /* YENÝ TALEP */
+  /* YENÄ° TALEP */
 
   const rowTemplate =
     document.getElementById(
@@ -2779,7 +2779,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* TALEP GÖNDER */
+  /* TALEP GÃ–NDER */
 
   if (newRequestForm) {
 
@@ -2917,7 +2917,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (!category) {
 
             showFeedback(
-              `${index + 1}. satýr için ürün tipini seçin.`,
+              `${index + 1}. satÄ±r iÃ§in Ã¼rÃ¼n tipini seÃ§in.`,
               'danger'
             );
 
@@ -2935,7 +2935,7 @@ document.addEventListener('DOMContentLoaded', function () {
           ) {
 
             showFeedback(
-              `${index + 1}. satýr için donaným tipini ve geçerli bir miktarý girin.`,
+              `${index + 1}. satÄ±r iÃ§in donanÄ±m tipini ve geÃ§erli bir miktarÄ± girin.`,
               'danger'
             );
 
@@ -2969,7 +2969,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!orderNo) {
 
           showFeedback(
-            'Sipariþ numarasý zorunludur.',
+            'SipariÅŸ numarasÄ± zorunludur.',
             'danger'
           );
 
@@ -2984,7 +2984,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ) {
 
           showFeedback(
-            'Talep sahibi bilgisi alýnamadý.',
+            'Talep sahibi bilgisi alÄ±namadÄ±.',
             'danger'
           );
 
@@ -3089,12 +3089,12 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
 
           console.error(
-            'Talep gönderme hatasý:',
+            'Talep gÃ¶nderme hatasÄ±:',
             error
           );
 
           showFeedback(
-            'Sunucuya ulaþýlamadý.',
+            'Sunucuya ulaÅŸÄ±lamadÄ±.',
             'danger'
           );
 
@@ -3106,7 +3106,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* YENÝ TALEP MODALI KAPANINCA */
+  /* YENÄ° TALEP MODALI KAPANINCA */
 
   if (newRequestModal) {
 
@@ -3144,7 +3144,7 @@ document.addEventListener('DOMContentLoaded', function () {
               requestOwnerInfo &&
               requestOwnerInfo.name
             ) ||
-            '—';
+            'â€”';
 
         }
 
@@ -3156,7 +3156,7 @@ document.addEventListener('DOMContentLoaded', function () {
               requestOwnerInfo &&
               requestOwnerInfo.department
             ) ||
-            '—';
+            'â€”';
 
           requestOwnerDepartment.textContent =
             `Departman: ${departmentLabel}`;
@@ -3191,7 +3191,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* TALEP ÝÞLEM MODALI */
+  /* TALEP Ä°ÅžLEM MODALI */
 
   const actionModal =
     document.getElementById(
@@ -3294,7 +3294,7 @@ document.addEventListener('DOMContentLoaded', function () {
       actionCategoryLabel.textContent =
         stockCategoryLabels?.[category] ||
         category ||
-        '—';
+        'â€”';
 
     }
 
@@ -3394,7 +3394,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* MODAL AÇILDI */
+  /* MODAL AÃ‡ILDI */
 
   if (actionModal) {
 
@@ -3525,14 +3525,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const verb =
           actionType === 'stok'
-            ? 'Stok Giriþi'
-            : 'Talep Ýptali';
+            ? 'Stok GiriÅŸi'
+            : 'Talep Ä°ptali';
 
 
         if (modalTitle) {
 
           modalTitle.textContent =
-            `${verb} · ${orderNo}`;
+            `${verb} Â· ${orderNo}`;
 
         }
 
@@ -3542,7 +3542,7 @@ document.addEventListener('DOMContentLoaded', function () {
           actionMessage.innerHTML =
             `
               <strong>${escapeHtml(itemLabel)}</strong>
-              satýrý için iþlem yapýyorsunuz.
+              satÄ±rÄ± iÃ§in iÅŸlem yapÄ±yorsunuz.
             `;
 
         }
@@ -3572,7 +3572,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (actionHint) {
 
           actionHint.textContent =
-            `En fazla ${maxQuantity} adet için iþlem yapabilirsiniz.`;
+            `En fazla ${maxQuantity} adet iÃ§in iÅŸlem yapabilirsiniz.`;
 
         }
 
@@ -3613,8 +3613,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
           confirmActionButton.textContent =
             actionType === 'stok'
-              ? 'Stok Ýþlemini Kaydet'
-              : 'Talebi Ýptal Et';
+              ? 'Stok Ä°ÅŸlemini Kaydet'
+              : 'Talebi Ä°ptal Et';
 
 
           confirmActionButton.classList.toggle(
@@ -3834,7 +3834,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (actionCategoryLabel) {
 
           actionCategoryLabel.textContent =
-            '—';
+            'â€”';
 
         }
 
@@ -3897,7 +3897,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 
-  /* ÝÞLEMÝ KAYDET */
+  /* Ä°ÅžLEMÄ° KAYDET */
 
   if (confirmActionButton) {
 
@@ -3945,7 +3945,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ) {
 
           showFeedback(
-            'Miktar en az 1 olmalýdýr.',
+            'Miktar en az 1 olmalÄ±dÄ±r.',
             'danger'
           );
 
@@ -3972,7 +3972,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ) {
 
           showFeedback(
-            `En fazla ${pendingAction.maxQuantity} adet için iþlem yapabilirsiniz.`,
+            `En fazla ${pendingAction.maxQuantity} adet iÃ§in iÅŸlem yapabilirsiniz.`,
             'danger'
           );
 
@@ -4042,7 +4042,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (actionMetadataError) {
 
               actionMetadataError.textContent =
-                `${missing.join(', ')} alanlarýný doldurun.`;
+                `${missing.join(', ')} alanlarÄ±nÄ± doldurun.`;
 
               actionMetadataError.classList.remove(
                 'd-none'
@@ -4159,7 +4159,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             showFeedback(
               payload.error ||
-              'Ýþlem kaydedilemedi.',
+              'Ä°ÅŸlem kaydedilemedi.',
               'danger'
             );
 
@@ -4194,7 +4194,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
           showFeedback(
             payload.message ||
-            'Talep güncellendi.',
+            'Talep gÃ¼ncellendi.',
             'success'
           );
 
@@ -4215,13 +4215,13 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
 
           console.error(
-            'Talep iþlem hatasý:',
+            'Talep iÅŸlem hatasÄ±:',
             error
           );
 
 
           showFeedback(
-            'Sunucuya ulaþýlamadý.',
+            'Sunucuya ulaÅŸÄ±lamadÄ±.',
             'danger'
           );
 
