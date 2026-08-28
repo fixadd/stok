@@ -7,6 +7,12 @@ services:
       POSTGRES_PASSWORD: stok_secure_password_change_me
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stok -d stok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
   web:
@@ -25,7 +31,8 @@ services:
       - ./app:/app/app:ro
       - ./data:/app/data
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

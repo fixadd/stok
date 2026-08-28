@@ -507,82 +507,34 @@ THEME_OPTIONS = {
 
 
 def ensure_user_profile_columns() -> None:
-    existing_columns = {
-        row[1]
-        for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()
-    }
-    altered = False
-
-    if "preferred_theme" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE users ADD COLUMN preferred_theme VARCHAR(64)"
-                " DEFAULT 'varsayilan'"
-            )
-        )
-        altered = True
-
-    if "password_hash" not in existing_columns:
-        db.session.execute(
-            text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
-        )
-        altered = True
-
-    if "system_role" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE users ADD COLUMN system_role VARCHAR(32)" " DEFAULT 'user'"
-            )
-        )
-        altered = True
-
-    if "must_change_password" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN"
-                " NOT NULL DEFAULT 0"
-            )
-        )
-        altered = True
-
-    if altered:
-        db.session.commit()
+    # PostgreSQL'de db.create_all() şemayı oluşturur.
+    # Eski SQLite PRAGMA migration kodları burada çalıştırılmamalıdır.
+    return
 
 
 def ensure_user_employment_columns() -> None:
-    existing_columns = {
-        row[1]
-        for row in db.session.execute(text("PRAGMA table_info(users)")).fetchall()
-    }
-    altered = False
+    return
 
-    if "employment_status" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE users ADD COLUMN employment_status VARCHAR(16)"
-                " NOT NULL DEFAULT 'aktif'"
-            )
-        )
-        altered = True
 
-    if "termination_date" not in existing_columns:
-        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_date DATE"))
-        altered = True
+def ensure_request_line_category_column() -> None:
+    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
+    return
 
-    if "termination_note" not in existing_columns:
-        db.session.execute(text("ALTER TABLE users ADD COLUMN termination_note TEXT"))
-        altered = True
+def ensure_stock_item_relation_columns() -> None:
+    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
+    return
 
-    db.session.execute(
-        text(
-            "UPDATE users SET employment_status = 'aktif' "
-            "WHERE employment_status IS NULL OR TRIM(employment_status) = ''"
-        )
-    )
+def ensure_soft_delete_and_sku_columns() -> None:
+    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
+    return
 
-    if altered:
-        db.session.commit()
+def ensure_stock_enterprise_columns() -> None:
+    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
+    return
 
+def ensure_inventory_maintenance_table() -> None:
+    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
+    return
 
 def user_is_active(user: User | None) -> bool:
     if user is None:
@@ -2748,8 +2700,7 @@ def create_app() -> Flask:
         actor = sanitize_input_text(data.get("performed_by")) or DEFAULT_EVENT_ACTOR
 
         associated_item = license.item
-        with db.session.begin():
-            stock_item = create_stock_item_from_license(license, note=note, actor=actor)
+        stock_item = create_stock_item_from_license(license, note=note, actor=actor)
 
             license.status = "pasif"
             license.item = None
@@ -2829,8 +2780,7 @@ def create_app() -> Flask:
             )
 
         active_user = get_active_user()
-        with db.session.begin():
-            category_ref = resolve_stock_category(category)
+        category_ref = resolve_stock_category(category)
             unit_ref = resolve_stock_unit(unit)
             stock_item = StockItem(
                 source_type="manual",
@@ -2954,8 +2904,7 @@ def create_app() -> Flask:
 
         active_user = get_active_user()
         remaining_item_id: int | None = None
-        with db.session.begin():
-            stock_item.quantity = quantity
+        stock_item.quantity = quantity
             stock_item.metadata_payload = combined_metadata or None
             stock_item.status = "devredildi"
             if note:
@@ -3146,8 +3095,7 @@ def create_app() -> Flask:
 
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
-        with db.session.begin():
-            stock_item.status = "hurda"
+        stock_item.status = "hurda"
             if note:
                 stock_item.note = note
 
