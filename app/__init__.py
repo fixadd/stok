@@ -39,12 +39,25 @@ from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
+from .routes.maintenance import register_maintenance_routes
 from .routes.information import register_information_routes
 from .routes.requests import register_request_routes
 from .routes.stock import register_stock_routes
 
-from .services.authz import current_actor_name, get_active_user, get_system_role, has_system_role, is_safe_redirect_target, set_active_user
-from .utils.parsing import parse_excel_date, parse_int_or_none, sanitize_input_text, sanitize_metadata_payload
+from .services.authz import (
+    current_actor_name,
+    get_active_user,
+    get_system_role,
+    has_system_role,
+    is_safe_redirect_target,
+    set_active_user,
+)
+from .utils.parsing import (
+    parse_excel_date,
+    parse_int_or_none,
+    sanitize_input_text,
+    sanitize_metadata_payload,
+)
 from .personnel_lifecycle import personnel_lifecycle_bp
 from .models import (
     Brand,
@@ -57,6 +70,7 @@ from .models import (
     InventoryEvent,
     InventoryItem,
     InventoryLicense,
+    InventoryMaintenance,
     LdapProfile,
     LicenseName,
     ProductCatalogEntry,
@@ -77,7 +91,6 @@ from .models import (
     StockAssignment,
     StockAuditLog,
 )
-
 
 INVENTORY_STATUSES = {"aktif", "beklemede", "arizali", "hurda", "stokta"}
 DEFAULT_EVENT_ACTOR = "Sistem"
@@ -518,8 +531,7 @@ def ensure_user_profile_columns() -> None:
     if "system_role" not in existing_columns:
         db.session.execute(
             text(
-                "ALTER TABLE users ADD COLUMN system_role VARCHAR(32)"
-                " DEFAULT 'user'"
+                "ALTER TABLE users ADD COLUMN system_role VARCHAR(32)" " DEFAULT 'user'"
             )
         )
         altered = True
@@ -535,8 +547,6 @@ def ensure_user_profile_columns() -> None:
 
     if altered:
         db.session.commit()
-
-
 
 
 def ensure_user_employment_columns() -> None:
@@ -587,15 +597,24 @@ def active_users_query(include_inactive: bool = False):
     return query
 
 
-def active_user_by_id(user_id: int | None, *, include_inactive: bool = False) -> User | None:
+def active_user_by_id(
+    user_id: int | None, *, include_inactive: bool = False
+) -> User | None:
     if user_id is None:
         return None
-    return active_users_query(include_inactive=include_inactive).filter(User.id == user_id).first()
+    return (
+        active_users_query(include_inactive=include_inactive)
+        .filter(User.id == user_id)
+        .first()
+    )
+
 
 def ensure_request_line_category_column() -> None:
     existing_columns = {
         row[1]
-        for row in db.session.execute(text("PRAGMA table_info(request_lines)")).fetchall()
+        for row in db.session.execute(
+            text("PRAGMA table_info(request_lines)")
+        ).fetchall()
     }
     if "category" not in existing_columns:
         db.session.execute(
@@ -657,7 +676,9 @@ def ensure_soft_delete_and_sku_columns() -> None:
     for table_name, columns in table_specs.items():
         existing_columns = {
             row[1]
-            for row in db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+            for row in db.session.execute(
+                text(f"PRAGMA table_info({table_name})")
+            ).fetchall()
         }
         for column_name, ddl in columns.items():
             if column_name not in existing_columns:
@@ -737,8 +758,27 @@ def ensure_stock_enterprise_columns() -> None:
         db.session.commit()
 
 
+def ensure_inventory_maintenance_table() -> None:
+    existing = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+        {"name": "inventory_maintenances"},
+    ).scalar()
+    if existing:
+        return
 
-
+    db.session.execute(
+        text(
+            "CREATE TABLE inventory_maintenances ("
+            "id INTEGER PRIMARY KEY, "
+            "item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE, "
+            "performed_at DATETIME NOT NULL, "
+            "performed_by VARCHAR(128) NOT NULL, "
+            "note TEXT, "
+            "created_at DATETIME NOT NULL"
+            ")"
+        )
+    )
+    db.session.commit()
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -750,10 +790,13 @@ def split_license_name(value: str) -> tuple[str, str]:
     return value.strip(), ""
 
 
-
 def build_qr_code_url(sku: str) -> str:
     code = sanitize_input_text(sku, max_length=64)
-    return f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={code}" if code else ""
+    return (
+        f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={code}"
+        if code
+        else ""
+    )
 
 
 def generate_unique_sku(prefix: str) -> str:
@@ -775,7 +818,13 @@ def create_app() -> Flask:
         data_dir = project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    database_path = data_dir / "stok.db"
+    database_path_env = os.environ.get("DATABASE_PATH")
+    if database_path_env:
+        database_path = Path(database_path_env)
+    else:
+        database_path = data_dir / "stok.db"
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
     info_upload_dir = data_dir / "info_uploads"
     info_upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -801,6 +850,7 @@ def create_app() -> Flask:
         ensure_stock_item_relation_columns()
         ensure_soft_delete_and_sku_columns()
         ensure_stock_enterprise_columns()
+        ensure_inventory_maintenance_table()
         seed_initial_data()
 
     @app.before_request
@@ -889,6 +939,13 @@ def create_app() -> Flask:
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
             "load_printer_payload": load_printer_payload,
+        },
+    )
+    register_maintenance_routes(
+        app,
+        {
+            "load_maintenance_payload": load_maintenance_payload,
+            "create_maintenance_record": create_maintenance_record,
         },
     )
     register_stock_routes(
@@ -1117,7 +1174,9 @@ def create_app() -> Flask:
             content = (request.form.get("content") or "").strip()
 
             if not title or not category_id or not content:
-                flash("Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger")
+                flash(
+                    "Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger"
+                )
                 return redirect(url_for("information_edit", entry_id=entry.id))
 
             category = InfoCategory.query.get(category_id)
@@ -1184,7 +1243,9 @@ def create_app() -> Flask:
     def export_database():
         user = get_active_user()
         if not has_system_role(user, "superadmin"):
-            flash("Veri dışa aktarma işlemi için süper admin yetkisi gerekir.", "danger")
+            flash(
+                "Veri dışa aktarma işlemi için süper admin yetkisi gerekir.", "danger"
+            )
             return redirect(url_for("admin_panel", section="data-section"))
 
         database_path = get_database_path()
@@ -1260,6 +1321,9 @@ def create_app() -> Flask:
             ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
+            ensure_soft_delete_and_sku_columns()
+            ensure_stock_enterprise_columns()
+            ensure_inventory_maintenance_table()
         except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
             current_app.logger.exception("Veritabanı içe aktarılamadı")
             if backup_path.exists():
@@ -1290,7 +1354,9 @@ def create_app() -> Flask:
 
         items = (
             StockItem.query.options(
-                joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+                joinedload(StockItem.inventory_item).joinedload(
+                    InventoryItem.hardware_type
+                ),
                 joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
                 joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
                 joinedload(StockItem.license),
@@ -1364,7 +1430,9 @@ def create_app() -> Flask:
             try:
                 temp_path.unlink(missing_ok=True)
             except Exception:
-                current_app.logger.warning("Geçici Excel dosyası silinemedi", exc_info=True)
+                current_app.logger.warning(
+                    "Geçici Excel dosyası silinemedi", exc_info=True
+                )
             return response
 
         record_activity(
@@ -1398,7 +1466,9 @@ def create_app() -> Flask:
         filename = secure_filename(file.filename)
         extension = Path(filename).suffix.lower()
         if extension not in {".xlsx", ".xlsm"}:
-            flash("Yalnızca .xlsx uzantılı Excel dosyaları içe aktarılabilir.", "warning")
+            flash(
+                "Yalnızca .xlsx uzantılı Excel dosyaları içe aktarılabilir.", "warning"
+            )
             return redirect(url_for("admin_panel", section="data-section"))
 
         try:
@@ -1438,14 +1508,19 @@ def create_app() -> Flask:
             }
 
             column_indexes: dict[str, int] = {}
-            header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), [])
+            header_row = next(
+                sheet.iter_rows(min_row=1, max_row=1, values_only=True), []
+            )
             for idx, cell in enumerate(header_row or []):
                 header_value = str(cell or "").strip().lower()
                 if header_value in header_map:
                     column_indexes[header_map[header_value]] = idx
 
             if "title" not in column_indexes:
-                flash("Tablonun ilk satırında en azından 'Başlık' sütunu bulunmalı.", "warning")
+                flash(
+                    "Tablonun ilk satırında en azından 'Başlık' sütunu bulunmalı.",
+                    "warning",
+                )
                 return redirect(url_for("admin_panel", section="data-section"))
 
             category_lookup = {
@@ -1461,7 +1536,9 @@ def create_app() -> Flask:
                 **{label.lower(): key for key, label in STOCK_SOURCE_LABELS.items()},
             }
 
-            def normalize_lookup(raw_value: Any, lookup: dict[str, str], fallback: str) -> str:
+            def normalize_lookup(
+                raw_value: Any, lookup: dict[str, str], fallback: str
+            ) -> str:
                 if raw_value is None:
                     return fallback
                 normalized_value = str(raw_value).strip().lower()
@@ -1477,7 +1554,11 @@ def create_app() -> Flask:
 
                 def pick(key: str) -> Any:
                     index = column_indexes.get(key)
-                    return values[index] if index is not None and index < len(values) else None
+                    return (
+                        values[index]
+                        if index is not None and index < len(values)
+                        else None
+                    )
 
                 title = str(pick("title") or "").strip()
                 if not title:
@@ -1585,6 +1666,9 @@ def create_app() -> Flask:
             ensure_user_employment_columns()
             ensure_request_line_category_column()
             ensure_stock_item_relation_columns()
+            ensure_soft_delete_and_sku_columns()
+            ensure_stock_enterprise_columns()
+            ensure_inventory_maintenance_table()
             if info_upload_dir.exists():
                 shutil.rmtree(info_upload_dir, ignore_errors=True)
             info_upload_dir.mkdir(parents=True, exist_ok=True)
@@ -1608,7 +1692,9 @@ def create_app() -> Flask:
     def create_user():
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            flash("Yeni kullanıcı oluşturmak için süper admin yetkisi gerekir.", "danger")
+            flash(
+                "Yeni kullanıcı oluşturmak için süper admin yetkisi gerekir.", "danger"
+            )
             return redirect(url_for("admin_panel"))
 
         username = (request.form.get("username") or "").strip()
@@ -1616,7 +1702,9 @@ def create_app() -> Flask:
         first_name = (request.form.get("first_name") or "").strip()
         last_name = (request.form.get("last_name") or "").strip()
         email = (request.form.get("email") or "").strip()
-        system_role = (request.form.get("system_role") or "user").strip().lower() or "user"
+        system_role = (
+            request.form.get("system_role") or "user"
+        ).strip().lower() or "user"
 
         if system_role not in {"user", "admin"}:
             system_role = "user"
@@ -1666,8 +1754,6 @@ def create_app() -> Flask:
         flash("Yeni kullanıcı başarıyla oluşturuldu.", "success")
         return redirect(url_for("admin_panel"))
 
-
-
     def _user_assignment_counts(user: User) -> dict[str, int]:
         person_name = f"{user.first_name} {user.last_name}".strip()
         inventory_count = InventoryItem.query.filter(
@@ -1688,7 +1774,12 @@ def create_app() -> Flask:
     def delete_user(user_id: int):
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            return jsonify(json_error("Kullanıcı silmek için süper admin yetkisi gerekir.")), 403
+            return (
+                jsonify(
+                    json_error("Kullanıcı silmek için süper admin yetkisi gerekir.")
+                ),
+                403,
+            )
 
         user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
@@ -1725,7 +1816,10 @@ def create_app() -> Flask:
                 .count()
             )
             if remaining_superadmins == 0:
-                return jsonify(json_error("Son süper admin kullanıcısı silinemez.")), 400
+                return (
+                    jsonify(json_error("Son süper admin kullanıcısı silinemez.")),
+                    400,
+                )
 
         db.session.delete(user)
         record_activity(
@@ -1765,9 +1859,7 @@ def create_app() -> Flask:
             .all()
         )
         license_rows = [
-            license
-            for item in inventory_items
-            for license in (item.licenses or [])
+            license for item in inventory_items for license in (item.licenses or [])
         ]
         open_requests = (
             RequestOrder.query.join(RequestOrder.group)
@@ -1802,15 +1894,22 @@ def create_app() -> Flask:
                         item.department = new_department
                     if new_factory:
                         item.factory_id = new_factory.id
-                    note = (
-                        f"{old_name} → {target_name} transferi"
-                        + (f" · Vekil: {delegate_name}" if delegate_user else "")
+                    note = f"{old_name} → {target_name} transferi" + (
+                        f" · Vekil: {delegate_name}" if delegate_user else ""
                     )
                     add_inventory_event(item, "Personel transferi", note)
                     db.session.flush()
-                    success["inventory"].append({"id": item.id, "inventory_no": item.inventory_no})
+                    success["inventory"].append(
+                        {"id": item.id, "inventory_no": item.inventory_no}
+                    )
             except Exception as exc:
-                failed["inventory"].append({"id": item.id, "inventory_no": item.inventory_no, "error": str(exc)})
+                failed["inventory"].append(
+                    {
+                        "id": item.id,
+                        "inventory_no": item.inventory_no,
+                        "error": str(exc),
+                    }
+                )
 
         for license in license_rows:
             try:
@@ -1825,7 +1924,9 @@ def create_app() -> Flask:
                     db.session.flush()
                     success["licenses"].append({"id": license.id, "name": license.name})
             except Exception as exc:
-                failed["licenses"].append({"id": license.id, "name": license.name, "error": str(exc)})
+                failed["licenses"].append(
+                    {"id": license.id, "name": license.name, "error": str(exc)}
+                )
 
         for order in open_requests:
             try:
@@ -1841,9 +1942,13 @@ def create_app() -> Flask:
                         metadata={"order_id": order.id, "order_no": order.order_no},
                     )
                     db.session.flush()
-                    success["requests"].append({"id": order.id, "order_no": order.order_no})
+                    success["requests"].append(
+                        {"id": order.id, "order_no": order.order_no}
+                    )
             except Exception as exc:
-                failed["requests"].append({"id": order.id, "order_no": order.order_no, "error": str(exc)})
+                failed["requests"].append(
+                    {"id": order.id, "order_no": order.order_no, "error": str(exc)}
+                )
 
         record_activity(
             area="kullanici",
@@ -1864,13 +1969,21 @@ def create_app() -> Flask:
         )
 
         db.session.commit()
-        return {"dry_run": False, "preview": preview, "success": success, "failed": failed}
+        return {
+            "dry_run": False,
+            "preview": preview,
+            "success": success,
+            "failed": failed,
+        }
 
     @app.post("/api/users/<int:user_id>/transfer")
     def transfer_user(user_id: int):
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+            return (
+                jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")),
+                403,
+            )
 
         old_user = active_user_by_id(user_id, include_inactive=True)
         if old_user is None:
@@ -1887,7 +2000,9 @@ def create_app() -> Flask:
         new_factory_id = parse_int_or_none(data.get("new_factory_id"))
 
         target_user = active_user_by_id(target_user_id)
-        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        delegate_user = (
+            active_user_by_id(delegate_user_id) if delegate_user_id else None
+        )
         new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
 
         if target_user is None:
@@ -1905,16 +2020,25 @@ def create_app() -> Flask:
             new_factory=new_factory,
             dry_run=dry_run,
         )
-        return jsonify({
-            "message": "Transfer önizlemesi hazır." if dry_run else "Transfer işlemi tamamlandı.",
-            "report": report,
-        })
+        return jsonify(
+            {
+                "message": (
+                    "Transfer önizlemesi hazır."
+                    if dry_run
+                    else "Transfer işlemi tamamlandı."
+                ),
+                "report": report,
+            }
+        )
 
     @app.post("/admin-panel/users/transfer")
     def transfer_user_assignments():
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            return jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")), 403
+            return (
+                jsonify(json_error("Bu işlem için süper admin yetkisi gerekir.")),
+                403,
+            )
 
         old_user_id = parse_int_or_none(request.form.get("old_user_id"))
         target_user_id = parse_int_or_none(request.form.get("new_user_id"))
@@ -1927,7 +2051,9 @@ def create_app() -> Flask:
 
         old_user = active_user_by_id(old_user_id, include_inactive=True)
         target_user = active_user_by_id(target_user_id)
-        delegate_user = active_user_by_id(delegate_user_id) if delegate_user_id else None
+        delegate_user = (
+            active_user_by_id(delegate_user_id) if delegate_user_id else None
+        )
         new_factory = Factory.query.get(new_factory_id) if new_factory_id else None
 
         if old_user is None:
@@ -1978,7 +2104,9 @@ def create_app() -> Flask:
                 return redirect(url_for("admin_panel"))
 
         user.employment_status = "pasif"
-        user.termination_note = sanitize_input_text(request.form.get("termination_note"), max_length=512)
+        user.termination_note = sanitize_input_text(
+            request.form.get("termination_note"), max_length=512
+        )
         user.termination_date = date.today()
 
         record_activity(
@@ -2034,7 +2162,12 @@ def create_app() -> Flask:
     def update_user_role(user_id: int):
         active_user = get_active_user()
         if not has_system_role(active_user, "superadmin"):
-            return jsonify(json_error("Bu işlemi yapmak için süper admin yetkisi gerekir.")), 403
+            return (
+                jsonify(
+                    json_error("Bu işlemi yapmak için süper admin yetkisi gerekir.")
+                ),
+                403,
+            )
 
         user = active_user_by_id(user_id, include_inactive=True)
         if user is None:
@@ -2054,7 +2187,12 @@ def create_app() -> Flask:
             if remaining == 0:
                 return jsonify(json_error("Son süper admin yetkisi düşürülemez.")), 400
             if active_user and active_user.id == user.id:
-                return jsonify(json_error("Aktif kullanıcının yetkisi buradan düşürülemez.")), 400
+                return (
+                    jsonify(
+                        json_error("Aktif kullanıcının yetkisi buradan düşürülemez.")
+                    ),
+                    400,
+                )
 
         if user.system_role == new_role:
             return jsonify(
@@ -2133,10 +2271,9 @@ def create_app() -> Flask:
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
 
-        existing = (
-            LdapProfile.query.filter(func.lower(LdapProfile.name) == payload["name"].lower())
-            .first()
-        )
+        existing = LdapProfile.query.filter(
+            func.lower(LdapProfile.name) == payload["name"].lower()
+        ).first()
         if existing:
             return jsonify({"error": "Bu profil adı zaten kayıtlı."}), 409
 
@@ -2175,7 +2312,9 @@ def create_app() -> Flask:
             return jsonify({"error": str(exc)}), 400
 
         duplicate = (
-            LdapProfile.query.filter(func.lower(LdapProfile.name) == payload["name"].lower())
+            LdapProfile.query.filter(
+                func.lower(LdapProfile.name) == payload["name"].lower()
+            )
             .filter(LdapProfile.id != profile.id)
             .first()
         )
@@ -2196,7 +2335,9 @@ def create_app() -> Flask:
             metadata={"profile_id": profile.id},
         )
         db.session.commit()
-        return jsonify({"profile": profile.to_dict(), "message": "LDAP profili güncellendi."})
+        return jsonify(
+            {"profile": profile.to_dict(), "message": "LDAP profili güncellendi."}
+        )
 
     @app.delete("/api/ldap-profiles/<int:profile_id>")
     def delete_ldap_profile(profile_id: int):
@@ -2272,10 +2413,14 @@ def create_app() -> Flask:
         responsible_user_id = parse_int_or_none(data.get("responsible_user_id"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
-        hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
+        hardware_type = (
+            HardwareType.query.get(hardware_type_id) if hardware_type_id else None
+        )
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
+        responsible_user = (
+            active_user_by_id(responsible_user_id) if responsible_user_id else None
+        )
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2344,10 +2489,14 @@ def create_app() -> Flask:
         responsible_user_id = parse_int_or_none(data.get("responsible_user_id"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
-        hardware_type = HardwareType.query.get(hardware_type_id) if hardware_type_id else None
+        hardware_type = (
+            HardwareType.query.get(hardware_type_id) if hardware_type_id else None
+        )
         brand = Brand.query.get(brand_id) if brand_id else None
         model = HardwareModel.query.get(model_id) if model_id else None
-        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
+        responsible_user = (
+            active_user_by_id(responsible_user_id) if responsible_user_id else None
+        )
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2379,7 +2528,9 @@ def create_app() -> Flask:
         item.serial_no = (data.get("serial_no") or "").strip() or None
         item.ifs_no = (data.get("ifs_no") or "").strip() or None
         if "related_machine_no" in data:
-            item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
+            item.related_machine_no = (
+                data.get("related_machine_no") or ""
+            ).strip() or None
         if "machine_no" in data:
             item.machine_no = (data.get("machine_no") or "").strip() or None
         item.note = (data.get("note") or "").strip() or None
@@ -2406,7 +2557,9 @@ def create_app() -> Flask:
         department = sanitize_input_text(data.get("department"))
 
         factory = Factory.query.get(factory_id) if factory_id else None
-        responsible_user = active_user_by_id(responsible_user_id) if responsible_user_id else None
+        responsible_user = (
+            active_user_by_id(responsible_user_id) if responsible_user_id else None
+        )
 
         if not factory:
             return json_error("Geçerli bir fabrika seçin."), 400
@@ -2419,7 +2572,9 @@ def create_app() -> Flask:
         item.department = department
         item.responsible_user = responsible_user
         if "related_machine_no" in data:
-            item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
+            item.related_machine_no = (
+                data.get("related_machine_no") or ""
+            ).strip() or None
 
         note_parts: list[str] = []
         note_parts.append(f"Fabrika: {factory.name}")
@@ -2475,7 +2630,9 @@ def create_app() -> Flask:
 
         existing_stock = (
             StockItem.query.options(
-                joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+                joinedload(StockItem.inventory_item).joinedload(
+                    InventoryItem.hardware_type
+                ),
                 joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
                 joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
                 joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
@@ -2574,7 +2731,9 @@ def create_app() -> Flask:
                 .joinedload(InventoryItem.hardware_type),
                 joinedload(InventoryLicense.item).joinedload(InventoryItem.brand),
                 joinedload(InventoryLicense.item).joinedload(InventoryItem.model),
-                joinedload(InventoryLicense.item).joinedload(InventoryItem.responsible_user),
+                joinedload(InventoryLicense.item).joinedload(
+                    InventoryItem.responsible_user
+                ),
                 joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
             )
             .filter_by(id=license_id)
@@ -2607,9 +2766,12 @@ def create_app() -> Flask:
 
         fresh_license = (
             InventoryLicense.query.options(
-                joinedload(InventoryLicense.item)
-                .joinedload(InventoryItem.responsible_user),
-                joinedload(InventoryLicense.item).joinedload(InventoryItem.hardware_type),
+                joinedload(InventoryLicense.item).joinedload(
+                    InventoryItem.responsible_user
+                ),
+                joinedload(InventoryLicense.item).joinedload(
+                    InventoryItem.hardware_type
+                ),
                 joinedload(InventoryLicense.item).joinedload(InventoryItem.factory),
                 joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
             )
@@ -2618,7 +2780,9 @@ def create_app() -> Flask:
         )
         response: dict[str, Any] = {
             "message": "Lisans stok listesine taşındı.",
-            "license": serialize_license_record(fresh_license) if fresh_license else None,
+            "license": (
+                serialize_license_record(fresh_license) if fresh_license else None
+            ),
         }
         fresh_stock = get_stock_item_with_relations(stock_item.id)
         if fresh_stock:
@@ -2714,7 +2878,9 @@ def create_app() -> Flask:
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
-        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        response_payload: dict[str, Any] = {
+            "stock_item": serialize_stock_item(fresh_item)
+        }
         if log_entry:
             response_payload["log"] = serialize_stock_log(log_entry)
         return jsonify(response_payload), 201
@@ -2739,7 +2905,11 @@ def create_app() -> Flask:
 
         existing_note = stock_item.note
 
-        category_name = stock_item.category_ref.name if stock_item.category_ref else stock_item.category
+        category_name = (
+            stock_item.category_ref.name
+            if stock_item.category_ref
+            else stock_item.category
+        )
         category_value = normalize_stock_category(category_name)
         metadata_defaults: dict[str, Any] = {}
         if stock_item.metadata_payload:
@@ -2748,7 +2918,9 @@ def create_app() -> Flask:
             metadata_defaults.update(
                 {
                     k: v
-                    for k, v in build_inventory_stock_metadata(stock_item.inventory_item).items()
+                    for k, v in build_inventory_stock_metadata(
+                        stock_item.inventory_item
+                    ).items()
                     if v
                 }
             )
@@ -2848,8 +3020,12 @@ def create_app() -> Flask:
             receipt_code = generate_unique_sku("ZIM")
             assignment_record = StockAssignment(
                 stock_item_id=stock_item.id,
-                assigned_to=(stock_item.metadata_payload or {}).get("responsible") or "Belirtilmedi",
-                assigned_department=(stock_item.metadata_payload or {}).get("department") or None,
+                assigned_to=(stock_item.metadata_payload or {}).get("responsible")
+                or "Belirtilmedi",
+                assigned_department=(stock_item.metadata_payload or {}).get(
+                    "department"
+                )
+                or None,
                 quantity=quantity,
                 delivery_note=note or None,
                 delivered_by=actor,
@@ -2877,12 +3053,16 @@ def create_app() -> Flask:
                         "stock_item_id": stock_item.id,
                         "category": category_value,
                         "responsible": responsible_name,
-                        "inventory_no": (stock_item.metadata_payload or {}).get("inventory_no"),
+                        "inventory_no": (stock_item.metadata_payload or {}).get(
+                            "inventory_no"
+                        ),
                     },
                 )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
-        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        response_payload: dict[str, Any] = {
+            "stock_item": serialize_stock_item(fresh_item)
+        }
         if remaining_item_id:
             response_payload["remaining_stock_item"] = serialize_stock_item(
                 get_stock_item_with_relations(remaining_item_id)
@@ -2944,7 +3124,9 @@ def create_app() -> Flask:
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
-        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        response_payload: dict[str, Any] = {
+            "stock_item": serialize_stock_item(fresh_item)
+        }
         if log_entry:
             response_payload["log"] = serialize_stock_log(log_entry)
         return jsonify(response_payload)
@@ -3002,7 +3184,9 @@ def create_app() -> Flask:
             )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
-        response_payload: dict[str, Any] = {"stock_item": serialize_stock_item(fresh_item)}
+        response_payload: dict[str, Any] = {
+            "stock_item": serialize_stock_item(fresh_item)
+        }
         if log_entry:
             response_payload["log"] = serialize_stock_log(log_entry)
         return jsonify(response_payload)
@@ -3061,11 +3245,7 @@ def create_app() -> Flask:
             f"{requested_by_user.first_name} {requested_by_user.last_name}".strip()
             or requested_by_user.username
         )
-        department = (
-            requested_by_user.department
-            or department
-            or "Belirtilmedi"
-        )
+        department = requested_by_user.department or department or "Belirtilmedi"
 
         if not requested_by:
             return json_error("Talep sahibi seçin."), 400
@@ -3074,7 +3254,9 @@ def create_app() -> Flask:
         if not isinstance(lines_payload, list) or not lines_payload:
             return json_error("En az bir talep satırı ekleyin."), 400
 
-        target_group = get_request_group_by_key(group_key) or get_request_group_by_key("acik")
+        target_group = get_request_group_by_key(group_key) or get_request_group_by_key(
+            "acik"
+        )
         if target_group is None:
             return json_error("Talep grubu bulunamadı."), 400
 
@@ -3176,7 +3358,10 @@ def create_app() -> Flask:
 
         total_quantity = sum(line.quantity for line in target_lines)
         if action_key == "stok" and requested_quantity > 1:
-            return json_error("Tek seferde en fazla 1 adet stok girişi yapılabilir."), 400
+            return (
+                json_error("Tek seferde en fazla 1 adet stok girişi yapılabilir."),
+                400,
+            )
         if requested_quantity < 1:
             return json_error("Miktar en az 1 olmalıdır."), 400
         if total_quantity <= 0:
@@ -3421,7 +3606,17 @@ def create_app() -> Flask:
         brand = Brand.query.get(brand_id)
         model = HardwareModel.query.get(model_id)
 
-        if not all([usage_area, license_name, info_category, factory, hardware_type, brand, model]):
+        if not all(
+            [
+                usage_area,
+                license_name,
+                info_category,
+                factory,
+                hardware_type,
+                brand,
+                model,
+            ]
+        ):
             return json_error("Seçilen kayıtlar doğrulanamadı."), 400
 
         entry = ProductCatalogEntry(
@@ -3521,7 +3716,11 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
         logs = load_activity_logs()
         unique_areas = sorted({log.get("area", "") for log in logs if log.get("area")})
-        default_area = "kullanici" if any(log.get("area") == "kullanici" for log in logs) else "all"
+        default_area = (
+            "kullanici"
+            if any(log.get("area") == "kullanici" for log in logs)
+            else "all"
+        )
         return render_template(
             "activity_logs.html",
             active_page="activity_logs",
@@ -3555,6 +3754,7 @@ def load_inventory_payload() -> dict:
             joinedload(InventoryItem.responsible_user),
             joinedload(InventoryItem.events),
             joinedload(InventoryItem.licenses),
+            joinedload(InventoryItem.maintenances),
         )
         .order_by(InventoryItem.inventory_no)
         .all()
@@ -3562,14 +3762,18 @@ def load_inventory_payload() -> dict:
 
     payload = [serialize_inventory_item(item) for item in items]
     hidden_statuses = {"stokta", "hurda"}
-    visible_items = [item for item in payload if item.get("status") not in hidden_statuses]
+    visible_items = [
+        item for item in payload if item.get("status") not in hidden_statuses
+    ]
     faulty_count = sum(1 for item in visible_items if item["status"] == "arizali")
     departments_set: set[str] = {
         item["department"] for item in visible_items if item.get("department")
     }
 
     factories = [factory.to_dict() for factory in Factory.query.order_by(Factory.name)]
-    hardware_types = [ht.to_dict() for ht in HardwareType.query.order_by(HardwareType.name)]
+    hardware_types = [
+        ht.to_dict() for ht in HardwareType.query.order_by(HardwareType.name)
+    ]
     brand_models = [
         brand.to_dict(include_models=True)
         for brand in Brand.query.options(joinedload(Brand.models)).order_by(Brand.name)
@@ -3604,10 +3808,160 @@ def load_inventory_payload() -> dict:
     }
 
 
-def load_printer_payload() -> dict[str, Any]:
-    printer_type = (
-        HardwareType.query.filter(func.lower(HardwareType.name) == "yazıcı").first()
+def create_maintenance_record(item_id: int, data: Any) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+    if not is_computer_hardware_type(
+        item.hardware_type.name if item.hardware_type else None
+    ):
+        return (
+            json_error(
+                "Bakım kaydı yalnızca bilgisayar envanterleri için oluşturulabilir."
+            ),
+            400,
+        )
+
+    if not isinstance(data, dict):
+        return json_error("Geçersiz JSON gövdesi."), 400
+
+    performed_by = (
+        sanitize_input_text(data.get("performed_by"), max_length=128)
+        or current_actor_name()
     )
+    note = sanitize_input_text(data.get("note"), max_length=2000)
+    performed_at_value = (data.get("performed_at") or "").strip()
+    performed_at = datetime.utcnow()
+    if performed_at_value:
+        try:
+            performed_at = datetime.fromisoformat(performed_at_value)
+        except ValueError:
+            return json_error("Bakım tarihi geçerli bir tarih olmalıdır."), 400
+
+    maintenance = InventoryMaintenance(
+        item=item,
+        performed_at=performed_at,
+        performed_by=performed_by,
+        note=note or None,
+    )
+    db.session.add(maintenance)
+    db.session.flush()
+
+    event_note_parts = [f"Bakım tarihi: {performed_at.strftime('%d.%m.%Y %H:%M')}"]
+    if note:
+        event_note_parts.append(note)
+    add_inventory_event(
+        item,
+        "Bakım Yapıldı",
+        " • ".join(event_note_parts),
+        performed_by=performed_by,
+    )
+    db.session.commit()
+
+    return {"maintenance": serialize_maintenance_record(maintenance)}, 201
+
+
+def load_maintenance_payload() -> dict[str, Any]:
+    items = (
+        InventoryItem.query.options(
+            joinedload(InventoryItem.factory),
+            joinedload(InventoryItem.hardware_type),
+            joinedload(InventoryItem.brand),
+            joinedload(InventoryItem.model),
+            joinedload(InventoryItem.responsible_user),
+            joinedload(InventoryItem.maintenances),
+        )
+        .order_by(InventoryItem.inventory_no)
+        .all()
+    )
+
+    computers: list[dict[str, Any]] = []
+    for item in items:
+        if not is_computer_hardware_type(
+            item.hardware_type.name if item.hardware_type else None
+        ):
+            continue
+        if (item.status or "").lower() in {"hurda", "stokta"}:
+            continue
+
+        maintenances = [
+            serialize_maintenance_record(record) for record in item.maintenances
+        ]
+        last_maintenance = item.maintenances[0] if item.maintenances else None
+        maintenance_status_payload = calculate_maintenance_status(
+            last_maintenance.performed_at if last_maintenance else None
+        )
+        maintenance_status = maintenance_status_payload["label"]
+        maintenance_status_key = maintenance_status_payload["status"]
+        maintenance_status_class = maintenance_status_badge_class(
+            maintenance_status_key
+        )
+
+        responsible = (
+            f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
+            if item.responsible_user
+            else "Atama bekliyor"
+        )
+        brand_model = " ".join(
+            filter(
+                None,
+                [
+                    item.brand.name if item.brand else "",
+                    item.model.name if item.model else "",
+                ],
+            )
+        )
+        search_tokens = [
+            item.inventory_no,
+            item.computer_name,
+            responsible,
+            item.department,
+            brand_model,
+            item.hardware_type.name if item.hardware_type else "",
+            maintenance_status,
+        ]
+        computers.append(
+            {
+                "id": item.id,
+                "inventory_no": item.inventory_no,
+                "computer_name": item.computer_name or "",
+                "responsible": responsible,
+                "department": item.department or "",
+                "brand_model": brand_model or "-",
+                "hardware_type": item.hardware_type.name if item.hardware_type else "",
+                "last_maintenance_at": maintenance_status_payload[
+                    "last_maintenance_display"
+                ],
+                "days_since_maintenance": maintenance_status_payload[
+                    "days_since_maintenance"
+                ],
+                "days_until_due": maintenance_status_payload["days_until_due"],
+                "maintenance_status": maintenance_status,
+                "maintenance_status_key": maintenance_status_key,
+                "maintenance_status_class": maintenance_status_class,
+                "maintenance_row_class": maintenance_row_class(maintenance_status_key),
+                "maintenances": maintenances,
+                "search_index": " ".join(
+                    token for token in search_tokens if token
+                ).lower(),
+            }
+        )
+
+    return {
+        "maintenance_items": computers,
+        "maintenance_total_count": len(computers),
+        "maintenance_due_count": sum(
+            1
+            for item in computers
+            if item["maintenance_status_key"] in {"overdue", "none", "warning"}
+        ),
+    }
+
+
+def load_printer_payload() -> dict[str, Any]:
+    printer_type = HardwareType.query.filter(
+        func.lower(HardwareType.name) == "yazıcı"
+    ).first()
 
     query = InventoryItem.query.options(
         joinedload(InventoryItem.factory),
@@ -3626,7 +3980,9 @@ def load_printer_payload() -> dict[str, Any]:
 
     printers = [serialize_inventory_item(item) for item in items]
     hidden_statuses = {"stokta", "hurda"}
-    printers = [printer for printer in printers if printer.get("status") not in hidden_statuses]
+    printers = [
+        printer for printer in printers if printer.get("status") not in hidden_statuses
+    ]
     faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
 
     status_choices = [
@@ -3696,8 +4052,6 @@ def load_printer_payload() -> dict[str, Any]:
     }
 
 
-
-
 def lifecycle_flags_payload(status: str | None) -> dict[str, bool]:
     return {
         "is_active": status == "aktif",
@@ -3725,6 +4079,7 @@ def get_person_lifecycle_status(person_name: str | None) -> str | None:
     if not activity or not activity.metadata_payload:
         return None
     return activity.metadata_payload.get("lifecycle_status")
+
 
 def normalize_stock_category(value: str | None, fallback: str = "envanter") -> str:
     if not value:
@@ -3789,7 +4144,9 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
     )
 
     hardware_type = (
-        item.hardware_type.name if item and item.hardware_type else metadata.get("hardware_type", "")
+        item.hardware_type.name
+        if item and item.hardware_type
+        else metadata.get("hardware_type", "")
     )
     brand_name = item.brand.name if item and item.brand else metadata.get("brand", "")
     model_name = item.model.name if item and item.model else metadata.get("model", "")
@@ -3825,7 +4182,11 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
 
     allow_operations = status_value == "stokta"
 
-    person_name = metadata.get("responsible") or (item.responsible_user.first_name + " " + item.responsible_user.last_name if item and item.responsible_user else None)
+    person_name = metadata.get("responsible") or (
+        item.responsible_user.first_name + " " + item.responsible_user.last_name
+        if item and item.responsible_user
+        else None
+    )
     person_key = quote_plus((person_name or "").strip().lower()) if person_name else ""
     lifecycle_status = get_person_lifecycle_status(person_name)
 
@@ -3859,7 +4220,9 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         "brand": brand_name,
         "model": model_name,
         "license_id": license_record.id if license_record else None,
-        "license_name": license_record.name if license_record else metadata.get("license_name"),
+        "license_name": (
+            license_record.name if license_record else metadata.get("license_name")
+        ),
         "created_display": created_display,
         "updated_display": updated_display,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
@@ -3867,8 +4230,14 @@ def serialize_stock_item(stock_item: StockItem) -> dict[str, Any]:
         "lifecycle_status": lifecycle_status,
         "lifecycle_flags": lifecycle_flags_payload(lifecycle_status),
         "allow_operations": allow_operations,
-        "serial_no": stock_item.serial_no or (item.serial_no if item else "") or metadata.get("serial_no", ""),
-        "warranty_end_date": (stock_item.warranty_end_date.isoformat() if stock_item.warranty_end_date else ""),
+        "serial_no": stock_item.serial_no
+        or (item.serial_no if item else "")
+        or metadata.get("serial_no", ""),
+        "warranty_end_date": (
+            stock_item.warranty_end_date.isoformat()
+            if stock_item.warranty_end_date
+            else ""
+        ),
         "qr_code_url": build_qr_code_url(stock_item.sku or ""),
         "is_critical": status_value == "stokta" and int(stock_item.quantity or 0) < 5,
     }
@@ -3899,7 +4268,9 @@ def serialize_stock_log(log: StockLog) -> dict[str, Any]:
         "unit": unit_label,
         "note": log.note or "",
         "status": status_value,
-        "status_label": STOCK_STATUS_LABELS.get(status_value, status_value.capitalize()),
+        "status_label": STOCK_STATUS_LABELS.get(
+            status_value, status_value.capitalize()
+        ),
         "status_class": STOCK_STATUS_CLASSES.get(status_value, "status-stock"),
         "created_display": log.created_at.strftime("%d.%m.%Y %H:%M"),
         "metadata": log_metadata,
@@ -3911,7 +4282,9 @@ def load_stock_payload() -> dict[str, Any]:
     in_stock_statuses = {"stokta", "arizali"}
     items = (
         StockItem.query.options(
-            joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+            joinedload(StockItem.inventory_item).joinedload(
+                InventoryItem.hardware_type
+            ),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
@@ -3926,7 +4299,9 @@ def load_stock_payload() -> dict[str, Any]:
     )
 
     all_stock_items = [serialize_stock_item(item) for item in items]
-    stock_items = [item for item in all_stock_items if item.get("status") in in_stock_statuses]
+    stock_items = [
+        item for item in all_stock_items if item.get("status") in in_stock_statuses
+    ]
     category_counts = Counter(item["category"] for item in stock_items)
     status_counts = Counter(item["status"] for item in stock_items)
     faulty_count = status_counts.get("arizali", 0)
@@ -3954,7 +4329,11 @@ def load_stock_payload() -> dict[str, Any]:
     user_assignments = [
         {
             "responsible": name,
-            "items": sorted(entries, key=lambda payload: payload.get("updated_display") or "", reverse=True),
+            "items": sorted(
+                entries,
+                key=lambda payload: payload.get("updated_display") or "",
+                reverse=True,
+            ),
         }
         for name, entries in sorted(assignment_map.items())
     ]
@@ -3987,7 +4366,11 @@ def load_stock_payload() -> dict[str, Any]:
 
     support_options = build_stock_support_options()
 
-    assignments = StockAssignment.query.order_by(StockAssignment.created_at.desc()).limit(100).all()
+    assignments = (
+        StockAssignment.query.order_by(StockAssignment.created_at.desc())
+        .limit(100)
+        .all()
+    )
 
     return {
         "stock_items": stock_items,
@@ -4007,7 +4390,11 @@ def load_stock_payload() -> dict[str, Any]:
                 "quantity": assignment.quantity,
                 "delivery_note": assignment.delivery_note or "",
                 "delivered_by": assignment.delivered_by,
-                "delivered_at": assignment.delivered_at.strftime("%d.%m.%Y %H:%M") if assignment.delivered_at else "",
+                "delivered_at": (
+                    assignment.delivered_at.strftime("%d.%m.%Y %H:%M")
+                    if assignment.delivered_at
+                    else ""
+                ),
                 "receipt_code": assignment.receipt_code,
             }
             for assignment in assignments
@@ -4063,7 +4450,8 @@ def load_information_payload() -> dict[str, Any]:
         .all()
     )
     categories = [
-        category.to_dict() for category in InfoCategory.query.order_by(InfoCategory.name)
+        category.to_dict()
+        for category in InfoCategory.query.order_by(InfoCategory.name)
     ]
     return {
         "info_entries": entries,
@@ -4093,8 +4481,7 @@ def save_information_file(file: FileStorage | None) -> tuple[str, str] | None:
     guessed_type, _ = mimetypes.guess_type(original_name)
     guessed_type = (guessed_type or "").lower()
     if allowed_mimetypes and (
-        content_type not in allowed_mimetypes
-        and guessed_type not in allowed_mimetypes
+        content_type not in allowed_mimetypes and guessed_type not in allowed_mimetypes
     ):
         flash(
             "Dosya içerik türü doğrulanamadı. Lütfen desteklenen bir belge yükleyin.",
@@ -4147,6 +4534,66 @@ def remove_information_image(filename: str | None) -> None:
     remove_information_file(filename)
 
 
+COMPUTER_HARDWARE_KEYWORDS = {
+    "bilgisayar",
+    "laptop",
+    "desktop",
+    "pc",
+    "notebook",
+    "dizustu",
+    "dizüstü",
+    "masaustu",
+    "masaüstü",
+}
+
+
+def is_computer_hardware_type(name: str | None) -> bool:
+    normalized = (name or "").strip().lower()
+    if not normalized:
+        return False
+
+    ascii_normalized = (
+        normalized.replace("ı", "i")
+        .replace("ğ", "g")
+        .replace("ü", "u")
+        .replace("ş", "s")
+        .replace("ö", "o")
+        .replace("ç", "c")
+    )
+    tokens = {
+        token
+        for token in ascii_normalized.replace("-", " ").replace("/", " ").split()
+        if token
+    }
+    fuzzy_keywords = COMPUTER_HARDWARE_KEYWORDS - {"pc", "dizüstü", "masaüstü"}
+    return (
+        any(keyword in ascii_normalized for keyword in fuzzy_keywords) or "pc" in tokens
+    )
+
+
+def format_datetime_display(
+    value: datetime | None, *, include_time: bool = True
+) -> str:
+    if not value:
+        return ""
+    return value.strftime("%d.%m.%Y %H:%M" if include_time else "%d.%m.%Y")
+
+
+def serialize_maintenance_record(record: InventoryMaintenance) -> dict[str, Any]:
+    return {
+        "id": record.id,
+        "item_id": record.item_id,
+        "performed_by": record.performed_by,
+        "performed_at": record.performed_at.isoformat(),
+        "performed_at_display": format_datetime_display(record.performed_at),
+        "performed_date_display": format_datetime_display(
+            record.performed_at, include_time=False
+        ),
+        "note": record.note or "",
+        "created_at_display": format_datetime_display(record.created_at),
+    }
+
+
 def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
     responsible = (
         f"{item.responsible_user.first_name} {item.responsible_user.last_name}"
@@ -4169,6 +4616,9 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
     ]
 
     licenses = [serialize_license_record(license) for license in item.licenses]
+    maintenances = [
+        serialize_maintenance_record(record) for record in item.maintenances
+    ]
 
     search_tokens = [
         item.inventory_no,
@@ -4212,6 +4662,7 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "status": status_value,
         "history": history,
         "licenses": licenses,
+        "maintenances": maintenances,
         "search_index": " ".join(filter(None, search_tokens)).lower(),
         "person_key": person_key,
         "lifecycle_status": lifecycle_status,
@@ -4294,8 +4745,9 @@ def serialize_license_record(license: InventoryLicense) -> dict[str, Any]:
 def load_license_payload() -> dict[str, Any]:
     licenses = (
         InventoryLicense.query.options(
-            joinedload(InventoryLicense.item)
-            .joinedload(InventoryItem.responsible_user),
+            joinedload(InventoryLicense.item).joinedload(
+                InventoryItem.responsible_user
+            ),
             joinedload(InventoryLicense.item).joinedload(InventoryItem.hardware_type),
             joinedload(InventoryLicense.item).joinedload(InventoryItem.factory),
             joinedload(InventoryLicense.item).joinedload(InventoryItem.events),
@@ -4360,10 +4812,19 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
     lines_payload: list[dict[str, Any]] = []
     group_key = order.group.key if order.group else None
     use_snapshots = group_key in {"kapandi", "iptal"}
-    search_tokens = [order.order_no, order.requested_by, order.department, opened_display]
+    search_tokens = [
+        order.order_no,
+        order.requested_by,
+        order.department,
+        opened_display,
+    ]
 
-    def build_line_payload(source_line: RequestLine | RequestLineSnapshot) -> dict[str, Any]:
-        category_value = normalize_stock_category(source_line.category, fallback="envanter")
+    def build_line_payload(
+        source_line: RequestLine | RequestLineSnapshot,
+    ) -> dict[str, Any]:
+        category_value = normalize_stock_category(
+            source_line.category, fallback="envanter"
+        )
         line_payload = {
             "id": source_line.id,
             "hardware_type": source_line.hardware_type,
@@ -4394,7 +4855,11 @@ def serialize_request_order(order: RequestOrder) -> dict[str, Any]:
             ]
         )
 
-    person_key = quote_plus((order.requested_by or "").strip().lower()) if order.requested_by else ""
+    person_key = (
+        quote_plus((order.requested_by or "").strip().lower())
+        if order.requested_by
+        else ""
+    )
     lifecycle_status = get_person_lifecycle_status(order.requested_by)
 
     return {
@@ -4467,11 +4932,7 @@ def load_request_groups() -> dict[str, Any]:
             }
         )
 
-    brands = (
-        Brand.query.options(joinedload(Brand.models))
-        .order_by(Brand.name)
-        .all()
-    )
+    brands = Brand.query.options(joinedload(Brand.models)).order_by(Brand.name).all()
 
     models_by_brand: dict[str, list[str]] = {}
     for brand in brands:
@@ -4480,7 +4941,9 @@ def load_request_groups() -> dict[str, Any]:
     hardware_catalog = {
         "types": [ht.name for ht in HardwareType.query.order_by(HardwareType.name)],
         "brands": [brand.name for brand in brands],
-        "models": [model.name for model in HardwareModel.query.order_by(HardwareModel.name)],
+        "models": [
+            model.name for model in HardwareModel.query.order_by(HardwareModel.name)
+        ],
         "models_by_brand": models_by_brand,
     }
 
@@ -4494,23 +4957,24 @@ def load_request_groups() -> dict[str, Any]:
 
 
 def get_inventory_item_with_relations(item_id: int) -> InventoryItem | None:
-    return (
-        InventoryItem.query.options(
-            joinedload(InventoryItem.factory),
-            joinedload(InventoryItem.hardware_type),
-            joinedload(InventoryItem.brand),
-            joinedload(InventoryItem.model),
-            joinedload(InventoryItem.responsible_user),
-            joinedload(InventoryItem.events),
-            joinedload(InventoryItem.licenses),
-        ).get(item_id)
-    )
+    return InventoryItem.query.options(
+        joinedload(InventoryItem.factory),
+        joinedload(InventoryItem.hardware_type),
+        joinedload(InventoryItem.brand),
+        joinedload(InventoryItem.model),
+        joinedload(InventoryItem.responsible_user),
+        joinedload(InventoryItem.events),
+        joinedload(InventoryItem.licenses),
+        joinedload(InventoryItem.maintenances),
+    ).get(item_id)
 
 
 def get_stock_item_with_relations(item_id: int) -> StockItem | None:
     return (
         StockItem.query.options(
-            joinedload(StockItem.inventory_item).joinedload(InventoryItem.hardware_type),
+            joinedload(StockItem.inventory_item).joinedload(
+                InventoryItem.hardware_type
+            ),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.factory),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
             joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
@@ -4544,7 +5008,10 @@ def get_request_group_by_key(key: str) -> RequestGroup | None:
 
 
 def add_inventory_event(
-    item: InventoryItem, event_type: str, note: str | None = None, performed_by: str = DEFAULT_EVENT_ACTOR
+    item: InventoryItem,
+    event_type: str,
+    note: str | None = None,
+    performed_by: str = DEFAULT_EVENT_ACTOR,
 ) -> InventoryEvent:
     event = InventoryEvent(
         item=item,
@@ -4623,7 +5090,8 @@ def record_stock_audit(
         stock_item=stock_item,
         old_quantity=max(0, int(old_quantity)),
         new_quantity=max(0, int(new_quantity)),
-        performed_by=(performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR,
+        performed_by=(performed_by or DEFAULT_EVENT_ACTOR).strip()
+        or DEFAULT_EVENT_ACTOR,
     )
     db.session.add(audit)
     return audit
@@ -4718,9 +5186,7 @@ def create_stock_item_from_inventory(
         note=note or None,
     )
     metadata_payload = build_inventory_stock_metadata(item)
-    metadata_payload = remove_assignment_only_metadata(
-        metadata_payload, category_value
-    )
+    metadata_payload = remove_assignment_only_metadata(metadata_payload, category_value)
     stock_item.metadata_payload = {
         key: value for key, value in metadata_payload.items() if value
     }
@@ -4769,7 +5235,11 @@ def create_stock_item_from_license(
         "license_name": title,
         "inventory_no": associated_item.inventory_no if associated_item else "",
         "department": associated_item.department if associated_item else "",
-        "factory": associated_item.factory.name if associated_item and associated_item.factory else "",
+        "factory": (
+            associated_item.factory.name
+            if associated_item and associated_item.factory
+            else ""
+        ),
     }
     db.session.add(stock_item)
     db.session.flush()
@@ -4865,9 +5335,7 @@ def prepare_stock_metadata(
 ) -> dict[str, str]:
     schema = STOCK_METADATA_FIELDS.get(category, [])
     if not include_assignment_fields:
-        schema = [
-            field for field in schema if not field.get("assignment_only")
-        ]
+        schema = [field for field in schema if not field.get("assignment_only")]
     provided: dict[str, Any]
     if isinstance(payload, dict):
         provided = payload
@@ -4963,6 +5431,96 @@ def load_recent_activity(limit: int = 6) -> list[dict[str, Any]]:
     return filtered
 
 
+def maintenance_candidate_items_query():
+    return InventoryItem.query.options(
+        joinedload(InventoryItem.hardware_type),
+        joinedload(InventoryItem.maintenances),
+    )
+
+
+def calculate_maintenance_status(
+    last_maintenance_at: date | datetime | None, today: date | None = None
+) -> dict[str, Any]:
+    check_date = today or datetime.utcnow().date()
+    if last_maintenance_at is None:
+        return {
+            "last_maintenance_display": "-",
+            "days_since_maintenance": None,
+            "days_until_due": None,
+            "status": "none",
+            "label": "Bakım kaydı yok",
+        }
+
+    maintenance_date = (
+        last_maintenance_at.date()
+        if isinstance(last_maintenance_at, datetime)
+        else last_maintenance_at
+    )
+    days_since_maintenance = (check_date - maintenance_date).days
+    days_until_due = 365 - days_since_maintenance
+
+    if days_since_maintenance >= 365:
+        status = "overdue"
+        label = "Bakım gecikti"
+    elif 335 <= days_since_maintenance < 365:
+        status = "warning"
+        label = "1 ay içinde bakım"
+    else:
+        status = "ok"
+        label = "Güncel"
+
+    return {
+        "last_maintenance_display": maintenance_date.strftime("%d.%m.%Y"),
+        "days_since_maintenance": days_since_maintenance,
+        "days_until_due": days_until_due,
+        "status": status,
+        "label": label,
+    }
+
+
+def maintenance_status_badge_class(status: str) -> str:
+    if status in {"overdue", "none"}:
+        return "maintenance-badge-overdue"
+    if status == "warning":
+        return "maintenance-badge-warning"
+    return "text-bg-success-subtle text-success"
+
+
+def maintenance_row_class(status: str) -> str:
+    if status in {"overdue", "none"}:
+        return "maintenance-row-overdue"
+    if status == "warning":
+        return "maintenance-row-warning"
+    return ""
+
+
+def load_maintenance_dashboard_counts() -> dict[str, int]:
+    due_count = 0
+    warning_count = 0
+    items = maintenance_candidate_items_query().all()
+    for item in items:
+        if not is_computer_hardware_type(
+            item.hardware_type.name if item.hardware_type else None
+        ):
+            continue
+        if (item.status or "").lower() in {"hurda", "stokta"}:
+            continue
+
+        last_maintenance = item.maintenances[0] if item.maintenances else None
+        maintenance_status = calculate_maintenance_status(
+            last_maintenance.performed_at if last_maintenance else None
+        )["status"]
+        if maintenance_status in {"overdue", "none"}:
+            due_count += 1
+        elif maintenance_status == "warning":
+            warning_count += 1
+
+    return {
+        "maintenance_due_count": due_count,
+        "maintenance_warning_count": warning_count,
+    }
+
+
 def load_dashboard_metrics() -> dict[str, Any]:
     available_stock = (
         db.session.query(func.sum(StockItem.quantity))
@@ -4970,7 +5528,7 @@ def load_dashboard_metrics() -> dict[str, Any]:
         .scalar()
         or 0
     )
-    total_stock = (db.session.query(func.sum(StockItem.quantity)).scalar() or 0)
+    total_stock = db.session.query(func.sum(StockItem.quantity)).scalar() or 0
 
     open_request_count = (
         RequestOrder.query.join(RequestGroup)
@@ -4979,12 +5537,13 @@ def load_dashboard_metrics() -> dict[str, Any]:
     )
     total_request_count = RequestOrder.query.count()
 
-    faulty_inventory_count = (
-        InventoryItem.query.filter(InventoryItem.status == "arizali").count()
-    )
+    faulty_inventory_count = InventoryItem.query.filter(
+        InventoryItem.status == "arizali"
+    ).count()
     critical_stock_count = StockItem.query.filter(
         StockItem.status.in_(["arizali", "hurda"])
     ).count()
+    maintenance_counts = load_maintenance_dashboard_counts()
     recent_stock_movements = (
         StockMovement.query.options(joinedload(StockMovement.stock_item))
         .order_by(StockMovement.created_at.desc())
@@ -4992,19 +5551,33 @@ def load_dashboard_metrics() -> dict[str, Any]:
         .all()
     )
 
+    critical_alerts = (
+        faulty_inventory_count
+        + critical_stock_count
+        + maintenance_counts["maintenance_due_count"]
+    )
+
     return {
         "available_stock": int(available_stock),
         "total_stock": int(total_stock),
         "open_requests": int(open_request_count),
         "total_requests": int(total_request_count),
-        "critical_alerts": int(faulty_inventory_count + critical_stock_count),
+        "critical_alerts": int(critical_alerts),
         "faulty_inventory": int(faulty_inventory_count),
         "problem_stock": int(critical_stock_count),
+        "maintenance_due_count": int(maintenance_counts["maintenance_due_count"]),
+        "maintenance_warning_count": int(
+            maintenance_counts["maintenance_warning_count"]
+        ),
         "recent_stock_movements": [
             {
                 "operation": movement.operation_type,
                 "title": movement.stock_item.title if movement.stock_item else "Stok",
-                "created_display": movement.created_at.strftime("%d.%m.%Y %H:%M") if movement.created_at else "",
+                "created_display": (
+                    movement.created_at.strftime("%d.%m.%Y %H:%M")
+                    if movement.created_at
+                    else ""
+                ),
             }
             for movement in recent_stock_movements
         ],
@@ -5033,7 +5606,8 @@ def build_stock_support_options() -> dict[str, list[str]]:
         usage_area.name for usage_area in UsageArea.query.order_by(UsageArea.name)
     ]
     license_name_values = [
-        license_name.name for license_name in LicenseName.query.order_by(LicenseName.name)
+        license_name.name
+        for license_name in LicenseName.query.order_by(LicenseName.name)
     ]
 
     inventory_numbers = [
@@ -5054,24 +5628,43 @@ def build_stock_support_options() -> dict[str, list[str]]:
 
 
 def load_admin_panel_payload() -> dict:
-    users = active_users_query(include_inactive=True).order_by(User.first_name, User.last_name).all()
+    users = (
+        active_users_query(include_inactive=True)
+        .order_by(User.first_name, User.last_name)
+        .all()
+    )
     stock_support_options = build_stock_support_options()
     department_options = [
-        {"id": name, "name": name} for name in stock_support_options.get("departments", [])
+        {"id": name, "name": name}
+        for name in stock_support_options.get("departments", [])
     ]
 
     product_options = {
-        "usage_areas": [ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)],
-        "license_names": [ln.to_dict() for ln in LicenseName.query.order_by(LicenseName.name)],
-        "info_categories": [ic.to_dict() for ic in InfoCategory.query.order_by(InfoCategory.name)],
-        "factories": [factory.to_dict() for factory in Factory.query.order_by(Factory.name)],
-        "hardware_types": [ht.to_dict() for ht in HardwareType.query.order_by(HardwareType.name)],
+        "usage_areas": [
+            ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)
+        ],
+        "license_names": [
+            ln.to_dict() for ln in LicenseName.query.order_by(LicenseName.name)
+        ],
+        "info_categories": [
+            ic.to_dict() for ic in InfoCategory.query.order_by(InfoCategory.name)
+        ],
+        "factories": [
+            factory.to_dict() for factory in Factory.query.order_by(Factory.name)
+        ],
+        "hardware_types": [
+            ht.to_dict() for ht in HardwareType.query.order_by(HardwareType.name)
+        ],
         "brands": [brand.to_dict() for brand in Brand.query.order_by(Brand.name)],
         "departments": department_options,
     }
 
-    brand_models = [brand.to_dict(include_models=True) for brand in Brand.query.order_by(Brand.name)]
-    ldap_profiles = [profile.to_dict() for profile in LdapProfile.query.order_by(LdapProfile.name)]
+    brand_models = [
+        brand.to_dict(include_models=True) for brand in Brand.query.order_by(Brand.name)
+    ]
+    ldap_profiles = [
+        profile.to_dict() for profile in LdapProfile.query.order_by(LdapProfile.name)
+    ]
     catalog_entries = (
         ProductCatalogEntry.query.options(
             joinedload(ProductCatalogEntry.usage_area),
@@ -5092,7 +5685,9 @@ def load_admin_panel_payload() -> dict:
         "product_options": product_options,
         "brand_models": brand_models,
         "ldap_profiles": ldap_profiles,
-        "catalog_entries": [serialize_catalog_entry(entry) for entry in catalog_entries],
+        "catalog_entries": [
+            serialize_catalog_entry(entry) for entry in catalog_entries
+        ],
     }
 
 
@@ -5219,7 +5814,10 @@ def seed_simple_users() -> None:
         if not admin_user.password_hash:
             admin_user.password_hash = admin_password
             updated = True
-        if not admin_user.system_role or admin_user.system_role.lower() not in {"admin", "superadmin"}:
+        if not admin_user.system_role or admin_user.system_role.lower() not in {
+            "admin",
+            "superadmin",
+        }:
             admin_user.system_role = "superadmin"
             updated = True
         if admin_user.must_change_password is None:
@@ -5335,7 +5933,12 @@ def seed_product_metadata() -> None:
     if not Factory.query.count():
         db.session.add_all(
             Factory(name=name)
-            for name in ["İstanbul Merkez", "Ankara Veri Merkezi", "İzmir Üretim", "Bursa Lojistik"]
+            for name in [
+                "İstanbul Merkez",
+                "Ankara Veri Merkezi",
+                "İzmir Üretim",
+                "Bursa Lojistik",
+            ]
         )
         added_any = True
 
@@ -5440,10 +6043,7 @@ def seed_inventory_data() -> None:
 
     factories = {factory.name: factory for factory in Factory.query.all()}
     hardware_types = {ht.name: ht for ht in HardwareType.query.all()}
-    users = {
-        f"{user.first_name} {user.last_name}": user
-        for user in User.query.all()
-    }
+    users = {f"{user.first_name} {user.last_name}": user for user in User.query.all()}
     brands = {
         brand.name: brand
         for brand in Brand.query.options(joinedload(Brand.models)).all()
@@ -5639,7 +6239,9 @@ def seed_inventory_data() -> None:
         ),
     ]
 
-    db.session.add_all([item_primary, item_faulty, printer_central, printer_faulty, item_retired])
+    db.session.add_all(
+        [item_primary, item_faulty, printer_central, printer_faulty, item_retired]
+    )
     record_activity(
         area="envanter",
         action="Örnek envanter kayıtları yüklendi",
@@ -5833,7 +6435,9 @@ def seed_request_data() -> None:
         ],
     )
 
-    total_orders = sum(len(group.orders) for group in (open_group, closed_group, cancelled_group))
+    total_orders = sum(
+        len(group.orders) for group in (open_group, closed_group, cancelled_group)
+    )
     record_activity(
         area="talep",
         action="Örnek talepler oluşturuldu",

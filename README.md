@@ -31,6 +31,19 @@ docker compose up --build
 
 Compose ortamı ilk kez ayağa kaldırıldığında proje kök dizininde `data/` klasörü oluşturulur ve uygulama bu klasörün içine `stok.db` dosyası ile yüklenen görsellere ait alt klasörleri kaydeder. Docker konteyneri çalışırken bu klasör `/app/data` olarak bağlanır; böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunur. `data/` klasörünü başka bir ortama taşıyarak veya versiyon kontrolü dışında bir yedekle saklayarak veritabanını koruyabilirsiniz.
 
+
+## Veritabanı Konumu
+
+Varsayılan çalışmada uygulama veritabanını proje kökündeki `./data/stok.db` dosyasında tutar. `DATA_DIR` değişkeni verilirse aynı varsayılan isimle bu klasörün altında `stok.db` oluşturulur.
+
+Harici bir yedek disk veya özel bir dosya yolu kullanmak için `DATABASE_PATH` ortam değişkenini doğrudan veritabanı dosyasına işaret edecek şekilde verebilirsiniz:
+
+```bash
+DATABASE_PATH=/mnt/backup/stok/stok.db docker compose up --build
+```
+
+Bu kullanımda uygulama `/mnt/backup/stok/` klasörünü otomatik oluşturur; yüklenen dosyalar ve diğer varsayılan veri klasörleri için `DATA_DIR` kullanılmaya devam eder.
+
 ## Geliştirme
 
 Yerel geliştirme için Flask uygulamasını doğrudan çalıştırabilirsiniz:

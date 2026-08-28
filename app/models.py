@@ -5,7 +5,6 @@ from datetime import date, datetime
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 
-
 db = SQLAlchemy()
 
 
@@ -34,7 +33,10 @@ class User(db.Model):
         db.Boolean, nullable=False, default=False, server_default=db.text("0")
     )
     employment_status = db.Column(
-        db.String(16), nullable=False, default="aktif", server_default=db.text("'aktif'")
+        db.String(16),
+        nullable=False,
+        default="aktif",
+        server_default=db.text("'aktif'"),
     )
     termination_date = db.Column(db.Date, nullable=True)
     termination_note = db.Column(db.Text, nullable=True)
@@ -51,7 +53,9 @@ class User(db.Model):
             "preferred_theme": self.preferred_theme,
             "system_role": self.system_role,
             "employment_status": self.employment_status,
-            "termination_date": self.termination_date.isoformat() if self.termination_date else None,
+            "termination_date": (
+                self.termination_date.isoformat() if self.termination_date else None
+            ),
             "termination_note": self.termination_note,
         }
 
@@ -158,7 +162,9 @@ class Brand(NamedEntityMixin, db.Model):
 class HardwareModel(NamedEntityMixin, db.Model):
     __tablename__ = "hardware_models"
 
-    brand_id = db.Column(db.Integer, db.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    brand_id = db.Column(
+        db.Integer, db.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False
+    )
     brand = db.relationship("Brand", back_populates="models")
 
 
@@ -209,7 +215,11 @@ class RequestOrder(db.Model):
     department = db.Column(db.String(128), nullable=False)
     opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    group_id = db.Column(db.Integer, db.ForeignKey("request_groups.id", ondelete="CASCADE"), nullable=False)
+    group_id = db.Column(
+        db.Integer,
+        db.ForeignKey("request_groups.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     group = db.relationship("RequestGroup", back_populates="orders")
 
     lines = db.relationship(
@@ -237,7 +247,11 @@ class RequestLine(db.Model):
     note = db.Column(db.String(256), nullable=True)
     category = db.Column(db.String(32), nullable=False, default="envanter")
 
-    order_id = db.Column(db.Integer, db.ForeignKey("request_orders.id", ondelete="CASCADE"), nullable=False)
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("request_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     order = db.relationship("RequestOrder", back_populates="lines")
 
 
@@ -270,10 +284,16 @@ class InventoryItem(db.Model):
     computer_name = db.Column(db.String(64), nullable=True)
     factory_id = db.Column(db.Integer, db.ForeignKey("factories.id"), nullable=False)
     department = db.Column(db.String(128), nullable=False)
-    hardware_type_id = db.Column(db.Integer, db.ForeignKey("hardware_types.id"), nullable=False)
-    responsible_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    hardware_type_id = db.Column(
+        db.Integer, db.ForeignKey("hardware_types.id"), nullable=False
+    )
+    responsible_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True
+    )
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=False)
-    model_id = db.Column(db.Integer, db.ForeignKey("hardware_models.id"), nullable=False)
+    model_id = db.Column(
+        db.Integer, db.ForeignKey("hardware_models.id"), nullable=False
+    )
     serial_no = db.Column(db.String(128), nullable=True)
     ifs_no = db.Column(db.String(64), nullable=True)
     related_machine_no = db.Column(db.String(64), nullable=True)
@@ -281,7 +301,9 @@ class InventoryItem(db.Model):
     note = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(32), nullable=False, default="aktif")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     factory = db.relationship("Factory")
     hardware_type = db.relationship("HardwareType")
@@ -300,6 +322,12 @@ class InventoryItem(db.Model):
         back_populates="item",
         order_by="InventoryLicense.id",
     )
+    maintenances = db.relationship(
+        "InventoryMaintenance",
+        cascade="all, delete-orphan",
+        back_populates="item",
+        order_by="InventoryMaintenance.performed_at.desc()",
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -309,7 +337,11 @@ class InventoryItem(db.Model):
             "factory": self.factory.name if self.factory else None,
             "department": self.department,
             "hardware_type": self.hardware_type.name if self.hardware_type else None,
-            "responsible": self.responsible_user.first_name + " " + self.responsible_user.last_name if self.responsible_user else None,
+            "responsible": (
+                self.responsible_user.first_name + " " + self.responsible_user.last_name
+                if self.responsible_user
+                else None
+            ),
             "brand": self.brand.name if self.brand else None,
             "model": self.model.name if self.model else None,
             "serial_no": self.serial_no,
@@ -346,6 +378,33 @@ class InventoryEvent(db.Model):
             "performed_by": self.performed_by,
             "performed_at": self.performed_at,
             "note": self.note,
+        }
+
+
+class InventoryMaintenance(db.Model):
+    __tablename__ = "inventory_maintenances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("inventory_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    performed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    performed_by = db.Column(db.String(128), nullable=False)
+    note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    item = db.relationship("InventoryItem", back_populates="maintenances")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "item_id": self.item_id,
+            "performed_at": self.performed_at,
+            "performed_by": self.performed_by,
+            "note": self.note,
+            "created_at": self.created_at,
         }
 
 
@@ -637,9 +696,13 @@ class ProductCatalogEntry(db.Model):
             "department": self.department,
             "usage_area": self.usage_area.to_dict() if self.usage_area else None,
             "license_name": self.license_name.to_dict() if self.license_name else None,
-            "info_category": self.info_category.to_dict() if self.info_category else None,
+            "info_category": (
+                self.info_category.to_dict() if self.info_category else None
+            ),
             "factory": self.factory.to_dict() if self.factory else None,
-            "hardware_type": self.hardware_type.to_dict() if self.hardware_type else None,
+            "hardware_type": (
+                self.hardware_type.to_dict() if self.hardware_type else None
+            ),
             "brand": self.brand.to_dict() if self.brand else None,
             "model": self.model.to_dict() if self.model else None,
             "created_at": self.created_at,
