@@ -507,8 +507,6 @@ THEME_OPTIONS = {
 
 
 def ensure_user_profile_columns() -> None:
-    # PostgreSQL'de db.create_all() şemayı oluşturur.
-    # Eski SQLite PRAGMA migration kodları burada çalıştırılmamalıdır.
     return
 
 
@@ -517,24 +515,24 @@ def ensure_user_employment_columns() -> None:
 
 
 def ensure_request_line_category_column() -> None:
-    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
     return
+
 
 def ensure_stock_item_relation_columns() -> None:
-    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
     return
+
 
 def ensure_soft_delete_and_sku_columns() -> None:
-    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
     return
+
 
 def ensure_stock_enterprise_columns() -> None:
-    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
     return
 
+
 def ensure_inventory_maintenance_table() -> None:
-    # PostgreSQL kullanılıyor; eski SQLite migration kodu devre dışı.
     return
+
 
 def user_is_active(user: User | None) -> bool:
     if user is None:
@@ -561,175 +559,6 @@ def active_user_by_id(
     )
 
 
-def ensure_request_line_category_column() -> None:
-    existing_columns = {
-        row[1]
-        for row in db.session.execute(
-            text("PRAGMA table_info(request_lines)")
-        ).fetchall()
-    }
-    if "category" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE request_lines ADD COLUMN category VARCHAR(32)"
-                " NOT NULL DEFAULT 'envanter'"
-            )
-        )
-        db.session.execute(
-            text(
-                "UPDATE request_lines SET category = 'envanter'"
-                " WHERE category IS NULL OR TRIM(category) = ''"
-            )
-        )
-        db.session.commit()
-
-
-def ensure_stock_item_relation_columns() -> None:
-    existing_columns = {
-        row[1]
-        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
-    }
-    altered = False
-
-    if "category_id" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE stock_items ADD COLUMN category_id INTEGER"
-                " REFERENCES stock_categories(id)"
-            )
-        )
-        altered = True
-
-    if "unit_id" not in existing_columns:
-        db.session.execute(
-            text(
-                "ALTER TABLE stock_items ADD COLUMN unit_id INTEGER"
-                " REFERENCES stock_units(id)"
-            )
-        )
-        altered = True
-
-    if altered:
-        db.session.commit()
-
-
-def ensure_soft_delete_and_sku_columns() -> None:
-    table_specs = {
-        "product_catalog_entries": {
-            "is_deleted": "ALTER TABLE product_catalog_entries ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
-            "sku": "ALTER TABLE product_catalog_entries ADD COLUMN sku VARCHAR(64)",
-        },
-        "stock_items": {
-            "is_deleted": "ALTER TABLE stock_items ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
-            "sku": "ALTER TABLE stock_items ADD COLUMN sku VARCHAR(64)",
-        },
-    }
-    altered = False
-    for table_name, columns in table_specs.items():
-        existing_columns = {
-            row[1]
-            for row in db.session.execute(
-                text(f"PRAGMA table_info({table_name})")
-            ).fetchall()
-        }
-        for column_name, ddl in columns.items():
-            if column_name not in existing_columns:
-                db.session.execute(text(ddl))
-                altered = True
-
-    if altered:
-        db.session.commit()
-
-
-def ensure_stock_enterprise_columns() -> None:
-    stock_columns = {
-        row[1]
-        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
-    }
-    altered = False
-
-    column_specs = {
-        "serial_no": "ALTER TABLE stock_items ADD COLUMN serial_no VARCHAR(128)",
-        "warranty_end_date": "ALTER TABLE stock_items ADD COLUMN warranty_end_date DATE",
-    }
-    for column_name, ddl in column_specs.items():
-        if column_name not in stock_columns:
-            db.session.execute(text(ddl))
-            altered = True
-
-    existing_indexes = {
-        row[1]
-        for row in db.session.execute(text("PRAGMA index_list(stock_items)")).fetchall()
-    }
-    index_specs = {
-        "ix_stock_items_reference_code": "CREATE INDEX ix_stock_items_reference_code ON stock_items(reference_code)",
-        "ix_stock_items_title": "CREATE INDEX ix_stock_items_title ON stock_items(title)",
-    }
-    for index_name, ddl in index_specs.items():
-        if index_name not in existing_indexes:
-            db.session.execute(text(ddl))
-            altered = True
-
-    assignment_columns = {
-        "id": "id INTEGER PRIMARY KEY",
-        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
-        "assigned_to": "assigned_to VARCHAR(128) NOT NULL",
-        "assigned_department": "assigned_department VARCHAR(128)",
-        "quantity": "quantity INTEGER NOT NULL DEFAULT 1",
-        "delivery_note": "delivery_note VARCHAR(512)",
-        "delivered_by": "delivered_by VARCHAR(128) NOT NULL",
-        "delivered_at": "delivered_at DATETIME NOT NULL",
-        "receipt_code": "receipt_code VARCHAR(64) NOT NULL UNIQUE",
-        "created_at": "created_at DATETIME NOT NULL",
-    }
-    audit_columns = {
-        "id": "id INTEGER PRIMARY KEY",
-        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
-        "old_quantity": "old_quantity INTEGER NOT NULL",
-        "new_quantity": "new_quantity INTEGER NOT NULL",
-        "performed_by": "performed_by VARCHAR(128) NOT NULL",
-        "created_at": "created_at DATETIME NOT NULL",
-    }
-
-    def ensure_table(table_name: str, columns: dict[str, str]) -> None:
-        nonlocal altered
-        existing = db.session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
-            {"name": table_name},
-        ).scalar()
-        if existing:
-            return
-        ddl = f"CREATE TABLE {table_name} (" + ", ".join(columns.values()) + ")"
-        db.session.execute(text(ddl))
-        altered = True
-
-    ensure_table("stock_assignments", assignment_columns)
-    ensure_table("stok_hareketleri", audit_columns)
-
-    if altered:
-        db.session.commit()
-
-
-def ensure_inventory_maintenance_table() -> None:
-    existing = db.session.execute(
-        text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
-        {"name": "inventory_maintenances"},
-    ).scalar()
-    if existing:
-        return
-
-    db.session.execute(
-        text(
-            "CREATE TABLE inventory_maintenances ("
-            "id INTEGER PRIMARY KEY, "
-            "item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE, "
-            "performed_at DATETIME NOT NULL, "
-            "performed_by VARCHAR(128) NOT NULL, "
-            "note TEXT, "
-            "created_at DATETIME NOT NULL"
-            ")"
-        )
-    )
     db.session.commit()
 
 
@@ -2702,16 +2531,16 @@ def create_app() -> Flask:
         associated_item = license.item
         stock_item = create_stock_item_from_license(license, note=note, actor=actor)
 
-            license.status = "pasif"
-            license.item = None
+        license.status = "pasif"
+        license.item = None
 
-            if associated_item:
-                add_inventory_event(
-                    associated_item,
-                    "Lisans stoklandı",
-                    note or f"{license.name} lisansı stok listesine taşındı.",
-                    performed_by=actor,
-                )
+        if associated_item:
+            add_inventory_event(
+                associated_item,
+                "Lisans stoklandı",
+                note or f"{license.name} lisansı stok listesine taşındı.",
+                performed_by=actor,
+            )
 
         fresh_license = (
             InventoryLicense.query.options(
@@ -2781,49 +2610,49 @@ def create_app() -> Flask:
 
         active_user = get_active_user()
         category_ref = resolve_stock_category(category)
-            unit_ref = resolve_stock_unit(unit)
-            stock_item = StockItem(
-                source_type="manual",
-                title=title,
-                category=category,
-                category_id=category_ref.id if category_ref else None,
-                quantity=quantity,
-                status="stokta",
-                reference_code=reference_code,
-                unit=unit,
-                unit_id=unit_ref.id if unit_ref else None,
-                note=note or None,
-                sku=generate_unique_sku("STK"),
-                serial_no=serial_no,
-                warranty_end_date=warranty_end_date,
-            )
-            stock_item.metadata_payload = {
-                k: v for k, v in metadata_payload.items() if v
-            }
-            db.session.add(stock_item)
-            db.session.flush()
+        unit_ref = resolve_stock_unit(unit)
+        stock_item = StockItem(
+            source_type="manual",
+            title=title,
+            category=category,
+            category_id=category_ref.id if category_ref else None,
+            quantity=quantity,
+            status="stokta",
+            reference_code=reference_code,
+            unit=unit,
+            unit_id=unit_ref.id if unit_ref else None,
+            note=note or None,
+            sku=generate_unique_sku("STK"),
+            serial_no=serial_no,
+            warranty_end_date=warranty_end_date,
+        )
+        stock_item.metadata_payload = {
+            k: v for k, v in metadata_payload.items() if v
+        }
+        db.session.add(stock_item)
+        db.session.flush()
 
-            log_entry = record_stock_log(
-                stock_item,
-                "Manuel stok girişi",
-                action_type="in",
-                performed_by=actor,
-                quantity_change=stock_item.quantity,
-                note=note,
-            )
-            record_stock_movement(
-                stock_item,
-                operation_type="giris",
-                old_quantity=0,
-                new_quantity=stock_item.quantity,
-                user=active_user,
-            )
-            record_stock_audit(
-                stock_item,
-                old_quantity=0,
-                new_quantity=stock_item.quantity,
-                performed_by=actor,
-            )
+        log_entry = record_stock_log(
+            stock_item,
+            "Manuel stok girişi",
+            action_type="in",
+            performed_by=actor,
+            quantity_change=stock_item.quantity,
+            note=note,
+        )
+        record_stock_movement(
+            stock_item,
+            operation_type="giris",
+            old_quantity=0,
+            new_quantity=stock_item.quantity,
+            user=active_user,
+        )
+        record_stock_audit(
+            stock_item,
+            old_quantity=0,
+            new_quantity=stock_item.quantity,
+            performed_by=actor,
+        )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {
@@ -2905,32 +2734,32 @@ def create_app() -> Flask:
         active_user = get_active_user()
         remaining_item_id: int | None = None
         stock_item.quantity = quantity
-            stock_item.metadata_payload = combined_metadata or None
-            stock_item.status = "devredildi"
-            if note:
-                stock_item.note = note
+        stock_item.metadata_payload = combined_metadata or None
+        stock_item.status = "devredildi"
+        if note:
+            stock_item.note = note
 
-            remaining_item: StockItem | None = None
-            if remaining_quantity > 0:
-                remaining_item = StockItem(
-                    source_type=stock_item.source_type,
-                    source_id=stock_item.source_id,
-                    inventory_item_id=stock_item.inventory_item_id,
-                    license_id=stock_item.license_id,
-                    reference_code=stock_item.reference_code,
-                    title=stock_item.title,
-                    category=stock_item.category,
-                    category_id=stock_item.category_id,
-                    quantity=remaining_quantity,
-                    unit=stock_item.unit,
-                    unit_id=stock_item.unit_id,
-                    status="stokta",
-                    note=existing_note,
-                )
-                remaining_item.metadata_payload = metadata_defaults or None
-                db.session.add(remaining_item)
-                db.session.flush()
-                remaining_item_id = remaining_item.id
+        remaining_item: StockItem | None = None
+        if remaining_quantity > 0:
+            remaining_item = StockItem(
+                source_type=stock_item.source_type,
+                source_id=stock_item.source_id,
+                inventory_item_id=stock_item.inventory_item_id,
+                license_id=stock_item.license_id,
+                reference_code=stock_item.reference_code,
+                title=stock_item.title,
+                category=stock_item.category,
+                category_id=stock_item.category_id,
+                quantity=remaining_quantity,
+                unit=stock_item.unit,
+                unit_id=stock_item.unit_id,
+                status="stokta",
+                note=existing_note,
+            )
+            remaining_item.metadata_payload = metadata_defaults or None
+            db.session.add(remaining_item)
+            db.session.flush()
+            remaining_item_id = remaining_item.id
 
             if stock_item.inventory_item:
                 inventory = stock_item.inventory_item
@@ -3096,40 +2925,40 @@ def create_app() -> Flask:
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
         stock_item.status = "hurda"
-            if note:
-                stock_item.note = note
+        if note:
+            stock_item.note = note
 
-            if stock_item.inventory_item:
-                inventory = stock_item.inventory_item
-                inventory.status = "hurda"
-                add_inventory_event(
-                    inventory,
-                    "Stok ürünü hurdaya ayrıldı",
-                    note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
-                    performed_by=actor,
-                )
-
-            log_entry = record_stock_log(
-                stock_item,
+        if stock_item.inventory_item:
+            inventory = stock_item.inventory_item
+            inventory.status = "hurda"
+            add_inventory_event(
+                inventory,
                 "Stok ürünü hurdaya ayrıldı",
-                action_type="out",
-                performed_by=actor,
-                quantity_change=-max(1, previous_quantity),
-                note=note,
-            )
-            record_stock_movement(
-                stock_item,
-                operation_type="satis",
-                old_quantity=previous_quantity,
-                new_quantity=0,
-                user=active_user,
-            )
-            record_stock_audit(
-                stock_item,
-                old_quantity=previous_quantity,
-                new_quantity=0,
+                note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
                 performed_by=actor,
             )
+
+        log_entry = record_stock_log(
+            stock_item,
+            "Stok ürünü hurdaya ayrıldı",
+            action_type="out",
+            performed_by=actor,
+            quantity_change=-max(1, previous_quantity),
+            note=note,
+        )
+        record_stock_movement(
+            stock_item,
+            operation_type="satis",
+            old_quantity=previous_quantity,
+            new_quantity=0,
+            user=active_user,
+        )
+        record_stock_audit(
+            stock_item,
+            old_quantity=previous_quantity,
+            new_quantity=0,
+            performed_by=actor,
+        )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {
@@ -3162,6 +2991,7 @@ def create_app() -> Flask:
             cleaned_note or f"{item.inventory_no} kaydı stok durumuna döndürüldü.",
             performed_by=actor,
         )
+
 
         db.session.commit()
 
