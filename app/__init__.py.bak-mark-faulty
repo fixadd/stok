@@ -3084,44 +3084,42 @@ def create_app() -> Flask:
 
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
+        with db.session.begin():
+            stock_item.status = "arizali"
+            if note:
+                stock_item.note = note
+            stock_item.quantity = 0
 
-        stock_item.status = "arizali"
-        if note:
-            stock_item.note = note
-        stock_item.quantity = 0
+            if stock_item.inventory_item:
+                inventory = stock_item.inventory_item
+                inventory.status = "arizali"
+                add_inventory_event(
+                    inventory,
+                    "Stok ürünü arızalı",
+                    note or f"{stock_item.title} stok kaydı arızalı işaretlendi.",
+                    performed_by=actor,
+                )
 
-        if stock_item.inventory_item:
-            inventory = stock_item.inventory_item
-            inventory.status = "arizali"
-            add_inventory_event(
-                inventory,
-                "Stok ürünü arızalı",
-                note or f"{stock_item.title} stok kaydı arızalı işaretlendi.",
+            log_entry = record_stock_log(
+                stock_item,
+                "Stok ürünü arızalı işaretlendi",
+                action_type="warning",
+                performed_by=actor,
+                note=note,
+            )
+            record_stock_movement(
+                stock_item,
+                operation_type="durum_guncelleme",
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
+                user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=stock_item.quantity,
                 performed_by=actor,
             )
-
-        log_entry = record_stock_log(
-            stock_item,
-            "Stok ürünü arızalı işaretlendi",
-            action_type="warning",
-            performed_by=actor,
-            note=note,
-        )
-        record_stock_movement(
-            stock_item,
-            operation_type="durum_guncelleme",
-            old_quantity=previous_quantity,
-            new_quantity=stock_item.quantity,
-            user=active_user,
-        )
-        record_stock_audit(
-            stock_item,
-            old_quantity=previous_quantity,
-            new_quantity=stock_item.quantity,
-            performed_by=actor,
-        )
-
-        db.session.commit()
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {
