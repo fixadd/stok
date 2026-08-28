@@ -7,7 +7,6 @@ from uuid import uuid4
 import mimetypes
 import os
 import shutil
-import sqlite3
 import tempfile
 import subprocess
 
@@ -35,7 +34,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
@@ -508,34 +507,6 @@ THEME_OPTIONS = {
 }
 
 
-def ensure_user_profile_columns() -> None:
-    return
-
-
-def ensure_user_employment_columns() -> None:
-    return
-
-
-def ensure_request_line_category_column() -> None:
-    return
-
-
-def ensure_stock_item_relation_columns() -> None:
-    return
-
-
-def ensure_soft_delete_and_sku_columns() -> None:
-    return
-
-
-def ensure_stock_enterprise_columns() -> None:
-    return
-
-
-def ensure_inventory_maintenance_table() -> None:
-    return
-
-
 def user_is_active(user: User | None) -> bool:
     if user is None:
         return False
@@ -559,9 +530,6 @@ def active_user_by_id(
         .filter(User.id == user_id)
         .first()
     )
-
-
-    db.session.commit()
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -601,13 +569,6 @@ def create_app() -> Flask:
         data_dir = project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    database_path_env = os.environ.get("DATABASE_PATH")
-    if database_path_env:
-        database_path = Path(database_path_env)
-    else:
-        database_path = data_dir / "stok.db"
-    database_path.parent.mkdir(parents=True, exist_ok=True)
-
     info_upload_dir = data_dir / "info_uploads"
     info_upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -615,7 +576,7 @@ def create_app() -> Flask:
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        database_url = f"sqlite:///{database_path.as_posix()}"
+        raise RuntimeError("DATABASE_URL yapılandırılmamış.")
 
     app.config.from_mapping(
         SECRET_KEY="stok-admin-secret",
@@ -624,7 +585,6 @@ def create_app() -> Flask:
     )
     app.config["DATA_DIR"] = data_dir
     app.config["INFO_UPLOAD_DIR"] = info_upload_dir
-    app.config["DATABASE_PATH"] = database_path
     app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
@@ -1259,13 +1219,6 @@ def create_app() -> Flask:
             db.session.remove()
             db.drop_all()
             db.create_all()
-            ensure_user_profile_columns()
-            ensure_user_employment_columns()
-            ensure_request_line_category_column()
-            ensure_stock_item_relation_columns()
-            ensure_soft_delete_and_sku_columns()
-            ensure_stock_enterprise_columns()
-            ensure_inventory_maintenance_table()
             if info_upload_dir.exists():
                 shutil.rmtree(info_upload_dir, ignore_errors=True)
             info_upload_dir.mkdir(parents=True, exist_ok=True)
@@ -3326,18 +3279,6 @@ def create_app() -> Flask:
         )
 
     return app
-
-
-def get_database_path() -> Path:
-    configured = current_app.config.get("DATABASE_PATH")
-    if configured:
-        return Path(configured)
-
-    database_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if database_uri.startswith("sqlite:///"):
-        return Path(database_uri.replace("sqlite:///", "", 1))
-
-    raise RuntimeError("Veritabanı yolu yapılandırmada bulunamadı.")
 
 
 def load_inventory_payload() -> dict:
