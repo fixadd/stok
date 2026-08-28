@@ -1,12 +1,12 @@
 {% extends "layout.html" %}
 
-{% block title %}Talep Takip Â· Stok YÃ¶netim Paneli{% endblock %}
+{% block title %}Talep Takip · Stok Yönetim Paneli{% endblock %}
 
 {% block main %}
         <div class="d-flex flex-column h-100">
           <header class="mb-4">
             <h1 class="display-6 fw-bold mb-2">Talep Takip</h1>
-            <p class="text-muted mb-0">Taleplerinizi durumlarÄ±na gÃ¶re izleyin, yeni talepler aÃ§Ä±n ve stok sÃ¼reÃ§lerini tek noktadan yÃ¶netin.</p>
+            <p class="text-muted mb-0">Taleplerinizi durumlarýna göre izleyin, yeni talepler açýn ve stok süreçlerini tek noktadan yönetin.</p>
           </header>
 
           <section class="content-card shadow-sm mb-4">
@@ -21,28 +21,51 @@
                 >{{ group.label }}</button>
                 {% endfor %}
               </div>
+
               <div class="d-flex align-items-center gap-2">
                 <div class="dropdown">
                   <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-file-earmark-excel me-2"></i>Excel
                   </button>
+
                   <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="#"><i class="bi bi-upload me-2"></i>Ä°Ã§e Aktar</a></li>
-                    <li><a class="dropdown-item" href="#"><i class="bi bi-download me-2"></i>DÄ±ÅŸa Aktar</a></li>
+                    <li>
+                      <a class="dropdown-item" href="#">
+                        <i class="bi bi-upload me-2"></i>Ýçe Aktar
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="#">
+                        <i class="bi bi-download me-2"></i>Dýþa Aktar
+                      </a>
+                    </li>
                   </ul>
                 </div>
-                <a class="btn btn-outline-secondary" href="{{ url_for('personnel_lifecycle.list_page') }}"><i class="bi bi-people me-2"></i>Personel Lifecycle</a>
+
+                <a class="btn btn-outline-secondary" href="{{ url_for('personnel_lifecycle.list_page') }}">
+                  <i class="bi bi-people me-2"></i>Personel Lifecycle
+                </a>
+
                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newRequestModal">
-                  <i class="bi bi-plus-circle me-2"></i>Talep AÃ§
+                  <i class="bi bi-plus-circle me-2"></i>Talep Aç
                 </button>
               </div>
             </div>
 
             <div class="search-container mt-4">
               <label class="form-label text-muted" for="talep-search">Sayfa Genelinde Ara</label>
+
               <div class="input-group search-input">
-                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="search" class="form-control" id="talep-search" placeholder="SipariÅŸ no, ekip veya Ã¼rÃ¼n arayÄ±n">
+                <span class="input-group-text bg-white">
+                  <i class="bi bi-search"></i>
+                </span>
+
+                <input
+                  type="search"
+                  class="form-control"
+                  id="talep-search"
+                  placeholder="Sipariþ no, ekip veya ürün arayýn"
+                >
               </div>
             </div>
           </section>
@@ -50,16 +73,26 @@
           <section class="content-card shadow-sm flex-grow-1 d-flex flex-column">
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
               <div>
-                <h5 class="mb-1" data-active-title>{{ request_groups[0].label }} Talepleri</h5>
-                <p class="text-muted mb-0 small" data-active-description>{{ request_groups[0].description }}</p>
+                <h5 class="mb-1" data-active-title>
+                  {{ request_groups[0].label }} Talepleri
+                </h5>
+
+                <p class="text-muted mb-0 small" data-active-description>
+                  {{ request_groups[0].description }}
+                </p>
               </div>
-              <span class="badge rounded-pill bg-primary-subtle text-primary" data-visible-count>{{ request_groups[0].orders|length }} SipariÅŸ</span>
+
+              <span class="badge rounded-pill bg-primary-subtle text-primary" data-visible-count>
+                {{ request_groups[0].orders|length }} Sipariþ
+              </span>
             </div>
 
             <div class="alert alert-success d-none" role="alert" data-feedback></div>
 
             <div class="request-groups flex-grow-1">
+
               {% for group in request_groups %}
+
               <div
                 class="request-group{% if not loop.first %} d-none{% endif %}"
                 data-status="{{ group.key }}"
@@ -70,1391 +103,4141 @@
                 data-page-size="20"
                 data-paginate-items=".request-order"
               >
+
                 <div class="group-intro alert-soft mb-4">
                   <i class="bi bi-info-circle me-2"></i>{{ group.description }}
                 </div>
 
                 {% if group.orders %}
+
                   {% for order in group.orders %}
-                  <article class="order-card request-order" data-order-id="{{ order.id }}" data-search-index="{{ order.search_index }}">
+
+                  <article
+                    class="order-card request-order"
+                    data-order-id="{{ order.id }}"
+                    data-search-index="{{ order.search_index }}"
+                  >
+
                     <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+
                       <div>
-                        <span class="order-label text-uppercase small text-muted">SipariÅŸ No</span>
-                        <h4 class="order-number mb-0">{{ order.order_no }}</h4>
-                        {% if order.person_key %}<a class="small" href="{{ url_for('personnel_lifecycle.detail_page', person_key=order.person_key) }}">{{ order.requested_by }} detayÄ±</a>{% endif %}
+                        <span class="order-label text-uppercase small text-muted">
+                          Sipariþ No
+                        </span>
+
+                        <h4 class="order-number mb-0">
+                          {{ order.order_no }}
+                        </h4>
+
+                        {% if order.person_key %}
+                        <a
+                          class="small"
+                          href="{{ url_for('personnel_lifecycle.detail_page', person_key=order.person_key) }}"
+                        >
+                          {{ order.requested_by }} detayý
+                        </a>
+                        {% endif %}
                       </div>
+
                       <div class="order-meta d-flex flex-wrap align-items-center gap-2">
-                        <span class="meta-chip"><i class="bi bi-person"></i>{{ order.requested_by }}</span>
-                        <span class="meta-chip"><i class="bi bi-diagram-3"></i>{{ order.department }}</span>
-                        <span class="meta-chip"><i class="bi bi-calendar-event"></i>{{ order.opened_display }}</span>
-                        <span class="meta-chip"><i class="bi bi-box-seam"></i>{{ order.item_count }} kalem Â· {{ order.total_quantity }} adet</span>
+
+                        <span class="meta-chip">
+                          <i class="bi bi-person"></i>
+                          {{ order.requested_by }}
+                        </span>
+
+                        <span class="meta-chip">
+                          <i class="bi bi-diagram-3"></i>
+                          {{ order.department }}
+                        </span>
+
+                        <span class="meta-chip">
+                          <i class="bi bi-calendar-event"></i>
+                          {{ order.opened_display }}
+                        </span>
+
+                        <span class="meta-chip">
+                          <i class="bi bi-box-seam"></i>
+                          {{ order.item_count }} kalem · {{ order.total_quantity }} adet
+                        </span>
+
                       </div>
                     </div>
 
                     <div class="table-responsive mt-4">
+
                       <table class="table align-middle mb-0">
+
                         <thead>
                           <tr>
-                            <th scope="col">DonanÄ±m Tipi</th>
+                            <th scope="col">Donaným Tipi</th>
                             <th scope="col">Kategori</th>
                             <th scope="col">Marka</th>
                             <th scope="col">Model</th>
                             <th scope="col" class="text-center">Miktar</th>
                             <th scope="col">Tarih</th>
-                            <th scope="col">AÃ§Ä±klama</th>
-                            <th scope="col" class="text-end">Ä°ÅŸlemler</th>
+                            <th scope="col">Açýklama</th>
+                            <th scope="col" class="text-end">Ýþlemler</th>
                           </tr>
                         </thead>
+
                         <tbody>
+
                           {% for item in order.lines %}
+
                           <tr>
-                            <td class="fw-semibold">{{ item.hardware_type }}</td>
-                            <td><span class="badge bg-light text-dark">{{ item.category_label }}</span></td>
-                            <td>{{ item.brand }}</td>
-                            <td>{{ item.model }}</td>
-                            <td class="text-center">
-                              <span class="quantity-badge">
-                                <i class="bi bi-stack"></i>{{ item.quantity }}
+
+                            <td class="fw-semibold">
+                              {{ item.hardware_type }}
+                            </td>
+
+                            <td>
+                              <span class="badge bg-light text-dark">
+                                {{ item.category_label }}
                               </span>
                             </td>
-                            <td><span class="text-muted small">{{ item.opened_display }}</span></td>
-                            <td>{{ item.note }}</td>
+
+                            <td>{{ item.brand }}</td>
+
+                            <td>{{ item.model }}</td>
+
+                            <td class="text-center">
+                              <span class="quantity-badge">
+                                <i class="bi bi-stack"></i>
+                                {{ item.quantity }}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span class="text-muted small">
+                                {{ item.opened_display }}
+                              </span>
+                            </td>
+
+                            <td>
+                              {{ item.note }}
+                            </td>
+
                             <td class="text-end">
+
                               {% if group.key == 'acik' %}
+
                               <div class="table-actions">
+
                                 <div class="dropdown action-dropdown" data-bs-display="static">
-                                  <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Ä°ÅŸlemler
+
+                                  <button
+                                    class="btn btn-outline-secondary btn-sm action-dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                  >
+                                    Ýþlemler
                                   </button>
+
                                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                  <li>
-                                    <button
-                                      class="dropdown-item"
-                                      type="button"
-                                      data-action="stok"
-                                      data-order-id="{{ order.id }}"
-                                      data-order-no="{{ order.order_no }}"
-                                      data-item-label="{{ item.hardware_type }} Â· {{ item.brand }} {{ item.model }}"
-                                      data-category="{{ item.category }}"
-                                      data-line-id="{{ item.id }}"
-                                      data-max-quantity="{{ item.quantity }}"
-                                      data-requester="{{ order.requested_by }}"
-                                      data-hardware-type="{{ item.hardware_type }}"
-                                      data-brand="{{ item.brand }}"
-                                      data-model="{{ item.model }}"
-                                      data-department="{{ order.department }}"
-                                      data-bs-toggle="modal"
-                                      data-bs-target="#requestActionModal"
-                                    >
-                                      <i class="bi bi-box-arrow-in-down"></i>
-                                      Stok Gir
-                                    </button>
-                                  </li>
-                                  <li>
-                                    <button
-                                      class="dropdown-item text-danger"
-                                      type="button"
-                                      data-action="cancel"
-                                      data-order-id="{{ order.id }}"
-                                      data-order-no="{{ order.order_no }}"
-                                      data-item-label="{{ item.hardware_type }} Â· {{ item.brand }} {{ item.model }}"
-                                      data-category="{{ item.category }}"
-                                      data-line-id="{{ item.id }}"
-                                      data-max-quantity="{{ item.quantity }}"
-                                      data-requester="{{ order.requested_by }}"
-                                      data-bs-toggle="modal"
-                                      data-bs-target="#requestActionModal"
-                                    >
-                                      <i class="bi bi-x-circle"></i>
-                                      Ä°ptal Et
-                                    </button>
-                                  </li>
+
+                                    <li>
+                                      <button
+                                        class="dropdown-item"
+                                        type="button"
+                                        data-action="stok"
+                                        data-order-id="{{ order.id }}"
+                                        data-order-no="{{ order.order_no }}"
+                                        data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                        data-category="{{ item.category }}"
+                                        data-line-id="{{ item.id }}"
+                                        data-max-quantity="{{ item.quantity }}"
+                                        data-requester="{{ order.requested_by }}"
+                                        data-hardware-type="{{ item.hardware_type }}"
+                                        data-brand="{{ item.brand }}"
+                                        data-model="{{ item.model }}"
+                                        data-department="{{ order.department }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#requestActionModal"
+                                      >
+                                        <i class="bi bi-box-arrow-in-down"></i>
+                                        Stok Gir
+                                      </button>
+                                    </li>
+
+                                    <li>
+                                      <button
+                                        class="dropdown-item text-danger"
+                                        type="button"
+                                        data-action="cancel"
+                                        data-order-id="{{ order.id }}"
+                                        data-order-no="{{ order.order_no }}"
+                                        data-item-label="{{ item.hardware_type }} · {{ item.brand }} {{ item.model }}"
+                                        data-category="{{ item.category }}"
+                                        data-line-id="{{ item.id }}"
+                                        data-max-quantity="{{ item.quantity }}"
+                                        data-requester="{{ order.requested_by }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#requestActionModal"
+                                      >
+                                        <i class="bi bi-x-circle"></i>
+                                        Ýptal Et
+                                      </button>
+                                    </li>
+
                                   </ul>
                                 </div>
                               </div>
+
                               {% else %}
-                              <span class="text-muted small">â€”</span>
+
+                              <span class="text-muted small">—</span>
+
                               {% endif %}
+
                             </td>
                           </tr>
+
                           {% endfor %}
+
                         </tbody>
                       </table>
                     </div>
+
                   </article>
+
                   {% endfor %}
+
                   <div class="empty-state d-none text-center py-5">
-                    <div class="empty-state__icon mb-3"><i class="bi bi-search"></i></div>
-                    <p class="text-muted mb-0" data-empty-text>{{ group.empty_message }}</p>
+                    <div class="empty-state__icon mb-3">
+                      <i class="bi bi-search"></i>
+                    </div>
+
+                    <p class="text-muted mb-0" data-empty-text>
+                      {{ group.empty_message }}
+                    </p>
                   </div>
+
                 {% else %}
+
                   <div class="empty-state text-center py-5">
-                    <div class="empty-state__icon mb-3"><i class="bi bi-clipboard-x"></i></div>
-                    <p class="text-muted mb-0">{{ group.empty_message }}</p>
+
+                    <div class="empty-state__icon mb-3">
+                      <i class="bi bi-clipboard-x"></i>
+                    </div>
+
+                    <p class="text-muted mb-0">
+                      {{ group.empty_message }}
+                    </p>
+
                   </div>
+
                 {% endif %}
+
               </div>
+
               {% endfor %}
+
             </div>
           </section>
         </div>
 
-        <div class="modal fade" id="newRequestModal" tabindex="-1" aria-labelledby="newRequestLabel" aria-hidden="true">
+
+        <!-- YENÝ TALEP MODALI -->
+
+        <div
+          class="modal fade"
+          id="newRequestModal"
+          tabindex="-1"
+          aria-labelledby="newRequestLabel"
+          aria-hidden="true"
+        >
+
           <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
             <div class="modal-content">
+
               <div class="modal-header border-0 pb-0">
+
                 <div>
-                  <h5 class="modal-title" id="newRequestLabel">Yeni Talep AÃ§</h5>
-                  <p class="text-muted mb-0 small">SipariÅŸ numarasÄ± belirleyin, talepleri satÄ±r satÄ±r ekleyin.</p>
+
+                  <h5 class="modal-title" id="newRequestLabel">
+                    Yeni Talep Aç
+                  </h5>
+
+                  <p class="text-muted mb-0 small">
+                    Sipariþ numarasý belirleyin, talepleri satýr satýr ekleyin.
+                  </p>
+
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Kapat"
+                ></button>
+
               </div>
+
               <div class="modal-body">
+
                 <form id="new-request-form">
+
                   <div class="row g-3 mb-4">
+
                     <div class="col-md-6">
-                      <label class="form-label">SipariÅŸ No</label>
-                      <input type="text" class="form-control" name="order_no" placeholder="SIP-2024-020" required>
+
+                      <label class="form-label">
+                        Sipariþ No
+                      </label>
+
+                      <input
+                        type="text"
+                        class="form-control"
+                        name="order_no"
+                        placeholder="SIP-2024-020"
+                        required
+                      >
+
                     </div>
+
                     <div class="col-md-6">
-                      <label class="form-label">Talep Sahibi</label>
-                      <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-request-owner-display>
-                        {% if active_user %}{{ active_user.first_name }} {{ active_user.last_name }}{% else %}â€”{% endif %}
+
+                      <label class="form-label">
+                        Talep Sahibi
+                      </label>
+
+                      <div
+                        class="form-control-plaintext bg-light border rounded px-3 py-2"
+                        data-request-owner-display
+                      >
+                        {% if active_user %}
+                          {{ active_user.first_name }} {{ active_user.last_name }}
+                        {% else %}
+                          —
+                        {% endif %}
                       </div>
-                      <input type="hidden" name="requested_by_id" data-request-owner-id value="{{ active_user.id if active_user else '' }}">
-                      <div class="form-text text-muted" data-request-owner-department>Departman: {% if active_user and active_user.department %}{{ active_user.department }}{% else %}â€”{% endif %}</div>
+
+                      <input
+                        type="hidden"
+                        name="requested_by_id"
+                        data-request-owner-id
+                        value="{{ active_user.id if active_user else '' }}"
+                      >
+
+                      <div class="form-text text-muted" data-request-owner-department>
+                        Departman:
+                        {% if active_user and active_user.department %}
+                          {{ active_user.department }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+
                     </div>
+
                   </div>
+
 
                   <div class="request-rows" data-rows-container>
+
                     <div class="request-row" data-request-row>
+
                       <div class="row g-3 align-items-end">
+
                         <div class="col-md-4 col-lg-2">
-                          <label class="form-label">ÃœrÃ¼n Tipi</label>
-                          <select class="form-select" name="category[]" required>
-                            <option value="cevre_birimi">Ã‡evre Birimi</option>
-                            <option value="envanter">Envanter</option>
-                            <option value="yazici">IP YazÄ±cÄ±</option>
-                            <option value="lisans">Lisans</option>
+
+                          <label class="form-label">
+                            Ürün Tipi
+                          </label>
+
+                          <select
+                            class="form-select"
+                            name="category[]"
+                            required
+                          >
+                            <option value="cevre_birimi">
+                              Çevre Birimi
+                            </option>
+
+                            <option value="envanter">
+                              Envanter
+                            </option>
+
+                            <option value="yazici">
+                              IP Yazýcý
+                            </option>
+
+                            <option value="lisans">
+                              Lisans
+                            </option>
                           </select>
+
                         </div>
+
+
                         <div class="col-md-4 col-lg-3">
-                          <label class="form-label">DonanÄ±m Tipi</label>
-                          <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Ã–rn. Laptop" required>
+
+                          <label class="form-label">
+                            Donaným Tipi
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="hardware_type[]"
+                            list="hardware-types"
+                            placeholder="Örn. Laptop"
+                            required
+                          >
+
                         </div>
+
+
                         <div class="col-md-4 col-lg-1">
-                          <label class="form-label">Miktar</label>
-                          <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
+
+                          <label class="form-label">
+                            Miktar
+                          </label>
+
+                          <input
+                            type="number"
+                            class="form-control"
+                            name="quantity[]"
+                            min="1"
+                            value="1"
+                            required
+                          >
+
                         </div>
+
+
                         <div class="col-md-4 col-lg-2">
-                          <label class="form-label">Marka</label>
-                          <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Ã–rn. Dell">
+
+                          <label class="form-label">
+                            Marka
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="brand[]"
+                            list="hardware-brands"
+                            placeholder="Örn. Dell"
+                          >
+
                         </div>
+
+
                         <div class="col-md-4 col-lg-2">
-                          <label class="form-label">Model</label>
-                          <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adÄ±">
+
+                          <label class="form-label">
+                            Model
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="model[]"
+                            list="hardware-models"
+                            placeholder="Model adý"
+                          >
+
                         </div>
+
+
                         <div class="col-md-8 col-lg-2">
-                          <label class="form-label">AÃ§Ä±klama</label>
-                          <input class="form-control" name="note[]" placeholder="Not ekleyin">
+
+                          <label class="form-label">
+                            Açýklama
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="note[]"
+                            placeholder="Not ekleyin"
+                          >
+
                         </div>
+
+
                         <div class="col-12 d-flex justify-content-end">
-                          <button class="btn btn-outline-danger d-none" type="button" data-remove-row>
-                            <i class="bi bi-dash-circle me-1"></i>SatÄ±rÄ± Sil
+
+                          <button
+                            class="btn btn-outline-danger d-none"
+                            type="button"
+                            data-remove-row
+                          >
+                            <i class="bi bi-dash-circle me-1"></i>
+                            Satýrý Sil
                           </button>
+
                         </div>
+
                       </div>
+
                     </div>
+
                   </div>
 
+
                   <div class="d-flex justify-content-between align-items-center mt-4">
-                    <button class="btn btn-outline-secondary" type="button" data-add-row>
-                      <i class="bi bi-plus-lg me-1"></i>SatÄ±r Ekle
+
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-add-row
+                    >
+                      <i class="bi bi-plus-lg me-1"></i>
+                      Satýr Ekle
                     </button>
+
                     <div class="d-flex align-items-center gap-2">
-                      <button class="btn btn-light" type="button" data-bs-dismiss="modal">VazgeÃ§</button>
-                      <button class="btn btn-primary" type="submit">Talep AÃ§</button>
+
+                      <button
+                        class="btn btn-light"
+                        type="button"
+                        data-bs-dismiss="modal"
+                      >
+                        Vazgeç
+                      </button>
+
+                      <button
+                        class="btn btn-primary"
+                        type="submit"
+                      >
+                        Talep Aç
+                      </button>
+
                     </div>
+
                   </div>
+
                 </form>
+
               </div>
             </div>
           </div>
         </div>
 
+
+        <!-- YENÝ SATIR TEMPLATE -->
+
         <template id="request-row-template">
+
           <div class="request-row" data-request-row>
+
             <div class="row g-3 align-items-end">
+
               <div class="col-md-4 col-lg-2">
-                <label class="form-label">ÃœrÃ¼n Tipi</label>
-                <select class="form-select" name="category[]" required>
-                  <option value="cevre_birimi">Ã‡evre Birimi</option>
-                  <option value="envanter">Envanter</option>
-                  <option value="yazici">IP YazÄ±cÄ±</option>
-                  <option value="lisans">Lisans</option>
+
+                <label class="form-label">
+                  Ürün Tipi
+                </label>
+
+                <select
+                  class="form-select"
+                  name="category[]"
+                  required
+                >
+                  <option value="cevre_birimi">
+                    Çevre Birimi
+                  </option>
+
+                  <option value="envanter">
+                    Envanter
+                  </option>
+
+                  <option value="yazici">
+                    IP Yazýcý
+                  </option>
+
+                  <option value="lisans">
+                    Lisans
+                  </option>
                 </select>
+
               </div>
+
+
               <div class="col-md-4 col-lg-3">
-                <label class="form-label">DonanÄ±m Tipi</label>
-                <input class="form-control" name="hardware_type[]" list="hardware-types" placeholder="Ã–rn. Laptop" required>
+
+                <label class="form-label">
+                  Donaným Tipi
+                </label>
+
+                <input
+                  class="form-control"
+                  name="hardware_type[]"
+                  list="hardware-types"
+                  placeholder="Örn. Laptop"
+                  required
+                >
+
               </div>
+
+
               <div class="col-md-4 col-lg-1">
-                <label class="form-label">Miktar</label>
-                <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
+
+                <label class="form-label">
+                  Miktar
+                </label>
+
+                <input
+                  type="number"
+                  class="form-control"
+                  name="quantity[]"
+                  min="1"
+                  value="1"
+                  required
+                >
+
               </div>
+
+
               <div class="col-md-4 col-lg-2">
-                <label class="form-label">Marka</label>
-                <input class="form-control" name="brand[]" list="hardware-brands" placeholder="Ã–rn. Dell">
+
+                <label class="form-label">
+                  Marka
+                </label>
+
+                <input
+                  class="form-control"
+                  name="brand[]"
+                  list="hardware-brands"
+                  placeholder="Örn. Dell"
+                >
+
               </div>
+
+
               <div class="col-md-4 col-lg-2">
-                <label class="form-label">Model</label>
-                <input class="form-control" name="model[]" list="hardware-models" placeholder="Model adÄ±">
+
+                <label class="form-label">
+                  Model
+                </label>
+
+                <input
+                  class="form-control"
+                  name="model[]"
+                  list="hardware-models"
+                  placeholder="Model adý"
+                >
+
               </div>
+
+
               <div class="col-md-8 col-lg-2">
-                <label class="form-label">AÃ§Ä±klama</label>
-                <input class="form-control" name="note[]" placeholder="Not ekleyin">
+
+                <label class="form-label">
+                  Açýklama
+                </label>
+
+                <input
+                  class="form-control"
+                  name="note[]"
+                  placeholder="Not ekleyin"
+                >
+
               </div>
+
+
               <div class="col-12 d-flex justify-content-end">
-                <button class="btn btn-outline-danger" type="button" data-remove-row>
-                  <i class="bi bi-dash-circle me-1"></i>SatÄ±rÄ± Sil
+
+                <button
+                  class="btn btn-outline-danger"
+                  type="button"
+                  data-remove-row
+                >
+                  <i class="bi bi-dash-circle me-1"></i>
+                  Satýrý Sil
                 </button>
+
               </div>
+
             </div>
+
           </div>
+
         </template>
+
+
+        <!-- DONANIM LÝSTELERÝ -->
 
         <datalist id="hardware-types">
           {% for option in hardware_catalog.types %}
           <option value="{{ option }}"></option>
           {% endfor %}
         </datalist>
+
         <datalist id="hardware-brands">
           {% for option in hardware_catalog.brands %}
           <option value="{{ option }}"></option>
           {% endfor %}
         </datalist>
+
         <datalist id="hardware-models">
           {% for option in hardware_catalog.models %}
           <option value="{{ option }}"></option>
           {% endfor %}
         </datalist>
 
-        <div class="modal fade" id="requestActionModal" tabindex="-1" aria-labelledby="requestActionLabel" aria-hidden="true">
+
+        <!-- TALEP ÝÞLEM MODALI -->
+
+        <div
+          class="modal fade"
+          id="requestActionModal"
+          tabindex="-1"
+          aria-labelledby="requestActionLabel"
+          aria-hidden="true"
+        >
+
           <div class="modal-dialog modal-dialog-centered">
+
             <div class="modal-content">
+
               <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title" id="requestActionLabel">Talep Ä°ÅŸlemi</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+
+                <h5 class="modal-title" id="requestActionLabel">
+                  Talep Ýþlemi
+                </h5>
+
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Kapat"
+                ></button>
+
               </div>
+
+
               <div class="modal-body">
-                <p class="mb-3" data-action-message>SeÃ§ili talep satÄ±rÄ± iÃ§in iÅŸlem yapÄ±n.</p>
-                <div class="alert alert-light border d-none" role="alert" data-single-info>
-                  <i class="bi bi-exclamation-circle me-2"></i>Bu satÄ±r 1 adet iÃ§eriyor, iÅŸlem tÃ¼m adetler iÃ§in uygulanacak.
+
+                <p class="mb-3" data-action-message>
+                  Seçili talep satýrý için iþlem yapýn.
+                </p>
+
+
+                <div
+                  class="alert alert-light border d-none"
+                  role="alert"
+                  data-single-info
+                >
+                  <i class="bi bi-exclamation-circle me-2"></i>
+                  Bu satýr 1 adet içeriyor, iþlem tüm adetler için uygulanacak.
                 </div>
+
+
                 <div class="mb-3" data-quantity-group>
-                  <label class="form-label" for="action-quantity">Ä°ÅŸlem YapÄ±lacak Miktar</label>
-                  <input type="number" class="form-control" id="action-quantity" min="1" value="1">
-                  <div class="form-text" data-quantity-hint></div>
+
+                  <label
+                    class="form-label"
+                    for="action-quantity"
+                  >
+                    Ýþlem Yapýlacak Miktar
+                  </label>
+
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="action-quantity"
+                    min="1"
+                    value="1"
+                  >
+
+                  <div
+                    class="form-text"
+                    data-quantity-hint
+                  ></div>
+
                 </div>
-                <div class="form-check form-switch d-none mb-3" data-ip-printer-toggle>
-                  <input class="form-check-input" type="checkbox" id="ipPrinterToggle">
-                  <label class="form-check-label" for="ipPrinterToggle">IP yazÄ±cÄ± olarak kaydet</label>
-                  <div class="form-text">SeÃ§ildiÄŸinde IP yazÄ±cÄ± alanlarÄ± gÃ¶rÃ¼ntÃ¼lenir.</div>
+
+
+                <div
+                  class="form-check form-switch d-none mb-3"
+                  data-ip-printer-toggle
+                >
+
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="ipPrinterToggle"
+                  >
+
+                  <label
+                    class="form-check-label"
+                    for="ipPrinterToggle"
+                  >
+                    IP yazýcý olarak kaydet
+                  </label>
+
+                  <div class="form-text">
+                    Seçildiðinde IP yazýcý alanlarý görüntülenir.
+                  </div>
+
                 </div>
-                <div class="mb-3 d-none" data-action-metadata-section>
-                  <label class="form-label">Stok Kategorisi</label>
-                  <div class="form-control-plaintext bg-light border rounded px-3 py-2" data-action-category-label>â€”</div>
-                  <input type="hidden" data-action-category-value>
-                  <div class="form-text">Kategoriye gÃ¶re zorunlu bilgileri doldurun.</div>
+
+
+                <div
+                  class="mb-3 d-none"
+                  data-action-metadata-section
+                >
+
+                  <label class="form-label">
+                    Stok Kategorisi
+                  </label>
+
+                  <div
+                    class="form-control-plaintext bg-light border rounded px-3 py-2"
+                    data-action-category-label
+                  >
+                    —
+                  </div>
+
+                  <input
+                    type="hidden"
+                    data-action-category-value
+                  >
+
+                  <div class="form-text">
+                    Kategoriye göre zorunlu bilgileri doldurun.
+                  </div>
+
                 </div>
-                <div class="row g-3 d-none" data-action-metadata-container></div>
-                <div class="alert alert-danger d-none mt-3" data-action-metadata-error></div>
+
+
+                <div
+                  class="row g-3 d-none"
+                  data-action-metadata-container
+                ></div>
+
+
+                <div
+                  class="alert alert-danger d-none mt-3"
+                  data-action-metadata-error
+                ></div>
+
+
                 <div class="form-floating">
-                  <textarea class="form-control" placeholder="Not ekleyin" id="action-note" style="height: 120px"></textarea>
-                  <label for="action-note">Not / AÃ§Ä±klama</label>
+
+                  <textarea
+                    class="form-control"
+                    placeholder="Not ekleyin"
+                    id="action-note"
+                    style="height: 120px"
+                  ></textarea>
+
+                  <label for="action-note">
+                    Not / Açýklama
+                  </label>
+
                 </div>
+
               </div>
+
+
               <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">VazgeÃ§</button>
-                <button type="button" class="btn btn-primary" data-confirm-action>Ä°ÅŸlemi Kaydet</button>
+
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Vazgeç
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  data-confirm-action
+                >
+                  Ýþlemi Kaydet
+                </button>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
+
 {% endblock %}
 
+
 {% block scripts %}
+
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const statusButtons = Array.from(document.querySelectorAll('[data-status-filter]'));
-    const requestGroups = Array.from(document.querySelectorAll('.request-group'));
-    const searchInput = document.getElementById('talep-search');
-    const activeTitle = document.querySelector('[data-active-title]');
-    const activeDescription = document.querySelector('[data-active-description]');
-    const visibleCount = document.querySelector('[data-visible-count]');
-    const feedback = document.querySelector('[data-feedback]');
-    let feedbackTimer;
-    const defaultActor = {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name)) | default('Sistem') | tojson }};
-    const stockMetadataConfig = {{ stock_metadata_config | tojson }};
-    const stockSupportOptions = {{ stock_support_options | tojson }};
-    const stockCategoryLabels = {{ stock_category_labels | default({}) | tojson }};
-    const pagination = window.Pagination || null;
-    const requestOwnerInfo = {{ ({
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  const statusButtons =
+    Array.from(document.querySelectorAll('[data-status-filter]'));
+
+  const requestGroups =
+    Array.from(document.querySelectorAll('.request-group'));
+
+  const searchInput =
+    document.getElementById('talep-search');
+
+  const activeTitle =
+    document.querySelector('[data-active-title]');
+
+  const activeDescription =
+    document.querySelector('[data-active-description]');
+
+  const visibleCount =
+    document.querySelector('[data-visible-count]');
+
+  const feedback =
+    document.querySelector('[data-feedback]');
+
+  let feedbackTimer;
+
+  const defaultActor =
+    {{ (active_user and (active_user.first_name ~ ' ' ~ active_user.last_name))
+      | default('Sistem')
+      | tojson }};
+
+  const stockMetadataConfig =
+    {{ stock_metadata_config | tojson }};
+
+  const stockSupportOptions =
+    {{ stock_support_options | tojson }};
+
+  const stockCategoryLabels =
+    {{ stock_category_labels | default({}) | tojson }};
+
+  const pagination =
+    window.Pagination || null;
+
+  const requestOwnerInfo =
+    {{ ({
       "id": active_user.id if active_user else None,
-      "name": (active_user.first_name ~ ' ' ~ active_user.last_name) if active_user else '',
-      "department": active_user.department if active_user and active_user.department else ''
+      "name": (active_user.first_name ~ ' ' ~ active_user.last_name)
+        if active_user else '',
+      "department": active_user.department
+        if active_user and active_user.department else ''
     }) | tojson }};
-    const metadataOptionLists = new Map();
-    const requestOwnerDisplay = document.querySelector('[data-request-owner-display]');
-    const requestOwnerDepartment = document.querySelector('[data-request-owner-department]');
-    const requestOwnerIdInput = document.querySelector('[data-request-owner-id]');
-    const hardwareCatalog = {{ hardware_catalog | tojson }};
-    const brandModelLookup = new Map();
-    const modelFallbackOptions = Array.isArray(hardwareCatalog?.models)
+
+  const metadataOptionLists =
+    new Map();
+
+  const requestOwnerDisplay =
+    document.querySelector('[data-request-owner-display]');
+
+  const requestOwnerDepartment =
+    document.querySelector('[data-request-owner-department]');
+
+  const requestOwnerIdInput =
+    document.querySelector('[data-request-owner-id]');
+
+  const hardwareCatalog =
+    {{ hardware_catalog | tojson }};
+
+  const brandModelLookup =
+    new Map();
+
+  const modelFallbackOptions =
+    Array.isArray(hardwareCatalog?.models)
       ? hardwareCatalog.models
       : [];
-    if (hardwareCatalog?.models_by_brand) {
-      Object.entries(hardwareCatalog.models_by_brand).forEach(([brandName, models]) => {
+
+  if (hardwareCatalog?.models_by_brand) {
+
+    Object.entries(hardwareCatalog.models_by_brand)
+      .forEach(([brandName, models]) => {
+
         if (!brandName) {
           return;
         }
-        const normalizedKey = brandName.trim().toLowerCase();
+
+        const normalizedKey =
+          brandName.trim().toLocaleLowerCase('tr-TR');
+
         brandModelLookup.set(
           normalizedKey,
-          Array.isArray(models) ? models.slice() : []
+          Array.isArray(models)
+            ? models.slice()
+            : []
         );
+
       });
-    }
-    let modelDatalistCounter = 0;
+  }
 
-    if (requestOwnerDisplay) {
-      requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || 'â€”';
-    }
-    if (requestOwnerDepartment) {
-      const departmentLabel = (requestOwnerInfo && requestOwnerInfo.department) || 'â€”';
-      requestOwnerDepartment.textContent = `Departman: ${departmentLabel}`;
-    }
-    if (requestOwnerIdInput) {
-      const ownerId = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
-      requestOwnerIdInput.value = ownerId;
+  let modelDatalistCounter = 0;
+
+
+  /* TALep SAHÝBÝ */
+
+  if (requestOwnerDisplay) {
+
+    requestOwnerDisplay.textContent =
+      (requestOwnerInfo && requestOwnerInfo.name) || '—';
+
+  }
+
+  if (requestOwnerDepartment) {
+
+    const departmentLabel =
+      (requestOwnerInfo && requestOwnerInfo.department) || '—';
+
+    requestOwnerDepartment.textContent =
+      `Departman: ${departmentLabel}`;
+
+  }
+
+  if (requestOwnerIdInput) {
+
+    const ownerId =
+      requestOwnerInfo && requestOwnerInfo.id
+        ? String(requestOwnerInfo.id)
+        : '';
+
+    requestOwnerIdInput.value = ownerId;
+
+  }
+
+
+  let activeStatus =
+    statusButtons.find(
+      (btn) => btn.classList.contains('active')
+    )?.dataset.statusFilter
+    || statusButtons[0]?.dataset.statusFilter
+    || 'acik';
+
+
+  /* HTML ESCAPE */
+
+  function escapeHtml(value) {
+
+    if (value === undefined || value === null) {
+      return '';
     }
 
-    let activeStatus = statusButtons.find((btn) => btn.classList.contains('active'))?.dataset.statusFilter || (statusButtons[0]?.dataset.statusFilter ?? 'acik');
+    return String(value).replace(
+      /[&<>"']/g,
+      (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char])
+    );
 
-    function escapeHtml(value) {
-      if (value === undefined || value === null) {
-        return '';
-      }
-      return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  }
+
+
+  function normalizeBrandKey(brandName) {
+
+    return (brandName || '')
+      .trim()
+      .toLocaleLowerCase('tr-TR');
+
+  }
+
+
+  function getModelOptionsForBrand(brandName) {
+
+    const normalized =
+      normalizeBrandKey(brandName);
+
+    if (
+      !normalized ||
+      !brandModelLookup.has(normalized)
+    ) {
+      return modelFallbackOptions;
     }
 
-    function normalizeBrandKey(brandName) {
-      return (brandName || '').trim().toLowerCase();
+    const options =
+      brandModelLookup.get(normalized)
+      || modelFallbackOptions;
+
+    return Array.isArray(options) && options.length
+      ? options
+      : modelFallbackOptions;
+
+  }
+
+
+  /* FEEDBACK */
+
+  function showFeedback(
+    message,
+    type = 'success'
+  ) {
+
+    if (!feedback) {
+      return;
     }
 
-    function getModelOptionsForBrand(brandName) {
-      const normalized = normalizeBrandKey(brandName);
-      if (!normalized || !brandModelLookup.has(normalized)) {
-        return modelFallbackOptions;
-      }
-      const options = brandModelLookup.get(normalized) || modelFallbackOptions;
-      return Array.isArray(options) && options.length ? options : modelFallbackOptions;
-    }
+    feedback.classList.remove(
+      'd-none',
+      'alert-success',
+      'alert-info',
+      'alert-danger',
+      'alert-warning'
+    );
 
-    function showFeedback(message, type = 'success') {
-      if (!feedback) {
-        return;
-      }
-      feedback.classList.remove('d-none', 'alert-success', 'alert-info', 'alert-danger', 'alert-warning');
-      feedback.classList.add(`alert-${type}`);
-      feedback.textContent = message;
-      feedback.classList.remove('d-none');
-      clearTimeout(feedbackTimer);
-      feedbackTimer = setTimeout(() => {
-        feedback.classList.add('d-none');
+    feedback.classList.add(
+      `alert-${type}`
+    );
+
+    feedback.textContent =
+      message;
+
+    feedback.classList.remove(
+      'd-none'
+    );
+
+    clearTimeout(
+      feedbackTimer
+    );
+
+    feedbackTimer =
+      setTimeout(() => {
+
+        feedback.classList.add(
+          'd-none'
+        );
+
       }, 5000);
+
+  }
+
+
+  /* METADATA */
+
+  function getMetadataSchema(category) {
+
+    if (!category) {
+      return [];
     }
 
-    function getMetadataSchema(category) {
-      if (!category) {
-        return [];
-      }
-      const schema = stockMetadataConfig?.[category];
-      return Array.isArray(schema) ? schema : [];
+    const schema =
+      stockMetadataConfig?.[category];
+
+    return Array.isArray(schema)
+      ? schema
+      : [];
+
+  }
+
+
+  function readMetadataValues(container) {
+
+    if (!container) {
+      return {};
     }
 
-    function readMetadataValues(container) {
-      if (!container) {
-        return {};
-      }
-      const values = {};
-      container.querySelectorAll('[name^="metadata_"]').forEach((input) => {
-        const key = input.name.replace(/^metadata_/, '');
-        values[key] = input.value || '';
+    const values = {};
+
+    container
+      .querySelectorAll('[name^="metadata_"]')
+      .forEach((input) => {
+
+        const key =
+          input.name.replace(
+            /^metadata_/,
+            ''
+          );
+
+        values[key] =
+          input.value || '';
+
       });
-      return values;
+
+    return values;
+
+  }
+
+
+  function ensureMetadataOptions(key) {
+
+    if (!key) {
+      return null;
     }
 
-    function ensureMetadataOptions(key) {
-      if (!key) {
-        return null;
-      }
-      if (!metadataOptionLists.has(key)) {
-        const datalist = document.createElement('datalist');
-        datalist.id = `request-metadata-options-${key}`;
-        metadataOptionLists.set(key, datalist);
-        document.body.appendChild(datalist);
-      }
-      const datalist = metadataOptionLists.get(key);
-      const options = stockSupportOptions?.[key];
-      if (datalist && Array.isArray(options)) {
-        datalist.innerHTML = '';
-        options.forEach((optionValue) => {
-          const option = document.createElement('option');
-          option.value = optionValue;
-          datalist.appendChild(option);
-        });
-      }
-      return datalist;
+    if (!metadataOptionLists.has(key)) {
+
+      const datalist =
+        document.createElement('datalist');
+
+      datalist.id =
+        `request-metadata-options-${key}`;
+
+      metadataOptionLists.set(
+        key,
+        datalist
+      );
+
+      document.body.appendChild(
+        datalist
+      );
+
     }
 
-    function buildMetadataForm(sectionEl, containerEl, schema, values = {}, { hidePrefilled = false, mode = 'entry' } = {}) {
-      if (!sectionEl || !containerEl) {
-        return;
-      }
-      containerEl.innerHTML = '';
-      const brandInputs = [];
-      const modelInputs = [];
-      const filteredSchema = Array.isArray(schema)
+    const datalist =
+      metadataOptionLists.get(key);
+
+    const options =
+      stockSupportOptions?.[key];
+
+    if (
+      datalist &&
+      Array.isArray(options)
+    ) {
+
+      datalist.innerHTML = '';
+
+      options.forEach(
+        (optionValue) => {
+
+          const option =
+            document.createElement('option');
+
+          option.value =
+            optionValue;
+
+          datalist.appendChild(
+            option
+          );
+
+        }
+      );
+
+    }
+
+    return datalist;
+
+  }
+
+
+  function buildMetadataForm(
+    sectionEl,
+    containerEl,
+    schema,
+    values = {},
+    {
+      hidePrefilled = false,
+      mode = 'entry'
+    } = {}
+  ) {
+
+    if (!sectionEl || !containerEl) {
+      return;
+    }
+
+    containerEl.innerHTML = '';
+
+    const brandInputs = [];
+    const modelInputs = [];
+
+    const filteredSchema =
+      Array.isArray(schema)
         ? schema.filter((field) => {
-            const assignmentOnly = Boolean(field.assignment_only);
-            if (assignmentOnly && mode !== 'assignment') {
+
+            const assignmentOnly =
+              Boolean(field.assignment_only);
+
+            if (
+              assignmentOnly &&
+              mode !== 'assignment'
+            ) {
               return false;
             }
+
             return true;
+
           })
         : [];
-      if (!filteredSchema.length) {
-        sectionEl.classList.remove('d-none');
-        containerEl.classList.add('d-none');
-        containerEl.innerHTML = '';
-        return;
-      }
-      sectionEl.classList.remove('d-none');
-      containerEl.classList.remove('d-none');
-      filteredSchema.forEach((field) => {
-        const key = field.key;
-        const label = field.label || key;
-        const placeholder = field.placeholder || '';
-        const required = Boolean(field.required);
-        const currentValue = (values[key] ?? '').toString();
-        const isHardwareTypeField = key === 'hardware_type';
-        const isBrandField = key === 'brand';
-        const isModelField = key === 'model';
-        const column = document.createElement('div');
-        column.className = 'col-12 col-md-6';
 
-        const labelEl = document.createElement('label');
-        labelEl.className = 'form-label';
-        labelEl.textContent = label;
-        column.append(labelEl);
+    if (!filteredSchema.length) {
 
-        if (hidePrefilled && currentValue) {
-          const display = document.createElement('div');
-          display.className = 'form-control-plaintext';
-          display.textContent = currentValue;
-          column.append(display);
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = `metadata_${key}`;
-          hiddenInput.value = currentValue;
-          column.append(hiddenInput);
+      sectionEl.classList.remove(
+        'd-none'
+      );
+
+      containerEl.classList.add(
+        'd-none'
+      );
+
+      containerEl.innerHTML = '';
+
+      return;
+    }
+
+    sectionEl.classList.remove(
+      'd-none'
+    );
+
+    containerEl.classList.remove(
+      'd-none'
+    );
+
+
+    filteredSchema.forEach(
+      (field) => {
+
+        const key =
+          field.key;
+
+        const label =
+          field.label || key;
+
+        const placeholder =
+          field.placeholder || '';
+
+        const required =
+          Boolean(field.required);
+
+        const currentValue =
+          (values[key] ?? '').toString();
+
+        const isHardwareTypeField =
+          key === 'hardware_type';
+
+        const isBrandField =
+          key === 'brand';
+
+        const isModelField =
+          key === 'model';
+
+        const column =
+          document.createElement('div');
+
+        column.className =
+          'col-12 col-md-6';
+
+
+        const labelEl =
+          document.createElement('label');
+
+        labelEl.className =
+          'form-label';
+
+        labelEl.textContent =
+          label;
+
+        column.append(
+          labelEl
+        );
+
+
+        if (
+          hidePrefilled &&
+          currentValue
+        ) {
+
+          const display =
+            document.createElement('div');
+
+          display.className =
+            'form-control-plaintext';
+
+          display.textContent =
+            currentValue;
+
+          column.append(
+            display
+          );
+
+
+          const hiddenInput =
+            document.createElement('input');
+
+          hiddenInput.type =
+            'hidden';
+
+          hiddenInput.name =
+            `metadata_${key}`;
+
+          hiddenInput.value =
+            currentValue;
+
+          column.append(
+            hiddenInput
+          );
+
         } else {
-          const input = document.createElement('input');
-          input.className = 'form-control';
-          input.name = `metadata_${key}`;
-          input.placeholder = placeholder;
-          input.value = currentValue;
-          input.autocomplete = 'off';
+
+          const input =
+            document.createElement('input');
+
+          input.className =
+            'form-control';
+
+          input.name =
+            `metadata_${key}`;
+
+          input.placeholder =
+            placeholder;
+
+          input.value =
+            currentValue;
+
+          input.autocomplete =
+            'off';
+
+
           if (isHardwareTypeField) {
-            input.setAttribute('list', 'hardware-types');
+
+            input.setAttribute(
+              'list',
+              'hardware-types'
+            );
+
           }
+
+
           if (isBrandField) {
-            input.setAttribute('list', 'hardware-brands');
-            brandInputs.push(input);
+
+            input.setAttribute(
+              'list',
+              'hardware-brands'
+            );
+
+            brandInputs.push(
+              input
+            );
+
           }
+
+
           if (isModelField) {
-            modelInputs.push(input);
+
+            modelInputs.push(
+              input
+            );
+
           }
+
+
           if (field.options_key) {
-            const datalist = ensureMetadataOptions(field.options_key);
+
+            const datalist =
+              ensureMetadataOptions(
+                field.options_key
+              );
+
             if (datalist) {
-              input.setAttribute('list', datalist.id);
+
+              input.setAttribute(
+                'list',
+                datalist.id
+              );
+
             }
+
           }
+
+
           if (required) {
             input.required = true;
           }
-          column.append(input);
+
+          column.append(
+            input
+          );
+
         }
 
-        containerEl.append(column);
-      });
+        containerEl.append(
+          column
+        );
 
-      modelInputs.forEach((modelInput) => {
+      }
+    );
+
+
+    modelInputs.forEach(
+      (modelInput) => {
+
         modelDatalistCounter += 1;
-        const datalistId = `metadata-model-options-${modelDatalistCounter}`;
-        const datalist = document.createElement('datalist');
-        datalist.id = datalistId;
-        modelInput.setAttribute('list', datalistId);
-        containerEl.appendChild(datalist);
 
-        const linkedBrandInput = brandInputs[0];
-        const renderModelOptions = () => {
-          const brandName = linkedBrandInput?.value?.trim() || '';
-          const options = getModelOptionsForBrand(brandName);
-          datalist.innerHTML = '';
-          options.forEach((optionValue) => {
-            const option = document.createElement('option');
-            option.value = optionValue;
-            datalist.appendChild(option);
-          });
-        };
+        const datalistId =
+          `metadata-model-options-${modelDatalistCounter}`;
+
+        const datalist =
+          document.createElement('datalist');
+
+        datalist.id =
+          datalistId;
+
+        modelInput.setAttribute(
+          'list',
+          datalistId
+        );
+
+        containerEl.appendChild(
+          datalist
+        );
+
+
+        const linkedBrandInput =
+          brandInputs[0];
+
+
+        const renderModelOptions =
+          () => {
+
+            const brandName =
+              linkedBrandInput?.value?.trim()
+              || '';
+
+            const options =
+              getModelOptionsForBrand(
+                brandName
+              );
+
+            datalist.innerHTML =
+              '';
+
+            options.forEach(
+              (optionValue) => {
+
+                const option =
+                  document.createElement('option');
+
+                option.value =
+                  optionValue;
+
+                datalist.appendChild(
+                  option
+                );
+
+              }
+            );
+
+          };
+
 
         renderModelOptions();
 
+
         if (linkedBrandInput) {
-          linkedBrandInput.addEventListener('input', renderModelOptions);
-          linkedBrandInput.addEventListener('change', renderModelOptions);
+
+          linkedBrandInput.addEventListener(
+            'input',
+            renderModelOptions
+          );
+
+          linkedBrandInput.addEventListener(
+            'change',
+            renderModelOptions
+          );
+
         }
-      });
+
+      }
+    );
+
+  }
+
+
+  function collectMetadata(
+    containerEl,
+    schema
+  ) {
+
+    const metadata = {};
+    const missing = [];
+
+    if (
+      !containerEl ||
+      !Array.isArray(schema)
+    ) {
+
+      return {
+        metadata,
+        missing
+      };
+
     }
 
-    function collectMetadata(containerEl, schema) {
-      const metadata = {};
-      const missing = [];
-      if (!containerEl || !Array.isArray(schema)) {
-        return { metadata, missing };
-      }
-      schema.forEach((field) => {
-        const key = field.key;
-        const label = field.label || key;
-        const input = containerEl.querySelector(`[name="metadata_${key}"]`);
+
+    schema.forEach(
+      (field) => {
+
+        const key =
+          field.key;
+
+        const label =
+          field.label || key;
+
+        const input =
+          containerEl.querySelector(
+            `[name="metadata_${key}"]`
+          );
+
         if (!input) {
           return;
         }
-        const value = (input.value || '').trim();
-        if (!value && field.required) {
-          missing.push(label);
+
+        const value =
+          (input.value || '').trim();
+
+        if (
+          !value &&
+          field.required
+        ) {
+
+          missing.push(
+            label
+          );
+
         }
+
         if (value) {
-          metadata[key] = value;
+
+          metadata[key] =
+            value;
+
         }
-      });
-      return { metadata, missing };
+
+      }
+    );
+
+
+    return {
+      metadata,
+      missing
+    };
+
+  }
+
+
+  /* SATIR MODEL LÝSTESÝ */
+
+  function attachRowEnhancements(row) {
+
+    if (
+      !row ||
+      row.dataset.modelListBound === 'true'
+    ) {
+      return;
     }
 
-    function attachRowEnhancements(row) {
-      if (!row || row.dataset.modelListBound === 'true') {
-        return;
-      }
-      const modelInput = row.querySelector('input[name="model[]"]');
-      if (!modelInput) {
-        return;
-      }
-      const brandInput = row.querySelector('input[name="brand[]"]');
-      row.dataset.modelListBound = 'true';
-      modelDatalistCounter += 1;
-      const datalistId = `request-model-options-${modelDatalistCounter}`;
-      const datalist = document.createElement('datalist');
-      datalist.id = datalistId;
-      modelInput.setAttribute('list', datalistId);
-      row.appendChild(datalist);
+    const modelInput =
+      row.querySelector(
+        'input[name="model[]"]'
+      );
 
-      const renderModelOptions = () => {
-        const brandName = brandInput?.value?.trim() || '';
-        const options = getModelOptionsForBrand(brandName);
-        datalist.innerHTML = '';
-        options.forEach((optionValue) => {
-          const option = document.createElement('option');
-          option.value = optionValue;
-          datalist.appendChild(option);
-        });
+    if (!modelInput) {
+      return;
+    }
+
+    const brandInput =
+      row.querySelector(
+        'input[name="brand[]"]'
+      );
+
+    row.dataset.modelListBound =
+      'true';
+
+    modelDatalistCounter += 1;
+
+    const datalistId =
+      `request-model-options-${modelDatalistCounter}`;
+
+    const datalist =
+      document.createElement('datalist');
+
+    datalist.id =
+      datalistId;
+
+    modelInput.setAttribute(
+      'list',
+      datalistId
+    );
+
+    row.appendChild(
+      datalist
+    );
+
+
+    const renderModelOptions =
+      () => {
+
+        const brandName =
+          brandInput?.value?.trim()
+          || '';
+
+        const options =
+          getModelOptionsForBrand(
+            brandName
+          );
+
+        datalist.innerHTML =
+          '';
+
+        options.forEach(
+          (optionValue) => {
+
+            const option =
+              document.createElement('option');
+
+            option.value =
+              optionValue;
+
+            datalist.appendChild(
+              option
+            );
+
+          }
+        );
+
       };
 
-      renderModelOptions();
 
-      if (brandInput) {
-        const updateOptions = () => {
+    renderModelOptions();
+
+
+    if (brandInput) {
+
+      const updateOptions =
+        () => {
           renderModelOptions();
         };
-        brandInput.addEventListener('input', updateOptions);
-        brandInput.addEventListener('change', updateOptions);
-      }
+
+      brandInput.addEventListener(
+        'input',
+        updateOptions
+      );
+
+      brandInput.addEventListener(
+        'change',
+        updateOptions
+      );
+
     }
 
-    function guessCategoryFromTrigger(trigger) {
-      const explicit = trigger?.getAttribute('data-category');
-      if (explicit) {
-        return explicit;
-      }
-      const hardwareType = (trigger?.getAttribute('data-hardware-type') || '').toLowerCase();
-      if (hardwareType.includes('Ã§evre') || hardwareType.includes('cevre')) {
-        return 'cevre_birimi';
-      }
-      if (hardwareType.includes('yazÄ±cÄ±')) {
-        return 'yazici';
-      }
-      if (hardwareType.includes('lisans')) {
-        return 'lisans';
-      }
-      return 'envanter';
+  }
+
+
+  /* KATEGORÝ TESPÝTÝ */
+
+  function guessCategoryFromTrigger(trigger) {
+
+    const explicit =
+      trigger?.getAttribute(
+        'data-category'
+      );
+
+    if (explicit) {
+      return explicit;
     }
 
-    function shouldShowPrinterToggle(action) {
-      if (!action) {
-        return false;
-      }
-      const base = (action.baseCategory || action.category || '').toLowerCase();
-      if (base === 'yazici') {
-        return true;
-      }
-      const hardwareRaw = action.metadataDefaults?.hardware_type || '';
-      const hardware = hardwareRaw.toLocaleLowerCase('tr-TR');
-      return hardware.includes('yazÄ±cÄ±') || hardware.includes('yazici');
+
+    const hardwareType =
+      (
+        trigger?.getAttribute(
+          'data-hardware-type'
+        ) || ''
+      ).toLocaleLowerCase(
+        'tr-TR'
+      );
+
+
+    if (
+      hardwareType.includes('çevre') ||
+      hardwareType.includes('cevre')
+    ) {
+
+      return 'cevre_birimi';
+
     }
 
-    function applyPrinterCategorySelection() {
-      if (!pendingAction) {
-        return;
-      }
-      if (!pendingAction.baseCategory) {
-        pendingAction.baseCategory = pendingAction.category || 'envanter';
-      }
-      const shouldUsePrinter = Boolean(ipPrinterToggle && !ipPrinterToggle.disabled && ipPrinterToggle.checked);
-      pendingAction.category = shouldUsePrinter ? 'yazici' : pendingAction.baseCategory || 'envanter';
-      renderActionMetadataFields({ hidePrefilled: true });
+
+    if (
+      hardwareType.includes('yazýcý') ||
+      hardwareType.includes('yazici')
+    ) {
+
+      return 'yazici';
+
     }
 
-    function getGroup(status) {
-      return requestGroups.find((group) => group.dataset.status === status);
+
+    if (
+      hardwareType.includes('lisans')
+    ) {
+
+      return 'lisans';
+
     }
 
-    function findOrderCard(orderId) {
-      return document.querySelector(`.request-order[data-order-id="${orderId}"]`);
+
+    return 'envanter';
+
+  }
+
+
+  function shouldShowPrinterToggle(
+    action
+  ) {
+
+    if (!action) {
+      return false;
     }
 
-    function toggleGroupEmptyState(group) {
-      if (!group) {
-        return;
-      }
-      const emptyState = group.querySelector('.empty-state');
-      if (!emptyState) {
-        return;
-      }
-      const hasOrders = group.querySelectorAll('.request-order').length > 0;
-      emptyState.classList.toggle('d-none', hasOrders);
+    const base =
+      (
+        action.baseCategory ||
+        action.category ||
+        ''
+      ).toLocaleLowerCase(
+        'tr-TR'
+      );
+
+
+    if (base === 'yazici') {
+      return true;
     }
 
-    function createOrderCard(order) {
-      const article = document.createElement('article');
-      article.className = 'order-card request-order';
-      article.dataset.orderId = String(order.id);
-      article.dataset.searchIndex = order.search_index || '';
 
-      const metaHtml = `
-        <span class="meta-chip"><i class="bi bi-person"></i>${escapeHtml(order.requested_by)}</span>
-        <span class="meta-chip"><i class="bi bi-diagram-3"></i>${escapeHtml(order.department)}</span>
-        <span class="meta-chip"><i class="bi bi-calendar-event"></i>${escapeHtml(order.opened_display)}</span>
-        <span class="meta-chip"><i class="bi bi-box-seam"></i>${escapeHtml(order.item_count)} kalem Â· ${escapeHtml(order.total_quantity)} adet</span>
-      `;
+    const hardwareRaw =
+      action.metadataDefaults
+        ?.hardware_type || '';
 
-      const showActions = (order.group_key || 'acik') === 'acik';
-      const linesHtml = (order.lines || [])
+    const hardware =
+      hardwareRaw.toLocaleLowerCase(
+        'tr-TR'
+      );
+
+
+    return (
+      hardware.includes('yazýcý') ||
+      hardware.includes('yazici')
+    );
+
+  }
+
+
+  function applyPrinterCategorySelection() {
+
+    if (!pendingAction) {
+      return;
+    }
+
+    if (!pendingAction.baseCategory) {
+
+      pendingAction.baseCategory =
+        pendingAction.category ||
+        'envanter';
+
+    }
+
+
+    const shouldUsePrinter =
+      Boolean(
+        ipPrinterToggle &&
+        !ipPrinterToggle.disabled &&
+        ipPrinterToggle.checked
+      );
+
+
+    pendingAction.category =
+      shouldUsePrinter
+        ? 'yazici'
+        : pendingAction.baseCategory ||
+          'envanter';
+
+
+    renderActionMetadataFields({
+      hidePrefilled: true
+    });
+
+  }
+
+
+  /* GRUP */
+
+  function getGroup(status) {
+
+    return requestGroups.find(
+      (group) =>
+        group.dataset.status === status
+    );
+
+  }
+
+
+  function findOrderCard(orderId) {
+
+    return document.querySelector(
+      `.request-order[data-order-id="${orderId}"]`
+    );
+
+  }
+
+
+  function toggleGroupEmptyState(group) {
+
+    if (!group) {
+      return;
+    }
+
+    const emptyState =
+      group.querySelector(
+        '.empty-state'
+      );
+
+    if (!emptyState) {
+      return;
+    }
+
+    const hasOrders =
+      group.querySelectorAll(
+        '.request-order'
+      ).length > 0;
+
+    emptyState.classList.toggle(
+      'd-none',
+      hasOrders
+    );
+
+  }
+
+
+  /* SÝPARÝÞ KARTI OLUÞTUR */
+
+  function createOrderCard(order) {
+
+    const article =
+      document.createElement('article');
+
+    article.className =
+      'order-card request-order';
+
+    article.dataset.orderId =
+      String(order.id);
+
+    article.dataset.searchIndex =
+      order.search_index || '';
+
+
+    const metaHtml = `
+      <span class="meta-chip">
+        <i class="bi bi-person"></i>
+        ${escapeHtml(order.requested_by)}
+      </span>
+
+      <span class="meta-chip">
+        <i class="bi bi-diagram-3"></i>
+        ${escapeHtml(order.department)}
+      </span>
+
+      <span class="meta-chip">
+        <i class="bi bi-calendar-event"></i>
+        ${escapeHtml(order.opened_display)}
+      </span>
+
+      <span class="meta-chip">
+        <i class="bi bi-box-seam"></i>
+        ${escapeHtml(order.item_count)} kalem ·
+        ${escapeHtml(order.total_quantity)} adet
+      </span>
+    `;
+
+
+    const showActions =
+      (order.group_key || 'acik') === 'acik';
+
+
+    const linesHtml =
+      (order.lines || [])
         .map((line) => {
-          const itemLabel = `${escapeHtml(line.hardware_type)} Â· ${escapeHtml(line.brand)} ${escapeHtml(line.model)}`;
-          const note = line.note ? escapeHtml(line.note) : 'â€”';
-          const actionsHtml = showActions
-            ? `
+
+          const itemLabel =
+            `${escapeHtml(line.hardware_type)} · ` +
+            `${escapeHtml(line.brand)} ` +
+            `${escapeHtml(line.model)}`;
+
+          const note =
+            line.note
+              ? escapeHtml(line.note)
+              : '—';
+
+
+          const actionsHtml =
+            showActions
+              ? `
                 <div class="table-actions">
-                  <div class="dropdown action-dropdown" data-bs-display="static">
-                    <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                      Ä°ÅŸlemler
+
+                  <div
+                    class="dropdown action-dropdown"
+                    data-bs-display="static"
+                  >
+
+                    <button
+                      class="btn btn-outline-secondary btn-sm action-dropdown-toggle"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      Ýþlemler
                     </button>
+
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+
                       <li>
-                        <button class="dropdown-item" type="button" data-action="stok" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-hardware-type="${escapeHtml(line.hardware_type)}" data-brand="${escapeHtml(line.brand)}" data-model="${escapeHtml(line.model)}" data-department="${escapeHtml(order.department)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+
+                        <button
+                          class="dropdown-item"
+                          type="button"
+                          data-action="stok"
+                          data-order-id="${escapeHtml(order.id)}"
+                          data-order-no="${escapeHtml(order.order_no)}"
+                          data-item-label="${itemLabel}"
+                          data-line-id="${escapeHtml(line.id)}"
+                          data-max-quantity="${escapeHtml(line.quantity)}"
+                          data-category="${escapeHtml(line.category)}"
+                          data-hardware-type="${escapeHtml(line.hardware_type)}"
+                          data-brand="${escapeHtml(line.brand)}"
+                          data-model="${escapeHtml(line.model)}"
+                          data-department="${escapeHtml(order.department)}"
+                          data-bs-toggle="modal"
+                          data-bs-target="#requestActionModal"
+                        >
                           <i class="bi bi-box-arrow-in-down"></i>
                           Stok Gir
                         </button>
+
                       </li>
+
                       <li>
-                        <button class="dropdown-item text-danger" type="button" data-action="cancel" data-order-id="${escapeHtml(order.id)}" data-order-no="${escapeHtml(order.order_no)}" data-item-label="${itemLabel}" data-line-id="${escapeHtml(line.id)}" data-max-quantity="${escapeHtml(line.quantity)}" data-category="${escapeHtml(line.category)}" data-hardware-type="${escapeHtml(line.hardware_type)}" data-brand="${escapeHtml(line.brand)}" data-model="${escapeHtml(line.model)}" data-department="${escapeHtml(order.department)}" data-bs-toggle="modal" data-bs-target="#requestActionModal">
+
+                        <button
+                          class="dropdown-item text-danger"
+                          type="button"
+                          data-action="cancel"
+                          data-order-id="${escapeHtml(order.id)}"
+                          data-order-no="${escapeHtml(order.order_no)}"
+                          data-item-label="${itemLabel}"
+                          data-line-id="${escapeHtml(line.id)}"
+                          data-max-quantity="${escapeHtml(line.quantity)}"
+                          data-category="${escapeHtml(line.category)}"
+                          data-hardware-type="${escapeHtml(line.hardware_type)}"
+                          data-brand="${escapeHtml(line.brand)}"
+                          data-model="${escapeHtml(line.model)}"
+                          data-department="${escapeHtml(order.department)}"
+                          data-bs-toggle="modal"
+                          data-bs-target="#requestActionModal"
+                        >
                           <i class="bi bi-x-circle"></i>
-                          Ä°ptal Et
+                          Ýptal Et
                         </button>
+
                       </li>
+
                     </ul>
+
                   </div>
+
                 </div>
               `
-            : '<span class="text-muted small">â€”</span>';
+              : '<span class="text-muted small">—</span>';
+
+
           return `
             <tr>
-              <td class="fw-semibold">${escapeHtml(line.hardware_type)}</td>
-              <td><span class="badge bg-light text-dark">${escapeHtml(line.category_label)}</span></td>
-              <td>${escapeHtml(line.brand)}</td>
-              <td>${escapeHtml(line.model)}</td>
-              <td class="text-center">
-                <span class="quantity-badge">
-                  <i class="bi bi-stack"></i>${escapeHtml(line.quantity)}
+
+              <td class="fw-semibold">
+                ${escapeHtml(line.hardware_type)}
+              </td>
+
+              <td>
+                <span class="badge bg-light text-dark">
+                  ${escapeHtml(line.category_label)}
                 </span>
               </td>
-              <td><span class="text-muted small">${escapeHtml(line.opened_display)}</span></td>
-              <td>${note}</td>
-              <td class="text-end">${actionsHtml}</td>
+
+              <td>
+                ${escapeHtml(line.brand)}
+              </td>
+
+              <td>
+                ${escapeHtml(line.model)}
+              </td>
+
+              <td class="text-center">
+
+                <span class="quantity-badge">
+                  <i class="bi bi-stack"></i>
+                  ${escapeHtml(line.quantity)}
+                </span>
+
+              </td>
+
+              <td>
+                <span class="text-muted small">
+                  ${escapeHtml(line.opened_display)}
+                </span>
+              </td>
+
+              <td>
+                ${note}
+              </td>
+
+              <td class="text-end">
+                ${actionsHtml}
+              </td>
+
             </tr>
           `;
+
         })
         .join('');
 
-      article.innerHTML = `
-        <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-          <div>
-            <span class="order-label text-uppercase small text-muted">SipariÅŸ No</span>
-            <h4 class="order-number mb-0">${escapeHtml(order.order_no)}</h4>
-          </div>
-          <div class="order-meta d-flex flex-wrap align-items-center gap-2">
-            ${metaHtml}
-          </div>
+
+    article.innerHTML = `
+
+      <div class="order-card__header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+
+        <div>
+
+          <span class="order-label text-uppercase small text-muted">
+            Sipariþ No
+          </span>
+
+          <h4 class="order-number mb-0">
+            ${escapeHtml(order.order_no)}
+          </h4>
+
         </div>
 
-        <div class="table-responsive mt-4">
-          <table class="table align-middle mb-0">
-            <thead>
-              <tr>
-                <th scope="col">DonanÄ±m Tipi</th>
-                <th scope="col">Kategori</th>
-                <th scope="col">Marka</th>
-                <th scope="col">Model</th>
-                <th scope="col" class="text-center">Miktar</th>
-                <th scope="col">Tarih</th>
-                <th scope="col">AÃ§Ä±klama</th>
-                <th scope="col" class="text-end">Ä°ÅŸlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linesHtml}
-            </tbody>
-          </table>
+        <div class="order-meta d-flex flex-wrap align-items-center gap-2">
+          ${metaHtml}
         </div>
-      `;
 
-      return article;
+      </div>
+
+
+      <div class="table-responsive mt-4">
+
+        <table class="table align-middle mb-0">
+
+          <thead>
+
+            <tr>
+
+              <th scope="col">Donaným Tipi</th>
+              <th scope="col">Kategori</th>
+              <th scope="col">Marka</th>
+              <th scope="col">Model</th>
+              <th scope="col" class="text-center">Miktar</th>
+              <th scope="col">Tarih</th>
+              <th scope="col">Açýklama</th>
+              <th scope="col" class="text-end">Ýþlemler</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+            ${linesHtml}
+          </tbody>
+
+        </table>
+
+      </div>
+
+    `;
+
+
+    return article;
+
+  }
+
+
+  function insertOrderIntoGroup(order) {
+
+    const group =
+      getGroup(
+        order.group_key || 'acik'
+      );
+
+    if (!group) {
+      return;
     }
 
-    function insertOrderIntoGroup(order) {
-      const group = getGroup(order.group_key || 'acik');
-      if (!group) {
-        return;
-      }
-      const card = createOrderCard(order);
-      const emptyState = group.querySelector('.empty-state');
-      if (emptyState) {
-        group.insertBefore(card, emptyState);
-      } else {
-        group.append(card);
-      }
-      toggleGroupEmptyState(group);
+
+    const card =
+      createOrderCard(order);
+
+    const emptyState =
+      group.querySelector(
+        '.empty-state'
+      );
+
+
+    if (emptyState) {
+
+      group.insertBefore(
+        card,
+        emptyState
+      );
+
+    } else {
+
+      group.append(
+        card
+      );
+
+    }
+
+
+    toggleGroupEmptyState(
+      group
+    );
+
+
+    if (pagination) {
+
+      pagination.refresh(
+        group
+      );
+
+    }
+
+  }
+
+
+  function removeOrderFromGroup(
+    orderId
+  ) {
+
+    const card =
+      findOrderCard(
+        orderId
+      );
+
+    if (!card) {
+      return;
+    }
+
+
+    const group =
+      card.closest(
+        '.request-group'
+      );
+
+
+    card.remove();
+
+
+    if (group) {
+
+      toggleGroupEmptyState(
+        group
+      );
+
       if (pagination) {
-        pagination.refresh(group);
+
+        pagination.refresh(
+          group
+        );
+
       }
+
     }
 
-    function removeOrderFromGroup(orderId) {
-      const card = findOrderCard(orderId);
-      if (!card) {
-        return;
-      }
-      const group = card.closest('.request-group');
-      card.remove();
-      if (group) {
-        toggleGroupEmptyState(group);
-        if (pagination) {
-          pagination.refresh(group);
-        }
-      }
-    }
+  }
 
-    function updateGroupVisibility(status) {
-      activeStatus = status;
-      requestGroups.forEach((group) => {
-        const isActive = group.dataset.status === status;
-        group.classList.toggle('d-none', !isActive);
+
+  /* GRUP GÖRÜNÜRLÜÐÜ */
+
+  function updateGroupVisibility(
+    status
+  ) {
+
+    activeStatus =
+      status;
+
+
+    requestGroups.forEach(
+      (group) => {
+
+        const isActive =
+          group.dataset.status === status;
+
+        group.classList.toggle(
+          'd-none',
+          !isActive
+        );
+
+
         if (isActive) {
-          const emptyMessage = group.dataset.emptyMessage;
-          const emptyText = group.querySelector('[data-empty-text]');
+
+          const emptyMessage =
+            group.dataset.emptyMessage;
+
+          const emptyText =
+            group.querySelector(
+              '[data-empty-text]'
+            );
+
           if (emptyText) {
-            emptyText.textContent = emptyMessage;
+
+            emptyText.textContent =
+              emptyMessage;
+
           }
+
         }
-      });
-      statusButtons.forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.statusFilter === status);
-        btn.setAttribute('aria-pressed', btn.dataset.statusFilter === status ? 'true' : 'false');
-      });
-      applySearch();
+
+      }
+    );
+
+
+    statusButtons.forEach(
+      (btn) => {
+
+        const isActive =
+          btn.dataset.statusFilter === status;
+
+        btn.classList.toggle(
+          'active',
+          isActive
+        );
+
+        btn.setAttribute(
+          'aria-pressed',
+          isActive
+            ? 'true'
+            : 'false'
+        );
+
+      }
+    );
+
+
+    applySearch();
+
+  }
+
+
+  /* ARAMA */
+
+  function applySearch() {
+
+    const group =
+      getGroup(
+        activeStatus
+      );
+
+    if (!group) {
+      return;
     }
 
-    function applySearch() {
-      const group = getGroup(activeStatus);
-      if (!group) {
-        return;
-      }
-      const query = (searchInput?.value ?? '').trim().toLowerCase();
-      const orders = Array.from(group.querySelectorAll('.request-order'));
-      let visibleOrders = 0;
-      orders.forEach((order) => {
-        const match = !query || order.dataset.searchIndex?.includes(query);
+
+    const query =
+      (
+        searchInput?.value ?? ''
+      )
+      .trim()
+      .toLocaleLowerCase(
+        'tr-TR'
+      );
+
+
+    const orders =
+      Array.from(
+        group.querySelectorAll(
+          '.request-order'
+        )
+      );
+
+
+    let visibleOrders =
+      0;
+
+
+    orders.forEach(
+      (order) => {
+
+        const searchIndex =
+          (
+            order.dataset.searchIndex ||
+            ''
+          ).toLocaleLowerCase(
+            'tr-TR'
+          );
+
+
+        const match =
+          !query ||
+          searchIndex.includes(
+            query
+          );
+
+
         if (match) {
+
           delete order.dataset.searchHidden;
+
           visibleOrders += 1;
+
         } else {
-          order.dataset.searchHidden = 'true';
+
+          order.dataset.searchHidden =
+            'true';
+
         }
-        order.classList.toggle('d-none', !match);
-      });
-      const emptyState = group.querySelector('.empty-state');
-      if (emptyState) {
-        emptyState.classList.toggle('d-none', visibleOrders !== 0);
+
+
+        order.classList.toggle(
+          'd-none',
+          !match
+        );
+
       }
-      if (visibleCount) {
-        visibleCount.textContent = `${visibleOrders} SipariÅŸ`;
-      }
-      if (activeTitle) {
-        activeTitle.textContent = group.dataset.title;
-      }
-      if (activeDescription) {
-        activeDescription.textContent = group.dataset.description;
-      }
-      if (pagination) {
-        pagination.refresh(group);
-      }
+    );
+
+
+    const emptyState =
+      group.querySelector(
+        '.empty-state'
+      );
+
+
+    if (emptyState) {
+
+      emptyState.classList.toggle(
+        'd-none',
+        visibleOrders !== 0
+      );
+
     }
 
-    statusButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        updateGroupVisibility(btn.dataset.statusFilter);
-      });
-    });
 
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
+    if (visibleCount) {
+
+      visibleCount.textContent =
+        `${visibleOrders} Sipariþ`;
+
+    }
+
+
+    if (activeTitle) {
+
+      activeTitle.textContent =
+        group.dataset.title;
+
+    }
+
+
+    if (activeDescription) {
+
+      activeDescription.textContent =
+        group.dataset.description;
+
+    }
+
+
+    if (pagination) {
+
+      pagination.refresh(
+        group
+      );
+
+    }
+
+  }
+
+
+  /* DURUM BUTONLARI */
+
+  statusButtons.forEach(
+    (btn) => {
+
+      btn.addEventListener(
+        'click',
+        () => {
+
+          updateGroupVisibility(
+            btn.dataset.statusFilter
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+  if (searchInput) {
+
+    searchInput.addEventListener(
+      'input',
+      () => {
+
         applySearch();
-      });
+
+      }
+    );
+
+  }
+
+
+  updateGroupVisibility(
+    activeStatus
+  );
+
+
+  /* YENÝ TALEP */
+
+  const rowTemplate =
+    document.getElementById(
+      'request-row-template'
+    );
+
+  const rowsContainer =
+    document.querySelector(
+      '[data-rows-container]'
+    );
+
+  const addRowButton =
+    document.querySelector(
+      '[data-add-row]'
+    );
+
+  const newRequestModal =
+    document.getElementById(
+      'newRequestModal'
+    );
+
+  const newRequestForm =
+    document.getElementById(
+      'new-request-form'
+    );
+
+
+  function initializeRequestRows() {
+
+    if (!rowsContainer) {
+      return;
     }
 
-    updateGroupVisibility(activeStatus);
 
-    const rowTemplate = document.getElementById('request-row-template');
-    const rowsContainer = document.querySelector('[data-rows-container]');
-    const addRowButton = document.querySelector('[data-add-row]');
-    const newRequestModal = document.getElementById('newRequestModal');
-    const newRequestForm = document.getElementById('new-request-form');
+    const rows =
+      Array.from(
+        rowsContainer.querySelectorAll(
+          '[data-request-row]'
+        )
+      );
 
-    function initializeRequestRows() {
-      if (!rowsContainer) {
-        return;
+
+    rows.forEach(
+      (row) => {
+
+        attachRowEnhancements(
+          row
+        );
+
       }
-      const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
-      rows.forEach((row) => attachRowEnhancements(row));
+    );
+
+  }
+
+
+  function updateRowControls() {
+
+    if (!rowsContainer) {
+      return;
     }
 
-    function updateRowControls() {
-      if (!rowsContainer) {
-        return;
-      }
-      const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
-      rows.forEach((row) => {
-        const removeButton = row.querySelector('[data-remove-row]');
+
+    const rows =
+      Array.from(
+        rowsContainer.querySelectorAll(
+          '[data-request-row]'
+        )
+      );
+
+
+    rows.forEach(
+      (row) => {
+
+        const removeButton =
+          row.querySelector(
+            '[data-remove-row]'
+          );
+
         if (!removeButton) {
           return;
         }
-        const allowRemove = rows.length > 1;
-        removeButton.classList.toggle('d-none', !allowRemove);
-        removeButton.disabled = !allowRemove;
-      });
-    }
 
-    updateRowControls();
-    initializeRequestRows();
 
-    if (addRowButton && rowTemplate && rowsContainer) {
-      addRowButton.addEventListener('click', () => {
-        const fragment = rowTemplate.content.cloneNode(true);
-        const newRow = fragment.querySelector('[data-request-row]');
-        rowsContainer.appendChild(fragment);
+        const allowRemove =
+          rows.length > 1;
+
+
+        removeButton.classList.toggle(
+          'd-none',
+          !allowRemove
+        );
+
+        removeButton.disabled =
+          !allowRemove;
+
+      }
+    );
+
+  }
+
+
+  updateRowControls();
+
+  initializeRequestRows();
+
+
+  if (
+    addRowButton &&
+    rowTemplate &&
+    rowsContainer
+  ) {
+
+    addRowButton.addEventListener(
+      'click',
+      () => {
+
+        const fragment =
+          rowTemplate.content.cloneNode(
+            true
+          );
+
+        const newRow =
+          fragment.querySelector(
+            '[data-request-row]'
+          );
+
+
+        rowsContainer.appendChild(
+          fragment
+        );
+
+
         updateRowControls();
-        if (newRow) {
-          attachRowEnhancements(newRow);
-        }
-      });
-    }
 
-    if (rowsContainer) {
-      rowsContainer.addEventListener('click', (event) => {
-        const removeTrigger = event.target.closest('[data-remove-row]');
+
+        if (newRow) {
+
+          attachRowEnhancements(
+            newRow
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  if (rowsContainer) {
+
+    rowsContainer.addEventListener(
+      'click',
+      (event) => {
+
+        const removeTrigger =
+          event.target.closest(
+            '[data-remove-row]'
+          );
+
         if (!removeTrigger) {
           return;
         }
-        const row = removeTrigger.closest('[data-request-row]');
+
+
+        const row =
+          removeTrigger.closest(
+            '[data-request-row]'
+          );
+
         if (!row) {
           return;
         }
-        const rows = rowsContainer.querySelectorAll('[data-request-row]');
-        if (rows.length > 1) {
-          row.remove();
-          updateRowControls();
-        }
-      });
-    }
 
-    if (newRequestForm) {
-      newRequestForm.addEventListener('submit', async (event) => {
+
+        const rows =
+          rowsContainer.querySelectorAll(
+            '[data-request-row]'
+          );
+
+
+        if (rows.length > 1) {
+
+          row.remove();
+
+          updateRowControls();
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* TALEP GÖNDER */
+
+  if (newRequestForm) {
+
+    newRequestForm.addEventListener(
+      'submit',
+      async (event) => {
+
         event.preventDefault();
+
+
         if (!rowsContainer) {
           return;
         }
 
-        const formData = new FormData(newRequestForm);
-        const orderNo = (formData.get('order_no') || '').toString().trim();
-        const requestedById = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
-        const requestedByName = (requestOwnerInfo && requestOwnerInfo.name ? requestOwnerInfo.name : '').trim();
-        const department = (requestOwnerInfo && requestOwnerInfo.department ? requestOwnerInfo.department : '').trim();
 
-        const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
+        const formData =
+          new FormData(
+            newRequestForm
+          );
+
+
+        const orderNo =
+          (
+            formData.get(
+              'order_no'
+            ) || ''
+          )
+          .toString()
+          .trim();
+
+
+        const requestedById =
+          requestOwnerInfo &&
+          requestOwnerInfo.id
+            ? String(
+                requestOwnerInfo.id
+              )
+            : '';
+
+
+        const requestedByName =
+          (
+            requestOwnerInfo &&
+            requestOwnerInfo.name
+              ? requestOwnerInfo.name
+              : ''
+          )
+          .trim();
+
+
+        const department =
+          (
+            requestOwnerInfo &&
+            requestOwnerInfo.department
+              ? requestOwnerInfo.department
+              : ''
+          )
+          .trim();
+
+
+        const rows =
+          Array.from(
+            rowsContainer.querySelectorAll(
+              '[data-request-row]'
+            )
+          );
+
+
         const lines = [];
-        for (const [index, row] of rows.entries()) {
-          const categorySelect = row.querySelector('select[name="category[]"]');
-          const hardwareInput = row.querySelector('input[name="hardware_type[]"]');
-          const quantityInput = row.querySelector('input[name="quantity[]"]');
-          const brandInput = row.querySelector('input[name="brand[]"]');
-          const modelInput = row.querySelector('input[name="model[]"]');
-          const noteInput = row.querySelector('input[name="note[]"]');
 
-          const category = categorySelect?.value.trim() || '';
-          const hardware = hardwareInput?.value.trim() || '';
-          const brand = brandInput?.value.trim() || '';
-          const model = modelInput?.value.trim() || '';
-          const quantity = Number.parseInt(quantityInput?.value ?? '0', 10);
-          const note = noteInput?.value.trim();
+
+        for (
+          const [index, row]
+          of rows.entries()
+        ) {
+
+          const categorySelect =
+            row.querySelector(
+              'select[name="category[]"]'
+            );
+
+          const hardwareInput =
+            row.querySelector(
+              'input[name="hardware_type[]"]'
+            );
+
+          const quantityInput =
+            row.querySelector(
+              'input[name="quantity[]"]'
+            );
+
+          const brandInput =
+            row.querySelector(
+              'input[name="brand[]"]'
+            );
+
+          const modelInput =
+            row.querySelector(
+              'input[name="model[]"]'
+            );
+
+          const noteInput =
+            row.querySelector(
+              'input[name="note[]"]'
+            );
+
+
+          const category =
+            categorySelect?.value.trim()
+            || '';
+
+          const hardware =
+            hardwareInput?.value.trim()
+            || '';
+
+          const brand =
+            brandInput?.value.trim()
+            || '';
+
+          const model =
+            modelInput?.value.trim()
+            || '';
+
+          const quantity =
+            Number.parseInt(
+              quantityInput?.value ?? '0',
+              10
+            );
+
+          const note =
+            noteInput?.value.trim()
+            || '';
+
 
           if (!category) {
-            showFeedback(`${index + 1}. satÄ±r iÃ§in Ã¼rÃ¼n tipini seÃ§in.`, 'danger');
+
+            showFeedback(
+              `${index + 1}. satýr için ürün tipini seçin.`,
+              'danger'
+            );
+
             categorySelect?.focus();
+
             return;
+
           }
-          if (!hardware || !Number.isFinite(quantity) || quantity <= 0) {
-            showFeedback(`${index + 1}. satÄ±r iÃ§in donanÄ±m tipini ve geÃ§erli bir miktarÄ± girin.`, 'danger');
+
+
+          if (
+            !hardware ||
+            !Number.isFinite(quantity) ||
+            quantity <= 0
+          ) {
+
+            showFeedback(
+              `${index + 1}. satýr için donaným tipini ve geçerli bir miktarý girin.`,
+              'danger'
+            );
+
             hardwareInput?.focus();
+
             return;
+
           }
+
 
           lines.push({
+
             category,
-            hardware_type: hardware,
+
+            hardware_type:
+              hardware,
+
             brand,
+
             model,
+
             quantity,
-            note,
+
+            note
+
           });
+
         }
+
 
         if (!orderNo) {
-          showFeedback('SipariÅŸ numarasÄ± zorunludur.', 'danger');
+
+          showFeedback(
+            'Sipariþ numarasý zorunludur.',
+            'danger'
+          );
+
           return;
+
         }
-        if (!requestedById || !requestedByName) {
-          showFeedback('Talep sahibi bilgisi alÄ±namadÄ±.', 'danger');
+
+
+        if (
+          !requestedById ||
+          !requestedByName
+        ) {
+
+          showFeedback(
+            'Talep sahibi bilgisi alýnamadý.',
+            'danger'
+          );
+
           return;
+
         }
+
 
         try {
-          const response = await fetch('/api/requests', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              order_no: orderNo,
-              requested_by_id: requestedById,
-              requested_by: requestedByName,
-              department,
-              lines,
-            }),
-          });
+
+          const response =
+            await fetch(
+              '/api/requests',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type':
+                    'application/json'
+                },
+
+                body: JSON.stringify({
+
+                  order_no:
+                    orderNo,
+
+                  requested_by_id:
+                    requestedById,
+
+                  requested_by:
+                    requestedByName,
+
+                  department,
+
+                  lines
+
+                })
+
+              }
+            );
+
+
           let payload = {};
+
           try {
-            payload = await response.json();
+
+            payload =
+              await response.json();
+
           } catch (error) {
+
             payload = {};
+
           }
+
+
           if (!response.ok) {
-            showFeedback(payload.error || 'Talep kaydedilemedi.', 'danger');
+
+            showFeedback(
+              payload.error ||
+              'Talep kaydedilemedi.',
+              'danger'
+            );
+
             return;
+
           }
+
 
           if (payload.order) {
-            insertOrderIntoGroup(payload.order);
-            updateGroupVisibility(activeStatus);
+
+            insertOrderIntoGroup(
+              payload.order
+            );
+
+            updateGroupVisibility(
+              activeStatus
+            );
+
           }
 
-          showFeedback(payload.message || 'Talep kaydedildi.', 'success');
 
-          const modalInstance = bootstrap.Modal.getInstance(newRequestModal);
+          showFeedback(
+            payload.message ||
+            'Talep kaydedildi.',
+            'success'
+          );
+
+
+          const modalInstance =
+            bootstrap.Modal.getInstance(
+              newRequestModal
+            );
+
+
           if (modalInstance) {
+
             modalInstance.hide();
+
           }
+
+
         } catch (error) {
-          showFeedback('Sunucuya ulaÅŸÄ±lamadÄ±.', 'danger');
-        }
-      });
-    }
 
-    if (newRequestModal) {
-      newRequestModal.addEventListener('hidden.bs.modal', () => {
+          console.error(
+            'Talep gönderme hatasý:',
+            error
+          );
+
+          showFeedback(
+            'Sunucuya ulaþýlamadý.',
+            'danger'
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* YENÝ TALEP MODALI KAPANINCA */
+
+  if (newRequestModal) {
+
+    newRequestModal.addEventListener(
+      'hidden.bs.modal',
+      () => {
+
         if (newRequestForm) {
+
           newRequestForm.reset();
+
         }
+
+
         if (requestOwnerIdInput) {
-          const ownerId = requestOwnerInfo && requestOwnerInfo.id ? String(requestOwnerInfo.id) : '';
-          requestOwnerIdInput.value = ownerId;
+
+          const ownerId =
+            requestOwnerInfo &&
+            requestOwnerInfo.id
+              ? String(
+                  requestOwnerInfo.id
+                )
+              : '';
+
+          requestOwnerIdInput.value =
+            ownerId;
+
         }
+
+
         if (requestOwnerDisplay) {
-          requestOwnerDisplay.textContent = (requestOwnerInfo && requestOwnerInfo.name) || 'â€”';
+
+          requestOwnerDisplay.textContent =
+            (
+              requestOwnerInfo &&
+              requestOwnerInfo.name
+            ) ||
+            '—';
+
         }
+
+
         if (requestOwnerDepartment) {
-          const departmentLabel = (requestOwnerInfo && requestOwnerInfo.department) || 'â€”';
-          requestOwnerDepartment.textContent = `Departman: ${departmentLabel}`;
+
+          const departmentLabel =
+            (
+              requestOwnerInfo &&
+              requestOwnerInfo.department
+            ) ||
+            '—';
+
+          requestOwnerDepartment.textContent =
+            `Departman: ${departmentLabel}`;
+
         }
+
+
         if (rowsContainer) {
-          const rows = Array.from(rowsContainer.querySelectorAll('[data-request-row]'));
-          rows.slice(1).forEach((row) => row.remove());
+
+          const rows =
+            Array.from(
+              rowsContainer.querySelectorAll(
+                '[data-request-row]'
+              )
+            );
+
+
+          rows
+            .slice(1)
+            .forEach(
+              (row) => row.remove()
+            );
+
+
           updateRowControls();
+
         }
-      });
+
+      }
+    );
+
+  }
+
+
+  /* TALEP ÝÞLEM MODALI */
+
+  const actionModal =
+    document.getElementById(
+      'requestActionModal'
+    );
+
+  const actionQuantityGroup =
+    actionModal?.querySelector(
+      '[data-quantity-group]'
+    );
+
+  const actionQuantityInput =
+    actionModal?.querySelector(
+      '#action-quantity'
+    );
+
+  const actionHint =
+    actionModal?.querySelector(
+      '[data-quantity-hint]'
+    );
+
+  const singleInfo =
+    actionModal?.querySelector(
+      '[data-single-info]'
+    );
+
+  const actionMessage =
+    actionModal?.querySelector(
+      '[data-action-message]'
+    );
+
+  const actionNoteInput =
+    actionModal?.querySelector(
+      '#action-note'
+    );
+
+  const confirmActionButton =
+    actionModal?.querySelector(
+      '[data-confirm-action]'
+    );
+
+  const actionMetadataSection =
+    actionModal?.querySelector(
+      '[data-action-metadata-section]'
+    );
+
+  const actionCategoryLabel =
+    actionModal?.querySelector(
+      '[data-action-category-label]'
+    );
+
+  const actionCategoryValueInput =
+    actionModal?.querySelector(
+      '[data-action-category-value]'
+    );
+
+  const actionMetadataContainer =
+    actionModal?.querySelector(
+      '[data-action-metadata-container]'
+    );
+
+  const actionMetadataError =
+    actionModal?.querySelector(
+      '[data-action-metadata-error]'
+    );
+
+  const ipPrinterToggleGroup =
+    actionModal?.querySelector(
+      '[data-ip-printer-toggle]'
+    );
+
+  const ipPrinterToggle =
+    document.getElementById(
+      'ipPrinterToggle'
+    );
+
+
+  let pendingAction;
+
+
+  function renderActionMetadataFields({
+    hidePrefilled = false
+  } = {}) {
+
+    if (
+      !actionMetadataSection ||
+      !actionMetadataContainer
+    ) {
+      return;
     }
 
-    const actionModal = document.getElementById('requestActionModal');
-    const actionQuantityGroup = actionModal?.querySelector('[data-quantity-group]');
-    const actionQuantityInput = actionModal?.querySelector('#action-quantity');
-    const actionHint = actionModal?.querySelector('[data-quantity-hint]');
-    const singleInfo = actionModal?.querySelector('[data-single-info]');
-    const actionMessage = actionModal?.querySelector('[data-action-message]');
-    const actionNoteInput = actionModal?.querySelector('#action-note');
-    const confirmActionButton = actionModal?.querySelector('[data-confirm-action]');
-    const actionMetadataSection = actionModal?.querySelector('[data-action-metadata-section]');
-    const actionCategoryLabel = actionModal?.querySelector('[data-action-category-label]');
-    const actionCategoryValueInput = actionModal?.querySelector('[data-action-category-value]');
-    const actionMetadataContainer = actionModal?.querySelector('[data-action-metadata-container]');
-    const actionMetadataError = actionModal?.querySelector('[data-action-metadata-error]');
-    const ipPrinterToggleGroup = actionModal?.querySelector('[data-ip-printer-toggle]');
-    const ipPrinterToggle = document.getElementById('ipPrinterToggle');
-    let pendingAction;
 
-    function renderActionMetadataFields({ hidePrefilled = false } = {}) {
-      if (!actionMetadataSection || !actionMetadataContainer) {
-        return;
-      }
-      const category = pendingAction?.category || '';
-      if (actionCategoryLabel) {
-        actionCategoryLabel.textContent = stockCategoryLabels?.[category] || category || 'â€”';
-      }
-      if (actionCategoryValueInput) {
-        actionCategoryValueInput.value = category;
-      }
-      if (!category) {
-        actionMetadataSection.classList.add('d-none');
-        actionMetadataContainer.classList.add('d-none');
-        actionMetadataContainer.innerHTML = '';
-        return;
-      }
-      actionMetadataSection.classList.remove('d-none');
-      const schema = getMetadataSchema(category);
-      const defaults = pendingAction?.metadataDefaults || {};
-      const existing = readMetadataValues(actionMetadataContainer);
-      const values = { ...defaults, ...existing };
-      buildMetadataForm(actionMetadataSection, actionMetadataContainer, schema, values, { hidePrefilled, mode: 'entry' });
-      if (!schema.length) {
-        actionMetadataContainer.classList.add('d-none');
-      }
-      else {
-        actionMetadataContainer.classList.remove('d-none');
-      }
-      if (actionMetadataError) {
-        actionMetadataError.classList.add('d-none');
-        actionMetadataError.textContent = '';
-      }
+    const category =
+      pendingAction?.category ||
+      '';
+
+
+    if (actionCategoryLabel) {
+
+      actionCategoryLabel.textContent =
+        stockCategoryLabels?.[category] ||
+        category ||
+        '—';
+
     }
 
-    if (actionModal) {
-      actionModal.addEventListener('show.bs.modal', (event) => {
-        const trigger = event.relatedTarget;
+
+    if (actionCategoryValueInput) {
+
+      actionCategoryValueInput.value =
+        category;
+
+    }
+
+
+    if (!category) {
+
+      actionMetadataSection.classList.add(
+        'd-none'
+      );
+
+      actionMetadataContainer.classList.add(
+        'd-none'
+      );
+
+      actionMetadataContainer.innerHTML =
+        '';
+
+      return;
+
+    }
+
+
+    actionMetadataSection.classList.remove(
+      'd-none'
+    );
+
+
+    const schema =
+      getMetadataSchema(
+        category
+      );
+
+
+    const defaults =
+      pendingAction?.metadataDefaults ||
+      {};
+
+
+    const existing =
+      readMetadataValues(
+        actionMetadataContainer
+      );
+
+
+    const values = {
+      ...defaults,
+      ...existing
+    };
+
+
+    buildMetadataForm(
+      actionMetadataSection,
+      actionMetadataContainer,
+      schema,
+      values,
+      {
+        hidePrefilled,
+        mode: 'entry'
+      }
+    );
+
+
+    if (!schema.length) {
+
+      actionMetadataContainer.classList.add(
+        'd-none'
+      );
+
+    } else {
+
+      actionMetadataContainer.classList.remove(
+        'd-none'
+      );
+
+    }
+
+
+    if (actionMetadataError) {
+
+      actionMetadataError.classList.add(
+        'd-none'
+      );
+
+      actionMetadataError.textContent =
+        '';
+
+    }
+
+  }
+
+
+  /* MODAL AÇILDI */
+
+  if (actionModal) {
+
+    actionModal.addEventListener(
+      'show.bs.modal',
+      (event) => {
+
+        const trigger =
+          event.relatedTarget;
+
         if (!trigger) {
           return;
         }
-        const actionType = trigger.getAttribute('data-action');
-        const orderId = Number.parseInt(trigger.getAttribute('data-order-id') ?? '0', 10) || 0;
-        const orderNo = trigger.getAttribute('data-order-no');
-        const itemLabel = trigger.getAttribute('data-item-label');
-        const lineId = Number.parseInt(trigger.getAttribute('data-line-id') ?? '0', 10) || 0;
-        const maxQuantity = Number.parseInt(trigger.getAttribute('data-max-quantity') ?? '1', 10) || 1;
+
+
+        const actionType =
+          trigger.getAttribute(
+            'data-action'
+          );
+
+
+        const orderId =
+          Number.parseInt(
+            trigger.getAttribute(
+              'data-order-id'
+            ) ?? '0',
+            10
+          ) || 0;
+
+
+        const orderNo =
+          trigger.getAttribute(
+            'data-order-no'
+          );
+
+
+        const itemLabel =
+          trigger.getAttribute(
+            'data-item-label'
+          );
+
+
+        const lineId =
+          Number.parseInt(
+            trigger.getAttribute(
+              'data-line-id'
+            ) ?? '0',
+            10
+          ) || 0;
+
+
+        const maxQuantity =
+          Number.parseInt(
+            trigger.getAttribute(
+              'data-max-quantity'
+            ) ?? '1',
+            10
+          ) || 1;
+
 
         const metadataDefaults = {
-          hardware_type: trigger.getAttribute('data-hardware-type') || '',
-          brand: trigger.getAttribute('data-brand') || '',
-          model: trigger.getAttribute('data-model') || '',
-          department: trigger.getAttribute('data-department') || '',
-          category: trigger.getAttribute('data-category') || '',
+
+          hardware_type:
+            trigger.getAttribute(
+              'data-hardware-type'
+            ) || '',
+
+          brand:
+            trigger.getAttribute(
+              'data-brand'
+            ) || '',
+
+          model:
+            trigger.getAttribute(
+              'data-model'
+            ) || '',
+
+          department:
+            trigger.getAttribute(
+              'data-department'
+            ) || '',
+
+          category:
+            trigger.getAttribute(
+              'data-category'
+            ) || ''
+
         };
 
-        const inferredCategory = metadataDefaults.category || guessCategoryFromTrigger(trigger);
+
+        const inferredCategory =
+          metadataDefaults.category ||
+          guessCategoryFromTrigger(
+            trigger
+          );
+
 
         pendingAction = {
+
           orderId,
+
           actionType,
+
           orderNo,
+
           itemLabel,
+
           maxQuantity,
+
           lineId,
+
           metadataDefaults,
-          category: inferredCategory,
-          baseCategory: inferredCategory,
+
+          category:
+            inferredCategory,
+
+          baseCategory:
+            inferredCategory
+
         };
 
-        const modalTitle = actionModal.querySelector('.modal-title');
-        const verb = actionType === 'stok' ? 'Stok GiriÅŸi' : 'Talep Ä°ptali';
+
+        const modalTitle =
+          actionModal.querySelector(
+            '.modal-title'
+          );
+
+
+        const verb =
+          actionType === 'stok'
+            ? 'Stok Giriþi'
+            : 'Talep Ýptali';
+
+
         if (modalTitle) {
-          modalTitle.textContent = `${verb} Â· ${orderNo}`;
+
+          modalTitle.textContent =
+            `${verb} · ${orderNo}`;
+
         }
+
+
         if (actionMessage) {
-          actionMessage.innerHTML = `\n            <strong>${itemLabel}</strong> satÄ±rÄ± iÃ§in iÅŸlem yapÄ±yorsunuz.\n          `;
+
+          actionMessage.innerHTML =
+            `
+              <strong>${escapeHtml(itemLabel)}</strong>
+              satýrý için iþlem yapýyorsunuz.
+            `;
+
         }
+
+
         if (actionQuantityInput) {
-          actionQuantityInput.value = Math.min(maxQuantity, Math.max(1, maxQuantity));
-          actionQuantityInput.setAttribute('max', String(maxQuantity));
+
+          actionQuantityInput.value =
+            String(
+              Math.min(
+                maxQuantity,
+                Math.max(
+                  1,
+                  maxQuantity
+                )
+              )
+            );
+
+          actionQuantityInput.setAttribute(
+            'max',
+            String(maxQuantity)
+          );
+
         }
+
+
         if (actionHint) {
-          actionHint.textContent = `En fazla ${maxQuantity} adet iÃ§in iÅŸlem yapabilirsiniz.`;
+
+          actionHint.textContent =
+            `En fazla ${maxQuantity} adet için iþlem yapabilirsiniz.`;
+
         }
-        const requiresQuantity = maxQuantity > 1;
+
+
+        const requiresQuantity =
+          maxQuantity > 1;
+
+
         if (actionQuantityGroup) {
-          actionQuantityGroup.classList.toggle('d-none', !requiresQuantity);
+
+          actionQuantityGroup.classList.toggle(
+            'd-none',
+            !requiresQuantity
+          );
+
         }
+
+
         if (singleInfo) {
-          singleInfo.classList.toggle('d-none', requiresQuantity);
+
+          singleInfo.classList.toggle(
+            'd-none',
+            requiresQuantity
+          );
+
         }
+
+
         if (actionNoteInput) {
-          actionNoteInput.value = '';
+
+          actionNoteInput.value =
+            '';
+
         }
+
+
         if (confirmActionButton) {
-          confirmActionButton.textContent = actionType === 'stok' ? 'Stok Ä°ÅŸlemini Kaydet' : 'Talebi Ä°ptal Et';
-          confirmActionButton.classList.toggle('btn-danger', actionType !== 'stok');
-          confirmActionButton.classList.toggle('btn-primary', actionType === 'stok');
-          confirmActionButton.disabled = false;
+
+          confirmActionButton.textContent =
+            actionType === 'stok'
+              ? 'Stok Ýþlemini Kaydet'
+              : 'Talebi Ýptal Et';
+
+
+          confirmActionButton.classList.toggle(
+            'btn-danger',
+            actionType !== 'stok'
+          );
+
+
+          confirmActionButton.classList.toggle(
+            'btn-primary',
+            actionType === 'stok'
+          );
+
+
+          confirmActionButton.disabled =
+            false;
+
         }
+
+
         if (actionType === 'stok') {
+
           if (!pendingAction.category) {
-            pendingAction.category = guessCategoryFromTrigger(trigger);
+
+            pendingAction.category =
+              guessCategoryFromTrigger(
+                trigger
+              );
+
           }
+
+
           if (!pendingAction.baseCategory) {
-            pendingAction.baseCategory = pendingAction.category;
+
+            pendingAction.baseCategory =
+              pendingAction.category;
+
           }
-          const showPrinterToggle = shouldShowPrinterToggle(pendingAction);
+
+
+          const showPrinterToggle =
+            shouldShowPrinterToggle(
+              pendingAction
+            );
+
+
           if (ipPrinterToggleGroup) {
-            ipPrinterToggleGroup.classList.toggle('d-none', !showPrinterToggle);
+
+            ipPrinterToggleGroup.classList.toggle(
+              'd-none',
+              !showPrinterToggle
+            );
+
           }
+
+
           if (ipPrinterToggle) {
-            ipPrinterToggle.disabled = !showPrinterToggle;
-            ipPrinterToggle.checked = showPrinterToggle && pendingAction.category === 'yazici';
+
+            ipPrinterToggle.disabled =
+              !showPrinterToggle;
+
+            ipPrinterToggle.checked =
+              showPrinterToggle &&
+              pendingAction.category ===
+                'yazici';
+
           }
+
+
           applyPrinterCategorySelection();
+
+
         } else {
+
           if (ipPrinterToggleGroup) {
-            ipPrinterToggleGroup.classList.add('d-none');
+
+            ipPrinterToggleGroup.classList.add(
+              'd-none'
+            );
+
           }
+
+
           if (ipPrinterToggle) {
-            ipPrinterToggle.checked = false;
-            ipPrinterToggle.disabled = true;
+
+            ipPrinterToggle.checked =
+              false;
+
+            ipPrinterToggle.disabled =
+              true;
+
           }
+
+
           if (actionMetadataSection) {
-            actionMetadataSection.classList.add('d-none');
+
+            actionMetadataSection.classList.add(
+              'd-none'
+            );
+
           }
+
+
           if (actionMetadataContainer) {
-            actionMetadataContainer.classList.add('d-none');
-            actionMetadataContainer.innerHTML = '';
+
+            actionMetadataContainer.classList.add(
+              'd-none'
+            );
+
+            actionMetadataContainer.innerHTML =
+              '';
+
           }
+
+
           if (actionMetadataError) {
-            actionMetadataError.classList.add('d-none');
-            actionMetadataError.textContent = '';
-          }
-        }
-      });
 
-      actionModal.addEventListener('hidden.bs.modal', () => {
-        pendingAction = undefined;
-        if (actionQuantityInput) {
-          actionQuantityInput.value = '1';
+            actionMetadataError.classList.add(
+              'd-none'
+            );
+
+            actionMetadataError.textContent =
+              '';
+
+          }
+
         }
+
+      }
+    );
+
+
+    /* MODAL KAPANDI */
+
+    actionModal.addEventListener(
+      'hidden.bs.modal',
+      () => {
+
+        pendingAction =
+          undefined;
+
+
+        if (actionQuantityInput) {
+
+          actionQuantityInput.value =
+            '1';
+
+        }
+
+
         if (actionHint) {
-          actionHint.textContent = '';
+
+          actionHint.textContent =
+            '';
+
         }
+
+
         if (singleInfo) {
-          singleInfo.classList.add('d-none');
+
+          singleInfo.classList.add(
+            'd-none'
+          );
+
         }
+
+
         if (actionNoteInput) {
-          actionNoteInput.value = '';
+
+          actionNoteInput.value =
+            '';
+
         }
+
+
         if (confirmActionButton) {
-          confirmActionButton.disabled = false;
+
+          confirmActionButton.disabled =
+            false;
+
         }
+
+
         if (actionMetadataSection) {
-          actionMetadataSection.classList.add('d-none');
+
+          actionMetadataSection.classList.add(
+            'd-none'
+          );
+
         }
+
+
         if (actionMetadataContainer) {
-          actionMetadataContainer.classList.add('d-none');
-          actionMetadataContainer.innerHTML = '';
+
+          actionMetadataContainer.classList.add(
+            'd-none'
+          );
+
+          actionMetadataContainer.innerHTML =
+            '';
+
         }
+
+
         if (actionMetadataError) {
-          actionMetadataError.classList.add('d-none');
-          actionMetadataError.textContent = '';
+
+          actionMetadataError.classList.add(
+            'd-none'
+          );
+
+          actionMetadataError.textContent =
+            '';
+
         }
+
+
         if (actionCategoryLabel) {
-          actionCategoryLabel.textContent = 'â€”';
+
+          actionCategoryLabel.textContent =
+            '—';
+
         }
+
+
         if (actionCategoryValueInput) {
-          actionCategoryValueInput.value = '';
+
+          actionCategoryValueInput.value =
+            '';
+
         }
+
+
         if (ipPrinterToggleGroup) {
-          ipPrinterToggleGroup.classList.add('d-none');
+
+          ipPrinterToggleGroup.classList.add(
+            'd-none'
+          );
+
         }
+
+
         if (ipPrinterToggle) {
-          ipPrinterToggle.checked = false;
-          ipPrinterToggle.disabled = true;
-        }
-      });
-    }
 
-    if (ipPrinterToggle) {
-      ipPrinterToggle.addEventListener('change', () => {
-        if (!pendingAction || pendingAction.actionType !== 'stok') {
+          ipPrinterToggle.checked =
+            false;
+
+          ipPrinterToggle.disabled =
+            true;
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* IP YAZICI TOGGLE */
+
+  if (ipPrinterToggle) {
+
+    ipPrinterToggle.addEventListener(
+      'change',
+      () => {
+
+        if (
+          !pendingAction ||
+          pendingAction.actionType !==
+            'stok'
+        ) {
           return;
         }
+
+
         applyPrinterCategorySelection();
-      });
-    }
 
-    if (confirmActionButton) {
-      confirmActionButton.addEventListener('click', async () => {
-        if (!pendingAction || !pendingAction.orderId) {
+      }
+    );
+
+  }
+
+
+  /* ÝÞLEMÝ KAYDET */
+
+  if (confirmActionButton) {
+
+    confirmActionButton.addEventListener(
+      'click',
+      async () => {
+
+        if (
+          !pendingAction ||
+          !pendingAction.orderId
+        ) {
           return;
         }
+
+
         let quantity = 1;
+
+
         if (actionQuantityInput) {
-          const parsed = Number.parseInt(actionQuantityInput.value, 10);
-          if (Number.isFinite(parsed)) {
-            quantity = parsed;
+
+          const parsed =
+            Number.parseInt(
+              actionQuantityInput.value,
+              10
+            );
+
+
+          if (
+            Number.isFinite(
+              parsed
+            )
+          ) {
+
+            quantity =
+              parsed;
+
           }
+
         }
-        if (!Number.isFinite(quantity) || quantity < 1) {
-          showFeedback('Miktar en az 1 olmalÄ±dÄ±r.', 'danger');
-          confirmActionButton.disabled = false;
+
+
+        if (
+          !Number.isFinite(quantity) ||
+          quantity < 1
+        ) {
+
+          showFeedback(
+            'Miktar en az 1 olmalýdýr.',
+            'danger'
+          );
+
+
+          confirmActionButton.disabled =
+            false;
+
+
           if (actionQuantityInput) {
+
             actionQuantityInput.focus();
+
           }
+
+
           return;
+
         }
-        if (quantity > pendingAction.maxQuantity) {
-          showFeedback(`En fazla ${pendingAction.maxQuantity} adet iÃ§in iÅŸlem yapabilirsiniz.`, 'danger');
-          confirmActionButton.disabled = false;
+
+
+        if (
+          quantity >
+          pendingAction.maxQuantity
+        ) {
+
+          showFeedback(
+            `En fazla ${pendingAction.maxQuantity} adet için iþlem yapabilirsiniz.`,
+            'danger'
+          );
+
+
+          confirmActionButton.disabled =
+            false;
+
+
           if (actionQuantityInput) {
+
             actionQuantityInput.focus();
+
           }
+
+
           return;
+
         }
+
+
         if (actionQuantityInput) {
-          actionQuantityInput.value = String(quantity);
+
+          actionQuantityInput.value =
+            String(quantity);
+
         }
-        const noteValue = actionNoteInput ? actionNoteInput.value.trim() : '';
+
+
+        const noteValue =
+          actionNoteInput
+            ? actionNoteInput.value.trim()
+            : '';
+
 
         let metadataPayload;
         let categoryValue;
-        if (pendingAction.actionType === 'stok') {
-          categoryValue = pendingAction.category || 'envanter';
-          const schema = getMetadataSchema(categoryValue);
-          const { metadata, missing } = collectMetadata(actionMetadataContainer, schema);
+
+
+        if (
+          pendingAction.actionType ===
+          'stok'
+        ) {
+
+          categoryValue =
+            pendingAction.category ||
+            'envanter';
+
+
+          const schema =
+            getMetadataSchema(
+              categoryValue
+            );
+
+
+          const {
+            metadata,
+            missing
+          } =
+            collectMetadata(
+              actionMetadataContainer,
+              schema
+            );
+
+
           if (missing.length) {
+
             if (actionMetadataError) {
-              actionMetadataError.textContent = `${missing.join(', ')} alanlarÄ±nÄ± doldurun.`;
-              actionMetadataError.classList.remove('d-none');
+
+              actionMetadataError.textContent =
+                `${missing.join(', ')} alanlarýný doldurun.`;
+
+              actionMetadataError.classList.remove(
+                'd-none'
+              );
+
             }
-            confirmActionButton.disabled = false;
+
+
+            confirmActionButton.disabled =
+              false;
+
             return;
+
           }
+
+
           if (actionMetadataError) {
-            actionMetadataError.classList.add('d-none');
-            actionMetadataError.textContent = '';
+
+            actionMetadataError.classList.add(
+              'd-none'
+            );
+
+            actionMetadataError.textContent =
+              '';
+
           }
-          metadataPayload = metadata;
+
+
+          metadataPayload =
+            metadata;
+
         }
 
-        confirmActionButton.disabled = true;
+
+        confirmActionButton.disabled =
+          true;
+
+
         try {
-        const requestBody = {
-          action: pendingAction.actionType,
-          quantity,
-          note: noteValue,
-          performed_by: defaultActor,
-        };
-        if (pendingAction.lineId) {
-          requestBody.line_id = pendingAction.lineId;
-        }
-          if (pendingAction.actionType === 'stok') {
-            requestBody.category = categoryValue;
-            requestBody.metadata = metadataPayload;
+
+          const requestBody = {
+
+            action:
+              pendingAction.actionType,
+
+            quantity,
+
+            note:
+              noteValue,
+
+            performed_by:
+              defaultActor
+
+          };
+
+
+          if (pendingAction.lineId) {
+
+            requestBody.line_id =
+              pendingAction.lineId;
+
           }
-          const response = await fetch(`/api/requests/${pendingAction.orderId}/actions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-          });
+
+
+          if (
+            pendingAction.actionType ===
+            'stok'
+          ) {
+
+            requestBody.category =
+              categoryValue;
+
+            requestBody.metadata =
+              metadataPayload;
+
+          }
+
+
+          const response =
+            await fetch(
+              `/api/requests/${pendingAction.orderId}/actions`,
+              {
+                method: 'POST',
+
+                headers: {
+                  'Content-Type':
+                    'application/json'
+                },
+
+                body:
+                  JSON.stringify(
+                    requestBody
+                  )
+              }
+            );
+
+
           let payload = {};
+
+
           try {
-            payload = await response.json();
+
+            payload =
+              await response.json();
+
           } catch (error) {
+
             payload = {};
+
           }
+
+
           if (!response.ok) {
-            showFeedback(payload.error || 'Ä°ÅŸlem kaydedilemedi.', 'danger');
-            confirmActionButton.disabled = false;
+
+            showFeedback(
+              payload.error ||
+              'Ýþlem kaydedilemedi.',
+              'danger'
+            );
+
+            confirmActionButton.disabled =
+              false;
+
             return;
+
           }
 
-          removeOrderFromGroup(String(pendingAction.orderId));
+
+          removeOrderFromGroup(
+            String(
+              pendingAction.orderId
+            )
+          );
+
+
           if (payload.order) {
-            insertOrderIntoGroup(payload.order);
-          }
-          updateGroupVisibility(activeStatus);
-          showFeedback(payload.message || 'Talep gÃ¼ncellendi.', 'success');
 
-          const modalInstance = bootstrap.Modal.getInstance(actionModal);
-          if (modalInstance) {
-            modalInstance.hide();
+            insertOrderIntoGroup(
+              payload.order
+            );
+
           }
+
+
+          updateGroupVisibility(
+            activeStatus
+          );
+
+
+          showFeedback(
+            payload.message ||
+            'Talep güncellendi.',
+            'success'
+          );
+
+
+          const modalInstance =
+            bootstrap.Modal.getInstance(
+              actionModal
+            );
+
+
+          if (modalInstance) {
+
+            modalInstance.hide();
+
+          }
+
+
         } catch (error) {
-          showFeedback('Sunucuya ulaÅŸÄ±lamadÄ±.', 'danger');
-          confirmActionButton.disabled = false;
+
+          console.error(
+            'Talep iþlem hatasý:',
+            error
+          );
+
+
+          showFeedback(
+            'Sunucuya ulaþýlamadý.',
+            'danger'
+          );
+
+
+          confirmActionButton.disabled =
+            false;
+
         }
-      });
-    }
-  });
+
+      }
+    );
+
+  }
+
+});
+
 </script>
+
 {% endblock %}
