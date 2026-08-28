@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block title %}Stok Yönetim Paneli{% endblock %}
+
+{% block main %}
+        <div class="d-flex flex-column h-100">
+          <header class="mb-4">
+            <h1 class="display-5 fw-bold mb-3">Stok Yönetim Paneli</h1>
+            <p class="lead text-muted">Envanter, lisanslar, yazıcılar ve stoklarınızı tek yerden yönetin. Talep süreçlerini takip edin ve ekipleriniz için tek bir kaynak oluşturun.</p>
+          </header>
+
+          <section class="row g-4 mb-5">
+            <div class="col-md-6 col-xl-3">
+              <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('stock_tracking') }}">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="content-icon bg-primary text-white me-3">
+                    <i class="bi bi-box"></i>
+                  </div>
+                  <div>
+                    <h6 class="text-uppercase text-muted small mb-1">Güncel Stok</h6>
+                    <div class="fs-3 fw-bold text-dark">{{ dashboard.available_stock }}</div>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">Toplam {{ dashboard.total_stock }} stok kalemi kayıtlı. Stok detaylarına hızlıca ulaşmak için tıklayın.</p>
+                <span class="fw-semibold">Stok Takipine Git <i class="bi bi-arrow-right"></i></span>
+              </a>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('talep_takip') }}">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="content-icon bg-success text-white me-3">
+                    <i class="bi bi-clipboard-check"></i>
+                  </div>
+                  <div>
+                    <h6 class="text-uppercase text-muted small mb-1">Aktif Talepler</h6>
+                    <div class="fs-3 fw-bold text-dark">{{ dashboard.open_requests }}</div>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">Toplam {{ dashboard.total_requests }} talep kaydı var. Açık talepleri yönetin ve stok girişlerini tamamlayın.</p>
+                <span class="fw-semibold">Talep Takibine Git <i class="bi bi-arrow-right"></i></span>
+              </a>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('inventory_tracking') }}">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="content-icon bg-warning text-white me-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                  </div>
+                  <div>
+                    <h6 class="text-uppercase text-muted small mb-1">Kritik Uyarılar</h6>
+                    <div class="fs-3 fw-bold text-dark">{{ dashboard.critical_alerts }}</div>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">{{ dashboard.faulty_inventory }} arızalı envanter, {{ dashboard.problem_stock }} uyarıdaki stok kaydı ve {{ dashboard.maintenance_due_count }} gecikmiş bakım kritik hesaba dahil.</p>
+                <span class="fw-semibold">Envanterleri Aç <i class="bi bi-arrow-right"></i></span>
+              </a>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <a class="content-card shadow-sm h-100 d-block text-decoration-none position-relative" href="{{ url_for('maintenance_tracking') }}">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="content-icon bg-info text-white me-3">
+                    <i class="bi bi-tools"></i>
+                  </div>
+                  <div>
+                    <h6 class="text-uppercase text-muted small mb-1">Bakım Zamanı Gelenler</h6>
+                    <div class="fs-3 fw-bold text-dark">{{ dashboard.maintenance_due_count }}</div>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">{{ dashboard.maintenance_due_count }} cihazın bakımı gecikmiş veya bakım kaydı yok. {{ dashboard.maintenance_warning_count }} cihazın bakımı 1 ay içinde planlanmalı.</p>
+                <span class="fw-semibold">Bakım Sayfasına Git <i class="bi bi-arrow-right"></i></span>
+              </a>
+            </div>
+          </section>
+
+          <section class="row g-4">
+            <div class="col-12 col-xl-7">
+              <div class="content-card shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="mb-0">Son Aktiviteler</h5>
+                  <a class="btn btn-link btn-sm" href="{{ url_for('activity_logs') }}">Tümünü Gör</a>
+                </div>
+                {% set area_badges = {
+                  'envanter': {'label': 'Envanter', 'variant': 'primary'},
+                  'talep': {'label': 'Talep', 'variant': 'success'},
+                  'urun': {'label': 'Ürün', 'variant': 'info'},
+                  'kullanici': {'label': 'Kullanıcı', 'variant': 'secondary'}
+                } %}
+                <ul class="list-unstyled mb-0">
+                  {% if recent_activity %}
+                    {% for log in recent_activity %}
+                    {% set badge = area_badges.get(log.area, {'label': log.area|capitalize, 'variant': 'dark'}) %}
+                    <li class="d-flex align-items-center py-2{% if not loop.last %} border-bottom{% endif %}">
+                      <span class="badge rounded-pill bg-{{ badge.variant }}{% if badge.variant in ['warning', 'light'] %} text-dark{% endif %} me-3">{{ badge.label }}</span>
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">{{ log.action }}</div>
+                        {% if log.description %}<div class="text-muted small">{{ log.description }}</div>{% endif %}
+                      </div>
+                      <div class="text-end ms-3 small text-muted">
+                        <div>{{ log.created_display }}</div>
+                        <div>{{ log.actor }}</div>
+                      </div>
+                    </li>
+                    {% endfor %}
+                  {% else %}
+                    <li class="py-3 text-muted fst-italic">Henüz kayıtlı bir aktivite bulunmuyor.</li>
+                  {% endif %}
+                </ul>
+              </div>
+            </div>
+            <div class="col-12 col-xl-5">
+              <div class="content-card shadow-sm h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="mb-0">Son Stok Hareketleri</h5>
+                  <a class="btn btn-link btn-sm" href="{{ url_for('stock_tracking') }}">Stok Ekranı</a>
+                </div>
+                <ul class="list-unstyled mb-0">
+                  {% for movement in dashboard.recent_stock_movements %}
+                  <li class="py-2{% if not loop.last %} border-bottom{% endif %}">
+                    <div class="fw-semibold">{{ movement.title }}</div>
+                    <div class="small text-muted">{{ movement.operation }} · {{ movement.created_display }}</div>
+                  </li>
+                  {% else %}
+                  <li class="py-2 text-muted">Henüz stok hareketi yok.</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+{% endblock %}
