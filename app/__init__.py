@@ -717,7 +717,6 @@ def create_app() -> Flask:
             "load_dashboard_metrics": load_dashboard_metrics,
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
-            "load_printer_payload": load_printer_payload,
         },
     )
     register_maintenance_routes(
@@ -3733,100 +3732,6 @@ def load_maintenance_payload() -> dict[str, Any]:
             for item in computers
             if item["maintenance_status_key"] in {"overdue", "none", "warning"}
         ),
-    }
-
-
-def load_printer_payload() -> dict[str, Any]:
-    printer_type = HardwareType.query.filter(
-        func.lower(HardwareType.name) == "yazıcı"
-    ).first()
-
-    query = InventoryItem.query.options(
-        joinedload(InventoryItem.factory),
-        joinedload(InventoryItem.hardware_type),
-        joinedload(InventoryItem.brand),
-        joinedload(InventoryItem.model),
-        joinedload(InventoryItem.responsible_user),
-        joinedload(InventoryItem.events),
-        joinedload(InventoryItem.licenses),
-    ).order_by(InventoryItem.inventory_no)
-
-    if printer_type is None:
-        items: list[InventoryItem] = []
-    else:
-        items = query.filter(InventoryItem.hardware_type_id == printer_type.id).all()
-
-    printers = [serialize_inventory_item(item) for item in items]
-    hidden_statuses = {"stokta", "hurda"}
-    printers = [
-        printer for printer in printers if printer.get("status") not in hidden_statuses
-    ]
-    faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
-
-    status_choices = [
-        {"value": "aktif", "label": "Aktif"},
-        {"value": "beklemede", "label": "Beklemede"},
-        {"value": "arizali", "label": "Arızalı"},
-        {"value": "hurda", "label": "Hurdaya Ayrıldı"},
-    ]
-    status_labels = {choice["value"]: choice["label"] for choice in status_choices}
-
-    status_summary = [
-        {
-            "value": value,
-            "label": status_labels[value],
-            "count": sum(1 for printer in printers if printer["status"] == value),
-        }
-        for value in status_labels
-    ]
-
-    factories = [factory.to_dict() for factory in Factory.query.order_by(Factory.name)]
-    usage_areas = [ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)]
-    brand_models = [
-        brand.to_dict(include_models=True)
-        for brand in Brand.query.options(joinedload(Brand.models)).order_by(Brand.name)
-    ]
-    users = [
-        {
-            "id": user.id,
-            "name": f"{user.first_name} {user.last_name}",
-            "department": user.department,
-        }
-        for user in active_users_query().order_by(User.first_name, User.last_name)
-    ]
-
-    inventory_catalog = [
-        {
-            "id": item.id,
-            "inventory_no": item.inventory_no,
-            "label": " · ".join(
-                filter(
-                    None,
-                    [
-                        item.inventory_no,
-                        item.computer_name,
-                        item.hardware_type.name if item.hardware_type else "",
-                    ],
-                )
-            ),
-        }
-        for item in InventoryItem.query.options(
-            joinedload(InventoryItem.hardware_type)
-        ).order_by(InventoryItem.inventory_no)
-        if (item.status or "").lower() != "stokta"
-    ]
-
-    return {
-        "printers": printers,
-        "printer_faulty_count": faulty_count,
-        "printer_status_summary": status_summary,
-        "printer_status_labels": status_labels,
-        "factories": factories,
-        "usage_areas": usage_areas,
-        "brand_models": brand_models,
-        "users": users,
-        "inventory_catalog": inventory_catalog,
-        "status_choices": status_choices,
     }
 
 

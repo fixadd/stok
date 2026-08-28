@@ -30,12 +30,3 @@ def register_inventory_routes(app, deps):
             active_page="license_tracking",
             **payload,
         )
-
-    @app.route("/yazici-takip")
-    def printer_tracking():
-        payload = deps["load_printer_payload"]()
-        return render_template(
-            "printer_tracking.html",
-            active_page="printer_tracking",
-            **payload,
-        )

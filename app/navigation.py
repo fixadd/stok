@@ -30,14 +30,6 @@ NAV_ITEMS: dict[str, dict[str, Any]] = {
         "parent": "index",
         "section": "inventory",
     },
-    "printer_tracking": {
-        "title": "Yazıcı Takip",
-        "endpoint": "printer_tracking",
-        "icon": "bi-printer",
-        "min_role": "user",
-        "parent": "index",
-        "section": "inventory",
-    },
     "stock_tracking": {
         "title": "Stok Takip",
         "endpoint": "stock_tracking",
