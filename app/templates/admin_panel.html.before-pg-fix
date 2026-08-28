@@ -343,7 +343,7 @@
   <section id="data-section" class="content-card shadow-sm admin-section">
     <div class="mb-4">
       <h2 class="h4 fw-semibold mb-1">Veriler</h2>
-      <p class="text-muted mb-0">Sistemin tamamını kapsayan veritabanı işlemlerini yönetin.</p>
+      <p class="text-muted mb-0">Sistemin tamamını kapsayan veritabanını dışa aktarın veya yedekten geri yükleyin.</p>
     </div>
 
     {% if can_manage_data %}
@@ -363,6 +363,28 @@
             </a>
           </div>
         </div>
+      </div>
+      <div class="col-xl-4 col-lg-6">
+        <form class="data-action-card card border-0 shadow-sm h-100" method="post"
+          action="{{ url_for('import_database_backup') }}" enctype="multipart/form-data">
+          <div class="card-body d-flex flex-column">
+            <div class="icon-bubble bg-success-subtle text-success mb-3">
+              <i class="bi bi-cloud-arrow-up"></i>
+            </div>
+            <h3 class="card-title h5 fw-semibold">Veritabanı yedeği içe aktar</h3>
+            <p class="card-text text-muted">Dışa aktardığınız SQLite dosyasını yükleyerek tüm verileri geri yükleyin.</p>
+            <div class="mb-3">
+              <label class="form-label" for="dataFile">Yedek dosyası</label>
+              <input class="form-control" id="dataFile" name="data_file" type="file" accept=".db,.sqlite,.sqlite3"
+                required>
+              <div class="form-text">Desteklenen uzantılar: .db, .sqlite, .sqlite3</div>
+            </div>
+            <button class="btn btn-success align-self-start mt-auto" type="submit">
+              <i class="bi bi-upload"></i>
+              Veritabanını yükle
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
