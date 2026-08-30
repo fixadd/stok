@@ -451,7 +451,7 @@
                   <button
                     type="button"
                     class="btn btn-outline-danger"
-                    data-delete-maintenance="${record.id}"
+                    data-delete-maintenance="${record.id}" data-maintenance-id="${record.id}"
                     data-item-id="${item.id}"
                   >
                     <i class="bi bi-trash me-1"></i>
@@ -557,6 +557,10 @@
     }
 
     form.item_id.value = item.id;
+
+    if (form.querySelector("[name='maintenance_id']")) {
+      form.querySelector("[name='maintenance_id']").value = record.id;
+    }
 
     form.performed_at.value = record.performed_at
       ? record.performed_at.slice(0, 16)
