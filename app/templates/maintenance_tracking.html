@@ -481,6 +481,32 @@
   }
 
 
+  async function deleteMaintenance(itemId, maintenanceId) {
+    if (!confirm("Bu bakım kaydını silmek istediğinize emin misiniz?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/inventory/${itemId}/maintenance/${maintenanceId}`,
+        {
+          method: "DELETE",
+          headers: {"Content-Type": "application/json"},
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Bakım kaydı silinemedi.");
+      }
+
+      window.location.reload();
+    } catch (error) {
+      alert(error.message || "Bakım kaydı silinemedi.");
+    }
+  }
+
   function openMaintenanceForm(itemId) {
     const item = maintenanceById.get(String(itemId));
     if (!item || !formModal) return;
@@ -533,6 +559,16 @@
   document.querySelectorAll("[data-open-maintenance-form]").forEach((button) => {
     button.addEventListener("click", () => openMaintenanceForm(button.dataset.itemId));
   });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-maintenance]");
+    if (!button) return;
+
+    deleteMaintenance(
+      button.dataset.itemId,
+      button.dataset.maintenanceId
+    );
+  });
+
 
   document.querySelector("[data-open-new-maintenance]")?.addEventListener(
     "click",

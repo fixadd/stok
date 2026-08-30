@@ -5175,46 +5175,45 @@ MAINTENANCE_WARNING_DAYS = 15
 def calculate_maintenance_status(
     performed_at: datetime | None,
 ) -> dict[str, Any]:
-    if performed_at is None:
+    if not performed_at:
         return {
             "status": "none",
-            "label": "Bakım yapılmadı",
-            "last_maintenance_display": "-",
+            "label": "Bakım Yok",
+            "last_maintenance_display": "Henüz bakım yapılmadı",
             "days_since_maintenance": None,
             "days_until_due": None,
-            "next_maintenance_display": "-",
         }
 
-    now = datetime.utcnow()
+    today = datetime.utcnow()
+    elapsed = today - performed_at
+    days_since = max(0, elapsed.days)
 
-    days_since = max(
-        0,
-        (now - performed_at).days,
-    )
+    days_until_due = MAINTENANCE_INTERVAL_DAYS - days_since
 
-    next_due = performed_at + timedelta(
-        days=MAINTENANCE_INTERVAL_DAYS
-    )
+    if days_since >= MAINTENANCE_INTERVAL_DAYS:
+        return {
+            "status": "overdue",
+            "label": "Gecikmiş",
+            "last_maintenance_display": format_datetime_display(performed_at),
+            "days_since_maintenance": days_since,
+            "days_until_due": days_until_due,
+        }
 
-    days_until_due = (next_due - now).days
-
-    if days_until_due < 0:
-        status = "overdue"
-        label = "Bakım gecikti"
-    elif days_until_due <= MAINTENANCE_WARNING_DAYS:
-        status = "warning"
-        label = "Bakım yaklaşıyor"
-    else:
-        status = "current"
-        label = "Bakım güncel"
+    if days_until_due <= MAINTENANCE_WARNING_DAYS:
+        return {
+            "status": "warning",
+            "label": "Yaklaşıyor",
+            "last_maintenance_display": format_datetime_display(performed_at),
+            "days_since_maintenance": days_since,
+            "days_until_due": days_until_due,
+        }
 
     return {
-        "status": status,
-        "label": label,
+        "status": "ok",
+        "label": "Güncel",
         "last_maintenance_display": format_datetime_display(performed_at),
         "days_since_maintenance": days_since,
         "days_until_due": days_until_due,
-        "next_maintenance_display": format_datetime_display(next_due),
     }
 
 def maintenance_status_badge_class(status: str) -> str:
