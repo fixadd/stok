@@ -686,6 +686,8 @@ def create_app() -> Flask:
         {
             "load_maintenance_payload": load_maintenance_payload,
             "create_maintenance_record": create_maintenance_record,
+            "get_maintenance_records": get_maintenance_records,
+            "delete_maintenance_record": delete_maintenance_record,
             "list_maintenance_records": list_maintenance_records,
             "delete_maintenance_record": delete_maintenance_record,
             "update_maintenance_record": update_maintenance_record,
@@ -3555,6 +3557,87 @@ def update_maintenance_record(
         "maintenance": serialize_maintenance_record(
             maintenance
         )
+    }, 200
+
+
+def get_maintenance_records(item_id: int) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+
+    if not is_computer_hardware_type(
+        item.hardware_type.name if item.hardware_type else None
+    ):
+        return (
+            json_error(
+                "Bakım kayıtları yalnızca bilgisayar envanterleri için görüntülenebilir."
+            ),
+            400,
+        )
+
+    records = (
+        InventoryMaintenance.query
+        .filter_by(item_id=item_id)
+        .order_by(InventoryMaintenance.performed_at.desc())
+        .all()
+    )
+
+    return {
+        "item": {
+            "id": item.id,
+            "inventory_no": item.inventory_no,
+            "computer_name": item.computer_name or "",
+        },
+        "maintenances": [
+            serialize_maintenance_record(record)
+            for record in records
+        ],
+        "count": len(records),
+    }, 200
+
+
+def delete_maintenance_record(
+    item_id: int,
+    maintenance_id: int,
+) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+
+    maintenance = (
+        InventoryMaintenance.query
+        .filter(
+            InventoryMaintenance.id == maintenance_id,
+            InventoryMaintenance.item_id == item_id,
+        )
+        .first()
+    )
+
+    if maintenance is None:
+        return json_error("Bakım kaydı bulunamadı."), 404
+
+    actor = current_actor_name()
+
+    add_inventory_event(
+        item,
+        "Bakım Kaydı Silindi",
+        (
+            f"Bakım tarihi: "
+            f"{maintenance.performed_at.strftime('%d.%m.%Y %H:%M')}"
+            f" • Bakımı yapan: {maintenance.performed_by}"
+        ),
+        performed_by=actor,
+    )
+
+    db.session.delete(maintenance)
+    db.session.commit()
+
+    return {
+        "success": True,
+        "message": "Bakım kaydı silindi.",
+        "maintenance_id": maintenance_id,
     }, 200
 
 
