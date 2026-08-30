@@ -18,6 +18,17 @@
           <span class="maintenance-stat-pill warning"><i class="bi bi-exclamation-circle me-1"></i>{{ maintenance_due_count }} takip bekliyor</span>
         </div>
       </div>
+      <div class="alert alert-light border d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-info-circle text-primary"></i>
+        <div>
+          <strong>Bakım periyodu:</strong>
+          90 gün
+          <span class="text-muted ms-2">
+            Son bakımdan 75 gün sonra bakım uyarısı başlar.
+          </span>
+        </div>
+      </div>
+
       <div class="maintenance-search-card">
         <div class="d-flex flex-column gap-3">
           <button class="btn btn-primary w-100" type="button" data-open-new-maintenance>
@@ -71,7 +82,12 @@
               <td>{{ item.department or '-' }}</td>
               <td>{{ item.brand_model }}</td>
               <td>{{ item.last_maintenance_at }}</td>
-              <td><span class="badge rounded-pill {{ item.maintenance_status_class }}">{{ item.maintenance_status }}</span></td>
+              <td>{{ item.next_maintenance_at }}</td>
+              <td>
+                <span class="badge rounded-pill {{ item.maintenance_status_class }}">
+                  {{ item.maintenance_status }}
+                </span>
+              </td>
               <td class="text-end">
                 <div class="btn-group btn-group-sm">
                   <button class="btn btn-outline-primary" type="button" data-open-maintenance-detail data-item-id="{{ item.id }}">
@@ -85,9 +101,9 @@
             </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="8" class="py-5 text-center text-muted">Bakım takibine uygun bilgisayar envanteri bulunmuyor.</td></tr>
+            <tr><td colspan="9" class="py-5 text-center text-muted">Bakım takibine uygun bilgisayar envanteri bulunmuyor.</td></tr>
           {% endif %}
-          <tr data-no-maintenance-results class="d-none"><td colspan="8" class="py-4 text-center text-muted">Arama kriterlerine uyan kayıt bulunamadı.</td></tr>
+          <tr data-no-maintenance-results class="d-none"><td colspan="9" class="py-4 text-center text-muted">Arama kriterlerine uyan kayıt bulunamadı.</td></tr>
         </tbody>
       </table>
     </div>

@@ -3469,6 +3469,9 @@ def load_maintenance_payload() -> dict[str, Any]:
                 "last_maintenance_at": maintenance_status_payload[
                     "last_maintenance_display"
                 ],
+                "next_maintenance_at": maintenance_status_payload[
+                    "next_maintenance_display"
+                ],
                 "days_since_maintenance": maintenance_status_payload[
                     "days_since_maintenance"
                 ],
@@ -4881,45 +4884,54 @@ def maintenance_candidate_items_query():
     )
 
 
+MAINTENANCE_INTERVAL_DAYS = 90
+MAINTENANCE_WARNING_DAYS = 15
+
+
 def calculate_maintenance_status(
-    last_maintenance_at: date | datetime | None, today: date | None = None
+    performed_at: datetime | None,
 ) -> dict[str, Any]:
-    check_date = today or datetime.utcnow().date()
-    if last_maintenance_at is None:
+    if performed_at is None:
         return {
+            "status": "none",
+            "label": "Bakım yapılmadı",
             "last_maintenance_display": "-",
             "days_since_maintenance": None,
             "days_until_due": None,
-            "status": "none",
-            "label": "Bakım kaydı yok",
+            "next_maintenance_display": "-",
         }
 
-    maintenance_date = (
-        last_maintenance_at.date()
-        if isinstance(last_maintenance_at, datetime)
-        else last_maintenance_at
-    )
-    days_since_maintenance = (check_date - maintenance_date).days
-    days_until_due = 365 - days_since_maintenance
+    now = datetime.utcnow()
 
-    if days_since_maintenance >= 365:
+    days_since = max(
+        0,
+        (now - performed_at).days,
+    )
+
+    next_due = performed_at + timedelta(
+        days=MAINTENANCE_INTERVAL_DAYS
+    )
+
+    days_until_due = (next_due - now).days
+
+    if days_until_due < 0:
         status = "overdue"
         label = "Bakım gecikti"
-    elif 335 <= days_since_maintenance < 365:
+    elif days_until_due <= MAINTENANCE_WARNING_DAYS:
         status = "warning"
-        label = "1 ay içinde bakım"
+        label = "Bakım yaklaşıyor"
     else:
-        status = "ok"
-        label = "Güncel"
+        status = "current"
+        label = "Bakım güncel"
 
     return {
-        "last_maintenance_display": maintenance_date.strftime("%d.%m.%Y"),
-        "days_since_maintenance": days_since_maintenance,
-        "days_until_due": days_until_due,
         "status": status,
         "label": label,
+        "last_maintenance_display": format_datetime_display(performed_at),
+        "days_since_maintenance": days_since,
+        "days_until_due": days_until_due,
+        "next_maintenance_display": format_datetime_display(next_due),
     }
-
 
 def maintenance_status_badge_class(status: str) -> str:
     if status in {"overdue", "none"}:
