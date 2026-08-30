@@ -5,6 +5,7 @@ def register_maintenance_routes(app, deps):
     @app.route("/bakim")
     def maintenance_tracking():
         payload = deps["load_maintenance_payload"]()
+
         return render_template(
             "maintenance_tracking.html",
             active_page="maintenance_tracking",
@@ -17,4 +18,5 @@ def register_maintenance_routes(app, deps):
             item_id,
             request.get_json(silent=True) or {},
         )
+
         return jsonify(payload), status_code
