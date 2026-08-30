@@ -140,15 +140,15 @@
 
         <div class="mb-3">
           <label class="form-label">Bakım Tarihi</label>
-          <input class="form-control" type="datetime-local" name="performed_at">
+          <input class="form-control" type="datetime-local" name="performed_at" required>
         </div>
         <div class="mb-3">
           <label class="form-label">Bakımı Yapan</label>
-          <input class="form-control" type="text" name="performed_by" placeholder="Teknisyen veya ekip adı">
+          <input class="form-control" type="text" name="performed_by" placeholder="Teknisyen veya ekip adı" maxlength="128">
         </div>
         <div>
           <label class="form-label">Not</label>
-          <textarea class="form-control" name="note" rows="4" placeholder="Yapılan işlemler, parça değişimi veya kontrol notları"></textarea>
+          <textarea class="form-control" name="note" rows="4" maxlength="2000" placeholder="Yapılan işlemler, parça değişimi veya kontrol notları"></textarea>
         </div>
         <div class="alert d-none mt-3 mb-0" data-maintenance-feedback></div>
       </div>
@@ -255,6 +255,11 @@
     button.addEventListener("click", () => openMaintenanceForm(button.dataset.itemId));
   });
 
+  document.querySelector("[data-open-new-maintenance]")?.addEventListener(
+    "click",
+    openNewMaintenanceForm
+  );
+
   document.querySelector("[data-open-new-maintenance]")?.addEventListener("click", () => {
     openNewMaintenanceForm();
   });
@@ -291,7 +296,10 @@
       if (!response.ok) throw new Error(data.error || "Bakım kaydı oluşturulamadı.");
       feedback.className = "alert alert-success mt-3 mb-0";
       feedback.textContent = "Bakım kaydı oluşturuldu. Liste güncelleniyor...";
-      window.setTimeout(() => window.location.reload(), 700);
+      window.setTimeout(() => {
+        formModal?.hide();
+        window.location.reload();
+      }, 700);
     } catch (error) {
       feedback.className = "alert alert-danger mt-3 mb-0";
       feedback.textContent = error.message;
