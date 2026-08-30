@@ -686,6 +686,8 @@ def create_app() -> Flask:
         {
             "load_maintenance_payload": load_maintenance_payload,
             "create_maintenance_record": create_maintenance_record,
+            "list_maintenance_records": list_maintenance_records,
+            "delete_maintenance_record": delete_maintenance_record,
         },
     )
     register_stock_routes(
@@ -3398,6 +3400,75 @@ def create_maintenance_record(item_id: int, data: Any) -> tuple[dict[str, Any], 
     return {"maintenance": serialize_maintenance_record(maintenance)}, 201
 
 
+
+def list_maintenance_records(
+    item_id: int,
+) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+
+    if not is_computer_hardware_type(
+        item.hardware_type.name if item.hardware_type else None
+    ):
+        return (
+            json_error(
+                "Bakım geçmişi yalnızca bilgisayar envanterleri için görüntülenebilir."
+            ),
+            400,
+        )
+
+    records = (
+        InventoryMaintenance.query
+        .filter_by(item_id=item.id)
+        .order_by(
+            InventoryMaintenance.performed_at.desc(),
+            InventoryMaintenance.id.desc(),
+        )
+        .all()
+    )
+
+    return {
+        "item": serialize_inventory_item(item),
+        "maintenances": [
+            serialize_maintenance_record(record)
+            for record in records
+        ],
+    }, 200
+
+
+def delete_maintenance_record(
+    item_id: int,
+    maintenance_id: int,
+) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+
+    maintenance = (
+        InventoryMaintenance.query
+        .filter_by(
+            id=maintenance_id,
+            item_id=item.id,
+        )
+        .first()
+    )
+
+    if maintenance is None:
+        return json_error("Bakım kaydı bulunamadı."), 404
+
+    db.session.delete(maintenance)
+    db.session.commit()
+
+    return {
+        "success": True,
+        "message": "Bakım kaydı silindi.",
+        "maintenance_id": maintenance_id,
+    }, 200
+
+
 def load_maintenance_payload() -> dict[str, Any]:
     items = (
         InventoryItem.query.options(
@@ -3456,6 +3527,7 @@ def load_maintenance_payload() -> dict[str, Any]:
             brand_model,
             item.hardware_type.name if item.hardware_type else "",
             maintenance_status,
+            maintenance_status_payload["next_maintenance_display"],
         ]
         computers.append(
             {

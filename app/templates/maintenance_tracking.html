@@ -194,29 +194,191 @@
 
   function openMaintenanceDetail(itemId) {
     const item = maintenanceById.get(String(itemId));
+
     if (!item || !detailModal) return;
+
     selectedMaintenanceItemId = String(item.id);
-    detailModalEl.querySelector("[data-maintenance-title]").textContent = `${item.inventory_no} · ${item.computer_name || "Bilgisayar"}`;
-    detailModalEl.querySelector("[data-maintenance-subtitle]").textContent = `${item.responsible} · ${item.department || "Departman yok"}`;
-    const historyEl = detailModalEl.querySelector("[data-maintenance-history]");
-    if (!item.maintenances.length) {
-      historyEl.innerHTML = '<div class="text-center text-muted py-4">Bu bilgisayar için henüz bakım kaydı yok.</div>';
-    } else {
-      historyEl.innerHTML = item.maintenances.map((record) => `
-        <div class="maintenance-history-item">
-          <div class="d-flex justify-content-between gap-3">
-            <div>
-              <div class="fw-semibold">${escapeHtml(record.performed_at_display)}</div>
-              <div class="text-muted small">${escapeHtml(record.performed_by)}</div>
+
+    const title = detailModalEl.querySelector("[data-detail-title]");
+    const meta = detailModalEl.querySelector("[data-detail-meta]");
+    const list = detailModalEl.querySelector("[data-maintenance-history]");
+
+    if (title) {
+      title.textContent =
+        `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
+    }
+
+    if (meta) {
+      meta.textContent =
+        `${item.responsible || "Atama bekliyor"} · ${item.department || "-"}`;
+    }
+
+    const statusClass =
+      item.maintenance_status_class || "text-bg-secondary";
+
+    list.innerHTML = `
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="small text-muted mb-1">Son Bakım</div>
+            <div class="fw-semibold">
+              ${escapeHtml(item.last_maintenance_at || "-")}
             </div>
-            <span class="badge text-bg-light">#${record.id}</span>
           </div>
-          <p class="mb-0 mt-2">${escapeHtml(record.note || "Not girilmedi.")}</p>
+        </div>
+
+        <div class="col-md-4">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="small text-muted mb-1">Sonraki Bakım</div>
+            <div class="fw-semibold">
+              ${escapeHtml(item.next_maintenance_at || "-")}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="small text-muted mb-1">Durum</div>
+            <span class="badge rounded-pill ${statusClass}">
+              ${escapeHtml(item.maintenance_status || "-")}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h6 class="mb-0">Bakım Geçmişi</h6>
+          <div class="small text-muted">
+            ${item.maintenances?.length || 0} kayıt
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-sm btn-primary"
+          data-open-form-from-detail
+        >
+          <i class="bi bi-plus-lg me-1"></i>
+          Bakım Ekle
+        </button>
+      </div>
+    `;
+
+    const records = item.maintenances || [];
+
+    if (!records.length) {
+      list.insertAdjacentHTML(
+        "beforeend",
+        `
+          <div class="text-center text-muted py-5 border rounded-3">
+            <i class="bi bi-wrench-adjustable-circle fs-1 d-block mb-2"></i>
+            <div class="fw-semibold">Henüz bakım kaydı yok</div>
+            <div class="small mt-1">
+              Bu bilgisayar için ilk bakım kaydını oluşturabilirsiniz.
+            </div>
+          </div>
+        `
+      );
+    } else {
+      const history = document.createElement("div");
+
+      history.className = "d-flex flex-column gap-2";
+
+      history.innerHTML = records.map((record) => `
+        <div class="border rounded-3 p-3">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <div class="fw-semibold">
+                ${escapeHtml(record.performed_at_display || "-")}
+              </div>
+
+              <div class="small text-muted mt-1">
+                <i class="bi bi-person me-1"></i>
+                ${escapeHtml(record.performed_by || "-")}
+              </div>
+            </div>
+
+            <span class="badge text-bg-light">
+              #${record.id}
+            </span>
+          </div>
+
+          <div class="mt-3">
+            ${escapeHtml(record.note || "Not girilmedi.")}
+          </div>
+
+          <div class="d-flex justify-content-end mt-3">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              data-delete-maintenance="${record.id}"
+              data-item-id="${item.id}"
+            >
+              <i class="bi bi-trash me-1"></i>
+              Sil
+            </button>
+          </div>
         </div>
       `).join("");
+
+      list.appendChild(history);
+
+      history
+        .querySelectorAll("[data-delete-maintenance]")
+        .forEach((button) => {
+          button.addEventListener("click", () => {
+            deleteMaintenanceRecord(
+              button.dataset.itemId,
+              button.dataset.deleteMaintenance
+            );
+          });
+        });
     }
+
+    list
+      .querySelector("[data-open-form-from-detail]")
+      ?.addEventListener("click", () => {
+        detailModal.hide();
+        openMaintenanceForm(item.id);
+      });
+
     detailModal.show();
   }
+
+
+  async function deleteMaintenanceRecord(itemId, maintenanceId) {
+    const confirmed = window.confirm(
+      "Bu bakım kaydını silmek istediğinize emin misiniz?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `/api/inventory/${itemId}/maintenance/${maintenanceId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Bakım kaydı silinemedi."
+        );
+      }
+
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+
 
   function openMaintenanceForm(itemId) {
     const item = maintenanceById.get(String(itemId));
