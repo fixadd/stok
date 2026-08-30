@@ -77,15 +77,7 @@
         </thead>
         <tbody>
           {% for item in inventory_items %}
-          <tr
-            class="inventory-row{% if item.status == 'arizali' %} is-faulty{% endif %}"
-            data-item-id="{{ item.id }}"
-            data-search="{{ item.search_index }}"
-            data-status="{{ item.status }}"
-            tabindex="0"
-            role="button"
-            aria-label="{{ item.inventory_no }} envanter detayını görüntüle"
-          >
+          <tr class="inventory-row{% if item.status == 'arizali' %} is-faulty{% endif %}" data-item-id="{{ item.id }}" data-search="{{ item.search_index }}" data-status="{{ item.status }}">
             <td>
               <div class="fw-semibold" data-field="inventory_no">{{ item.inventory_no }}</div>
               <div class="text-muted small" data-field="hardware_type">{{ item.hardware_type or '—' }}</div>
@@ -247,26 +239,6 @@
                 <h6 class="mb-0">İşlem Geçmişi</h6>
               </div>
               <div class="inventory-history" id="inventoryHistory"></div>
-
-              <div class="d-flex flex-wrap gap-2 mt-3">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-primary"
-                  id="inventoryMaintenanceButton"
-                >
-                  <i class="bi bi-wrench-adjustable me-1"></i>
-                  Bakım Geçmişi
-                </button>
-
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary"
-                  id="inventoryRefreshDetailButton"
-                >
-                  <i class="bi bi-arrow-clockwise me-1"></i>
-                  Yenile
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -642,34 +614,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  function inventoryEscapeHtml(value) {
-    return String(value ?? "")
-      .replace(/[&<>'"]/g, (char) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;"
-      }[char]));
-  }
-
-  function inventoryDisplay(value, fallback = "—") {
-    const text = String(value ?? "").trim();
-    return text || fallback;
-  }
-
-  function inventoryStatusLabel(status) {
-    const labels = {
-      aktif: "Aktif",
-      beklemede: "Beklemede",
-      arizali: "Arızalı",
-      hurda: "Hurdaya Ayrıldı",
-      stokta: "Stokta"
-    };
-
-    return labels[status] || inventoryDisplay(status);
-  }
-
   const inventoryItems = {{ inventory_items | tojson }};
   const brandModels = {{ brand_models | tojson }};
   const factories = {{ factories | tojson }};
@@ -1793,25 +1737,3 @@
   filterInventory();
 </script>
 {% endblock %}
-
-
-  document.querySelectorAll(".inventory-row").forEach((row) => {
-    row.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") {
-        return;
-      }
-
-      event.preventDefault();
-
-      const trigger = row.querySelector(".inventory-detail-trigger");
-
-      if (trigger) {
-        trigger.click();
-      }
-    });
-  });
-
-
-  window.addEventListener("unhandledrejection", (event) => {
-    console.error("Envanter işlem hatası:", event.reason);
-  });
