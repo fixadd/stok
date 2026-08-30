@@ -370,12 +370,29 @@
   }
 
 
-  async function deleteMaintenanceRecord(itemId, maintenanceId) {
-    const confirmed = window.confirm(
-      "Bu bakım kaydını silmek istediğinize emin misiniz?"
+  async function deleteMaintenanceRecord(
+    itemId,
+    maintenanceId
+  ) {
+    const item = maintenanceById.get(String(itemId));
+
+    const record = item?.maintenances?.find(
+      (entry) =>
+        String(entry.id) === String(maintenanceId)
     );
 
-    if (!confirmed) return;
+    if (!item || !record) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `${item.inventory_no} için ${record.performed_at_display} tarihli bakım kaydı silinsin mi?\n\n` +
+      "Bu işlem geri alınamaz."
+    );
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -388,17 +405,22 @@
         }
       );
 
-      const data = await response.json().catch(() => ({}));
+      const data =
+        await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Bakım kaydı silinemedi."
+          data.error ||
+          "Bakım kaydı silinemedi."
         );
       }
 
       window.location.reload();
     } catch (error) {
-      window.alert(error.message);
+      window.alert(
+        error.message ||
+        "Bakım kaydı silinirken bir hata oluştu."
+      );
     }
   }
 
@@ -541,7 +563,24 @@
         method = "PUT";
       }
 
-      feedback.className = "alert alert-info mt-3 mb-0";
+      const submitButton =
+        form.querySelector("[type='submit']");
+
+      const originalButtonHtml =
+        submitButton?.innerHTML || "";
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-1"></span>' +
+          (mode === "edit"
+            ? "Güncelleniyor..."
+            : "Kaydediliyor...");
+      }
+
+      feedback.className =
+        "alert alert-info mt-3 mb-0";
+
       feedback.textContent =
         mode === "edit"
           ? "Bakım kaydı güncelleniyor..."
@@ -586,6 +625,11 @@
           window.location.reload();
         }, 500);
       } catch (error) {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.innerHTML = originalButtonHtml;
+        }
+
         feedback.className =
           "alert alert-danger mt-3 mb-0";
 
