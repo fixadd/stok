@@ -3582,11 +3582,20 @@ def load_maintenance_payload() -> dict[str, Any]:
             continue
 
         maintenances = [
-            serialize_maintenance_record(record) for record in item.maintenances
+            serialize_maintenance_record(record)
+            for record in item.maintenances
         ]
-        last_maintenance = item.maintenances[0] if item.maintenances else None
+
+        last_maintenance = (
+            item.maintenances[0]
+            if item.maintenances
+            else None
+        )
+
         maintenance_status_payload = calculate_maintenance_status(
-            last_maintenance.performed_at if last_maintenance else None
+            last_maintenance.performed_at
+            if last_maintenance
+            else None
         )
         maintenance_status = maintenance_status_payload["label"]
         maintenance_status_key = maintenance_status_payload["status"]
@@ -3640,7 +3649,10 @@ def load_maintenance_payload() -> dict[str, Any]:
                 "maintenance_status": maintenance_status,
                 "maintenance_status_key": maintenance_status_key,
                 "maintenance_status_class": maintenance_status_class,
-                "maintenance_row_class": maintenance_row_class(maintenance_status_key),
+                "maintenance_row_class": maintenance_row_class(
+                    maintenance_status_key
+                ),
+                "maintenance_interval_days": MAINTENANCE_INTERVAL_DAYS,
                 "maintenances": maintenances,
                 "search_index": " ".join(
                     token for token in search_tokens if token
@@ -3651,11 +3663,39 @@ def load_maintenance_payload() -> dict[str, Any]:
     return {
         "maintenance_items": computers,
         "maintenance_total_count": len(computers),
+
         "maintenance_due_count": sum(
             1
             for item in computers
-            if item["maintenance_status_key"] in {"overdue", "none", "warning"}
+            if item["maintenance_status_key"]
+            in {"overdue", "none", "warning"}
         ),
+
+        "maintenance_overdue_count": sum(
+            1
+            for item in computers
+            if item["maintenance_status_key"] == "overdue"
+        ),
+
+        "maintenance_warning_count": sum(
+            1
+            for item in computers
+            if item["maintenance_status_key"] == "warning"
+        ),
+
+        "maintenance_none_count": sum(
+            1
+            for item in computers
+            if item["maintenance_status_key"] == "none"
+        ),
+
+        "maintenance_current_count": sum(
+            1
+            for item in computers
+            if item["maintenance_status_key"] == "current"
+        ),
+
+        "maintenance_interval_days": MAINTENANCE_INTERVAL_DAYS,
     }
 
 
