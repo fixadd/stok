@@ -236,77 +236,292 @@
 {% block scripts %}
 <script>
   const maintenanceItems = {{ maintenance_items|tojson }};
-  const maintenanceById = new Map(maintenanceItems.map((item) => [String(item.id), item]));
+  const maintenanceById = new Map(
+    maintenanceItems.map((item) => [String(item.id), item])
+  );
+
   let selectedMaintenanceItemId = null;
 
   const detailModalEl = document.getElementById("maintenanceDetailModal");
   const formModalEl = document.getElementById("maintenanceFormModal");
-  const detailModal = detailModalEl ? new bootstrap.Modal(detailModalEl) : null;
-  const formModal = formModalEl ? new bootstrap.Modal(formModalEl) : null;
+
+  const detailModal = detailModalEl
+    ? new bootstrap.Modal(detailModalEl)
+    : null;
+
+  const formModal = formModalEl
+    ? new bootstrap.Modal(formModalEl)
+    : null;
+
 
   function escapeHtml(value) {
-    return String(value || "").replace(/[&<>'"]/g, (char) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"}[char]));
+    return String(value ?? "").replace(
+      /[&<>'"]/g,
+      (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[char]
+    );
   }
+
+
+  function resetMaintenanceFeedback() {
+    const feedback = formModalEl?.querySelector(
+      "[data-maintenance-feedback]"
+    );
+
+    if (!feedback) return;
+
+    feedback.className = "alert d-none mt-3 mb-0";
+    feedback.textContent = "";
+  }
+
+
+  function openMaintenanceForm(itemId) {
+    const item = maintenanceById.get(String(itemId));
+
+    if (!item || !formModal || !formModalEl) {
+      return;
+    }
+
+    selectedMaintenanceItemId = String(item.id);
+
+    const form = formModalEl.querySelector("[data-maintenance-form]");
+
+    if (!form) return;
+
+    form.reset();
+
+    form.dataset.mode = "create";
+    form.dataset.maintenanceId = "";
+
+    form.item_id.value = item.id;
+
+    form.performed_at.value =
+      new Date().toISOString().slice(0, 16);
+
+    const title = formModalEl.querySelector("[data-form-title]");
+
+    if (title) {
+      title.textContent = "Yeni Bakım Kaydı";
+    }
+
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
+
+    if (subtitle) {
+      subtitle.textContent =
+        `${item.inventory_no} · ` +
+        `${item.computer_name || item.brand_model || "-"}`;
+    }
+
+    resetMaintenanceFeedback();
+
+    formModal.show();
+  }
+
+
+  function openNewMaintenanceForm() {
+    if (!formModal || !formModalEl) {
+      return;
+    }
+
+    selectedMaintenanceItemId = null;
+
+    const form = formModalEl.querySelector("[data-maintenance-form]");
+
+    if (!form) return;
+
+    form.reset();
+
+    form.dataset.mode = "create";
+    form.dataset.maintenanceId = "";
+
+    form.item_id.value = "";
+
+    form.performed_at.value =
+      new Date().toISOString().slice(0, 16);
+
+    const title = formModalEl.querySelector("[data-form-title]");
+
+    if (title) {
+      title.textContent = "Yeni Bakım Kaydı";
+    }
+
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
+
+    if (subtitle) {
+      subtitle.textContent =
+        "Bakım yapılacak bilgisayarı seçin.";
+    }
+
+    resetMaintenanceFeedback();
+
+    formModal.show();
+  }
+
+
+  function openMaintenanceEditForm(itemId, maintenanceId) {
+    const item = maintenanceById.get(String(itemId));
+
+    if (!item || !formModal || !formModalEl) {
+      return;
+    }
+
+    const record = (item.maintenances || []).find(
+      (entry) =>
+        String(entry.id) === String(maintenanceId)
+    );
+
+    if (!record) {
+      return;
+    }
+
+    selectedMaintenanceItemId = String(item.id);
+
+    const form = formModalEl.querySelector("[data-maintenance-form]");
+
+    if (!form) return;
+
+    form.reset();
+
+    form.dataset.mode = "edit";
+    form.dataset.maintenanceId = String(record.id);
+
+    form.item_id.value = item.id;
+
+    form.performed_at.value = record.performed_at
+      ? record.performed_at.slice(0, 16)
+      : "";
+
+    form.performed_by.value =
+      record.performed_by || "";
+
+    form.note.value =
+      record.note || "";
+
+    const title = formModalEl.querySelector(
+      "[data-form-title]"
+    );
+
+    if (title) {
+      title.textContent =
+        "Bakım Kaydını Düzenle";
+    }
+
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
+
+    if (subtitle) {
+      subtitle.textContent =
+        `${item.inventory_no} · ` +
+        `${item.computer_name || item.brand_model || "-"}`;
+    }
+
+    resetMaintenanceFeedback();
+
+    formModal.show();
+  }
+
 
   function openMaintenanceDetail(itemId) {
     const item = maintenanceById.get(String(itemId));
 
-    if (!item || !detailModal) return;
+    if (!item || !detailModal || !detailModalEl) {
+      return;
+    }
 
     selectedMaintenanceItemId = String(item.id);
 
-    const title = detailModalEl.querySelector("[data-detail-title]");
-    const meta = detailModalEl.querySelector("[data-detail-meta]");
-    const list = detailModalEl.querySelector("[data-maintenance-history]");
+    const title = detailModalEl.querySelector(
+      "[data-detail-title]"
+    );
+
+    const meta = detailModalEl.querySelector(
+      "[data-detail-meta]"
+    );
+
+    const list = detailModalEl.querySelector(
+      "[data-maintenance-history]"
+    );
+
+    if (!list) return;
 
     if (title) {
       title.textContent =
-        `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
+        `${item.inventory_no} · ` +
+        `${item.computer_name || item.brand_model || "-"}`;
     }
 
     if (meta) {
       meta.textContent =
-        `${item.responsible || "Atama bekliyor"} · ${item.department || "-"}`;
+        `${item.responsible || "Atama bekliyor"} · ` +
+        `${item.department || "-"}`;
     }
 
     const statusClass =
-      item.maintenance_status_class || "text-bg-secondary";
+      item.maintenance_status_class ||
+      "text-bg-secondary";
 
     list.innerHTML = `
       <div class="row g-3 mb-4">
         <div class="col-md-4">
           <div class="border rounded-3 p-3 h-100">
-            <div class="small text-muted mb-1">Son Bakım</div>
+            <div class="small text-muted mb-1">
+              Son Bakım
+            </div>
             <div class="fw-semibold">
-              ${escapeHtml(item.last_maintenance_at || "-")}
+              ${escapeHtml(
+                item.last_maintenance_at || "-"
+              )}
             </div>
           </div>
         </div>
 
         <div class="col-md-4">
           <div class="border rounded-3 p-3 h-100">
-            <div class="small text-muted mb-1">Sonraki Bakım</div>
+            <div class="small text-muted mb-1">
+              Sonraki Bakım
+            </div>
             <div class="fw-semibold">
-              ${escapeHtml(item.next_maintenance_at || "-")}
+              ${escapeHtml(
+                item.next_maintenance_at || "-"
+              )}
             </div>
           </div>
         </div>
 
         <div class="col-md-4">
           <div class="border rounded-3 p-3 h-100">
-            <div class="small text-muted mb-1">Durum</div>
+            <div class="small text-muted mb-1">
+              Durum
+            </div>
             <span class="badge rounded-pill ${statusClass}">
-              ${escapeHtml(item.maintenance_status || "-")}
+              ${escapeHtml(
+                item.maintenance_status || "-"
+              )}
             </span>
           </div>
         </div>
       </div>
 
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex justify-content-between
+                  align-items-center mb-3">
+
         <div>
-          <h6 class="mb-0">Bakım Geçmişi</h6>
+          <h6 class="mb-0">
+            Bakım Geçmişi
+          </h6>
+
           <div class="small text-muted">
-            ${item.maintenances?.length || 0} kayıt
+            ${(item.maintenances || []).length} kayıt
           </div>
         </div>
 
@@ -327,11 +542,19 @@
       list.insertAdjacentHTML(
         "beforeend",
         `
-          <div class="text-center text-muted py-5 border rounded-3">
-            <i class="bi bi-wrench-adjustable-circle fs-1 d-block mb-2"></i>
-            <div class="fw-semibold">Henüz bakım kaydı yok</div>
+          <div class="text-center text-muted py-5
+                      border rounded-3">
+
+            <i class="bi bi-wrench-adjustable-circle
+                      fs-1 d-block mb-2"></i>
+
+            <div class="fw-semibold">
+              Henüz bakım kaydı yok
+            </div>
+
             <div class="small mt-1">
-              Bu bilgisayar için ilk bakım kaydını oluşturabilirsiniz.
+              Bu bilgisayar için ilk bakım kaydını
+              oluşturabilirsiniz.
             </div>
           </div>
         `
@@ -339,88 +562,78 @@
     } else {
       const history = document.createElement("div");
 
-      history.className = "d-flex flex-column gap-2";
+      history.className =
+        "d-flex flex-column gap-2";
 
-      history.innerHTML = records.map((record) => `
-        <div class="border rounded-3 p-3">
-          <div class="d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <div class="fw-semibold">
-                ${escapeHtml(record.performed_at_display || "-")}
+      history.innerHTML = records.map(
+        (record) => `
+          <div class="border rounded-3 p-3">
+
+            <div class="d-flex
+                        justify-content-between
+                        align-items-start
+                        gap-3">
+
+              <div>
+                <div class="fw-semibold">
+                  ${escapeHtml(
+                    record.performed_at_display || "-"
+                  )}
+                </div>
+
+                <div class="small text-muted mt-1">
+                  <i class="bi bi-person me-1"></i>
+                  ${escapeHtml(
+                    record.performed_by || "-"
+                  )}
+                </div>
               </div>
 
-              <div class="small text-muted mt-1">
-                <i class="bi bi-person me-1"></i>
-                ${escapeHtml(record.performed_by || "-")}
+              <span class="badge text-bg-light">
+                #${record.id}
+              </span>
+            </div>
+
+            <div class="mt-3">
+              ${escapeHtml(
+                record.note || "Not girilmedi."
+              )}
+            </div>
+
+            <div class="d-flex
+                        justify-content-end
+                        mt-3">
+
+              <div class="btn-group btn-group-sm">
+
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  data-edit-maintenance="${record.id}"
+                  data-item-id="${item.id}"
+                >
+                  <i class="bi bi-pencil me-1"></i>
+                  Düzenle
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  data-delete-maintenance="${record.id}"
+                  data-item-id="${item.id}"
+                >
+                  <i class="bi bi-trash me-1"></i>
+                  Sil
+                </button>
+
               </div>
             </div>
-
-            <span class="badge text-bg-light">
-              #${record.id}
-            </span>
           </div>
-
-          <div class="mt-3">
-            ${escapeHtml(record.note || "Not girilmedi.")}
-          </div>
-
-          <div class="d-flex justify-content-end mt-3">
-            <div class="btn-group btn-group-sm">
-              <button
-                type="button"
-                class="btn btn-outline-primary"
-                data-edit-maintenance="${record.id}"
-                data-item-id="${item.id}"
-              >
-                <i class="bi bi-pencil me-1"></i>
-                Düzenle
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-outline-danger"
-                data-delete-maintenance="${record.id}"
-                data-item-id="${item.id}"
-              >
-                <i class="bi bi-trash me-1"></i>
-                Sil
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join("");
+        `
+      ).join("");
 
       list.appendChild(history);
-
-      history
-        .querySelectorAll("[data-delete-maintenance]")
-        .forEach((button) => {
-          button.addEventListener("click", () => {
-            deleteMaintenanceRecord(
-              button.dataset.itemId,
-              button.dataset.deleteMaintenance
-            );
-          });
-        });
-
-      history
-        .querySelectorAll("[data-edit-maintenance]")
-        .forEach((button) => {
-          button.addEventListener("click", () => {
-            openMaintenanceEditForm(
-              button.dataset.itemId,
-              button.dataset.editMaintenance
-            );
-          });
-        });
     }
-
-    list
-      .querySelector("[data-open-form-from-detail]")
-      ?.addEventListener("click", () => {
-        detailModal.hide();
-        openMaintenanceForm(item.id);
-      });
 
     detailModal.show();
   }
@@ -430,20 +643,25 @@
     itemId,
     maintenanceId
   ) {
-    const item = maintenanceById.get(String(itemId));
+    const item =
+      maintenanceById.get(String(itemId));
 
-    const record = item?.maintenances?.find(
-      (entry) =>
-        String(entry.id) === String(maintenanceId)
-    );
+    const record =
+      item?.maintenances?.find(
+        (entry) =>
+          String(entry.id) ===
+          String(maintenanceId)
+      );
 
     if (!item || !record) {
       return;
     }
 
     const confirmed = window.confirm(
-      `${item.inventory_no} için ${record.performed_at_display} tarihli bakım kaydı silinsin mi?\n\n` +
-      "Bu işlem geri alınamaz."
+      `${item.inventory_no} için ` +
+      `${record.performed_at_display} tarihli ` +
+      `bakım kaydı silinsin mi?\n\n` +
+      `Bu işlem geri alınamaz.`
     );
 
     if (!confirmed) {
@@ -462,7 +680,9 @@
       );
 
       const data =
-        await response.json().catch(() => ({}));
+        await response.json().catch(
+          () => ({})
+        );
 
       if (!response.ok) {
         throw new Error(
@@ -472,202 +692,199 @@
       }
 
       window.location.reload();
+
     } catch (error) {
       window.alert(
         error.message ||
-        "Bakım kaydı silinirken bir hata oluştu."
+        "Bakım kaydı silinirken hata oluştu."
       );
     }
   }
 
 
-  async function deleteMaintenance(itemId, maintenanceId) {
-    if (!confirm("Bu bakım kaydını silmek istediğinize emin misiniz?")) {
-      return;
-    }
+  document.querySelectorAll(
+    "[data-maintenance-row]"
+  ).forEach((row) => {
 
-    try {
-      const response = await fetch(
-        `/api/inventory/${itemId}/maintenance/${maintenanceId}`,
-        {
-          method: "DELETE",
-          headers: {"Content-Type": "application/json"},
+    row.addEventListener(
+      "click",
+      (event) => {
+
+        if (
+          event.target.closest("button")
+        ) {
+          return;
         }
-      );
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || "Bakım kaydı silinemedi.");
+        openMaintenanceDetail(
+          row.dataset.itemId
+        );
       }
+    );
 
-      window.location.reload();
-    } catch (error) {
-      alert(error.message || "Bakım kaydı silinemedi.");
-    }
-  }
+    row.addEventListener(
+      "keydown",
+      (event) => {
 
-  function openMaintenanceForm(itemId) {
-    const item = maintenanceById.get(String(itemId));
-    if (!item || !formModal) return;
-    selectedMaintenanceItemId = String(item.id);
-    const form = formModalEl.querySelector("[data-maintenance-form]");
-    form.reset();
-    form.item_id.value = item.id;
-    form.performed_at.value = new Date().toISOString().slice(0, 16);
-    formModalEl.querySelector("[data-form-subtitle]").textContent = `${item.inventory_no} · ${item.computer_name || item.brand_model}`;
-    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
-    feedback.className = "alert d-none mt-3 mb-0";
-    feedback.textContent = "";
-    formModal.show();
-  }
-
-  function openNewMaintenanceForm() {
-    if (!formModal) return;
-
-    selectedMaintenanceItemId = null;
-
-    const form = formModalEl.querySelector("[data-maintenance-form]");
-    form.reset();
-
-    form.item_id.value = "";
-    form.performed_at.value = new Date().toISOString().slice(0, 16);
-
-    formModalEl.querySelector("[data-form-subtitle]").textContent =
-      "Bakım yapılacak bilgisayarı seçin.";
-
-    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
-    feedback.className = "alert d-none mt-3 mb-0";
-    feedback.textContent = "";
-
-    formModal.show();
-  }
-
-  document.querySelectorAll("[data-maintenance-row]").forEach((row) => {
-    row.addEventListener("click", (event) => {
-      if (event.target.closest("button")) return;
-      openMaintenanceDetail(row.dataset.itemId);
-    });
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") openMaintenanceDetail(row.dataset.itemId);
-    });
-  });
-
-  document.querySelectorAll("[data-open-maintenance-detail]").forEach((button) => {
-    button.addEventListener("click", () => openMaintenanceDetail(button.dataset.itemId));
-  });
-  document.querySelectorAll("[data-open-maintenance-form]").forEach((button) => {
-    button.addEventListener("click", () => openMaintenanceForm(button.dataset.itemId));
-  });
-  document.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-delete-maintenance]");
-    if (!button) return;
-
-    deleteMaintenance(
-      button.dataset.itemId,
-      button.dataset.maintenanceId
+        if (event.key === "Enter") {
+          openMaintenanceDetail(
+            row.dataset.itemId
+          );
+        }
+      }
     );
   });
 
 
-  document.querySelector("[data-open-new-maintenance]")?.addEventListener(
+  document.querySelectorAll(
+    "[data-open-maintenance-detail]"
+  ).forEach((button) => {
+
+    button.addEventListener(
+      "click",
+      () => {
+        openMaintenanceDetail(
+          button.dataset.itemId
+        );
+      }
+    );
+  });
+
+
+  document.querySelectorAll(
+    "[data-open-maintenance-form]"
+  ).forEach((button) => {
+
+    button.addEventListener(
+      "click",
+      () => {
+        openMaintenanceForm(
+          button.dataset.itemId
+        );
+      }
+    );
+  });
+
+
+  document.querySelector(
+    "[data-open-new-maintenance]"
+  )?.addEventListener(
     "click",
     openNewMaintenanceForm
   );
 
-  document.querySelector("[data-open-new-maintenance]")?.addEventListener("click", () => {
-    openNewMaintenanceForm();
-  });
-  document.querySelector("[data-open-form-from-detail]")?.addEventListener("click", () => {
-    if (detailModal) detailModal.hide();
-    openMaintenanceForm(selectedMaintenanceItemId);
-  });
+
+  document.addEventListener(
+    "click",
+    (event) => {
+
+      const deleteButton =
+        event.target.closest(
+          "[data-delete-maintenance]"
+        );
+
+      if (deleteButton) {
+        deleteMaintenanceRecord(
+          deleteButton.dataset.itemId,
+          deleteButton.dataset.deleteMaintenance
+        );
+
+        return;
+      }
+
+      const editButton =
+        event.target.closest(
+          "[data-edit-maintenance]"
+        );
+
+      if (editButton) {
+        openMaintenanceEditForm(
+          editButton.dataset.itemId,
+          editButton.dataset.editMaintenance
+        );
+      }
+
+      const detailAddButton =
+        event.target.closest(
+          "[data-open-form-from-detail]"
+        );
+
+      if (detailAddButton) {
+        if (detailModal) {
+          detailModal.hide();
+        }
+
+        openMaintenanceForm(
+          selectedMaintenanceItemId
+        );
+      }
+    }
+  );
 
 
-  function openMaintenanceEditForm(itemId, maintenanceId) {
-    if (!formModal) return;
+  document.querySelector(
+    "[data-maintenance-form]"
+  )?.addEventListener(
+    "submit",
+    async (event) => {
 
-    const item = maintenanceById.get(String(itemId));
-    const record = item?.maintenances?.find(
-      (entry) => String(entry.id) === String(maintenanceId)
-    );
-
-    if (!item || !record) return;
-
-    selectedMaintenanceItemId = String(item.id);
-
-    const form = formModalEl.querySelector("[data-maintenance-form]");
-
-    form.reset();
-
-    form.item_id.value = item.id;
-
-    form.performed_at.value = record.performed_at
-      ? record.performed_at.slice(0, 16)
-      : "";
-
-    form.performed_by.value = record.performed_by || "";
-    form.note.value = record.note || "";
-
-    form.dataset.mode = "edit";
-    form.dataset.maintenanceId = String(record.id);
-
-    formModalEl.querySelector("[data-form-title]").textContent =
-      "Bakım Kaydını Düzenle";
-
-    formModalEl.querySelector("[data-form-subtitle]").textContent =
-      `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
-
-    const feedback =
-      formModalEl.querySelector("[data-maintenance-feedback]");
-
-    feedback.className = "alert d-none mt-3 mb-0";
-    feedback.textContent = "";
-
-    formModal.show();
-  }
-
-  document
-    .querySelector("[data-open-new-maintenance]")
-    ?.addEventListener("click", () => {
-      openNewMaintenanceForm();
-    });
-
-  document
-    .querySelector("[data-maintenance-form]")
-    ?.addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const form = event.currentTarget;
+
       const feedback =
-        formModalEl.querySelector("[data-maintenance-feedback]");
+        formModalEl.querySelector(
+          "[data-maintenance-feedback]"
+        );
 
-      const itemId = form.item_id.value;
-      const mode = form.dataset.mode || "create";
-      const maintenanceId = form.dataset.maintenanceId;
+      const itemId =
+        form.item_id.value;
 
-      let url = `/api/inventory/${itemId}/maintenance`;
-      let method = "POST";
+      const mode =
+        form.dataset.mode || "create";
 
-      if (mode === "edit" && maintenanceId) {
-        url =
-          `/api/inventory/${itemId}/maintenance/${maintenanceId}`;
-        method = "PUT";
+      const maintenanceId =
+        form.dataset.maintenanceId;
+
+      if (!itemId) {
+        feedback.className =
+          "alert alert-danger mt-3 mb-0";
+
+        feedback.textContent =
+          "Lütfen bilgisayar seçin.";
+
+        return;
       }
 
+      const url =
+        mode === "edit" && maintenanceId
+          ? `/api/inventory/${itemId}/maintenance/${maintenanceId}`
+          : `/api/inventory/${itemId}/maintenance`;
+
+      const method =
+        mode === "edit" && maintenanceId
+          ? "PUT"
+          : "POST";
+
       const submitButton =
-        form.querySelector("[type='submit']");
+        form.querySelector(
+          "[type='submit']"
+        );
 
       const originalButtonHtml =
         submitButton?.innerHTML || "";
 
       if (submitButton) {
         submitButton.disabled = true;
+
         submitButton.innerHTML =
-          '<span class="spinner-border spinner-border-sm me-1"></span>' +
-          (mode === "edit"
-            ? "Güncelleniyor..."
-            : "Kaydediliyor...");
+          '<span class="spinner-border ' +
+          'spinner-border-sm me-1"></span>' +
+          (
+            mode === "edit"
+              ? "Güncelleniyor..."
+              : "Kaydediliyor..."
+          );
       }
 
       feedback.className =
@@ -679,20 +896,31 @@
           : "Bakım kaydı oluşturuluyor...";
 
       try {
-        const response = await fetch(url, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            performed_at: form.performed_at.value,
-            performed_by: form.performed_by.value,
-            note: form.note.value,
-          }),
-        });
+        const response = await fetch(
+          url,
+          {
+            method,
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              performed_at:
+                form.performed_at.value,
+
+              performed_by:
+                form.performed_by.value,
+
+              note:
+                form.note.value,
+            }),
+          }
+        );
 
         const data =
-          await response.json().catch(() => ({}));
+          await response.json().catch(
+            () => ({})
+          );
 
         if (!response.ok) {
           throw new Error(
@@ -713,13 +941,17 @@
             ? "Bakım kaydı güncellendi."
             : "Bakım kaydı oluşturuldu.";
 
-        window.setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        window.setTimeout(
+          () => window.location.reload(),
+          500
+        );
+
       } catch (error) {
+
         if (submitButton) {
           submitButton.disabled = false;
-          submitButton.innerHTML = originalButtonHtml;
+          submitButton.innerHTML =
+            originalButtonHtml;
         }
 
         feedback.className =
@@ -729,24 +961,73 @@
           error.message ||
           "Beklenmeyen bir hata oluştu.";
       }
-    });
+    }
+  );
 
 
-  const searchInput = document.getElementById("maintenanceSearch");
+  const searchInput =
+    document.getElementById(
+      "maintenanceSearch"
+    );
+
+
   function applyMaintenanceSearch() {
-    const term = (searchInput?.value || "").trim().toLowerCase();
+
+    const term =
+      (
+        searchInput?.value || ""
+      ).trim().toLowerCase();
+
     let visible = 0;
-    document.querySelectorAll("[data-maintenance-row]").forEach((row) => {
-      const match = !term || (row.dataset.searchIndex || "").includes(term);
-      row.classList.toggle("d-none", !match);
-      if (match) visible += 1;
+
+    document.querySelectorAll(
+      "[data-maintenance-row]"
+    ).forEach((row) => {
+
+      const match =
+        !term ||
+        (
+          row.dataset.searchIndex ||
+          ""
+        ).toLowerCase().includes(term);
+
+      row.classList.toggle(
+        "d-none",
+        !match
+      );
+
+      if (match) {
+        visible += 1;
+      }
     });
-    document.querySelector("[data-no-maintenance-results]")?.classList.toggle("d-none", visible !== 0);
+
+    document.querySelector(
+      "[data-no-maintenance-results]"
+    )?.classList.toggle(
+      "d-none",
+      visible !== 0
+    );
   }
-  searchInput?.addEventListener("input", applyMaintenanceSearch);
-  document.querySelector("[data-reset-maintenance-search]")?.addEventListener("click", () => {
-    if (searchInput) searchInput.value = "";
-    applyMaintenanceSearch();
-  });
+
+
+  searchInput?.addEventListener(
+    "input",
+    applyMaintenanceSearch
+  );
+
+
+  document.querySelector(
+    "[data-reset-maintenance-search]"
+  )?.addEventListener(
+    "click",
+    () => {
+
+      if (searchInput) {
+        searchInput.value = "";
+      }
+
+      applyMaintenanceSearch();
+    }
+  );
 </script>
 {% endblock %}
