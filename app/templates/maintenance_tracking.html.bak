@@ -19,18 +19,10 @@
         </div>
       </div>
       <div class="maintenance-search-card">
-        <div class="d-flex flex-column gap-3">
-          <button class="btn btn-primary w-100" type="button" data-open-new-maintenance>
-            <i class="bi bi-plus-lg me-1"></i>Yeni Bakım Kaydı
-          </button>
-
-          <div>
-            <label for="maintenanceSearch" class="form-label text-muted small">Sayfa içi arama</label>
-            <div class="input-group search-input">
-              <span class="input-group-text"><i class="bi bi-search"></i></span>
-              <input type="search" class="form-control" id="maintenanceSearch" placeholder="Envanter no, bilgisayar adı, sorumlu...">
-            </div>
-          </div>
+        <label for="maintenanceSearch" class="form-label text-muted small">Sayfa içi arama</label>
+        <div class="input-group search-input">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="maintenanceSearch" placeholder="Envanter no, bilgisayar adı, sorumlu...">
         </div>
       </div>
     </div>
@@ -125,19 +117,7 @@
         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Bilgisayar</label>
-          <select class="form-select" name="item_id" required>
-            <option value="">Bilgisayar seçin...</option>
-            {% for item in maintenance_items %}
-            <option value="{{ item.id }}">
-              {{ item.inventory_no }} · {{ item.computer_name or item.brand_model }}
-              {% if item.responsible %} · {{ item.responsible }}{% endif %}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
+        <input type="hidden" name="item_id">
         <div class="mb-3">
           <label class="form-label">Bakım Tarihi</label>
           <input class="form-control" type="datetime-local" name="performed_at">
@@ -217,27 +197,6 @@
     formModal.show();
   }
 
-  function openNewMaintenanceForm() {
-    if (!formModal) return;
-
-    selectedMaintenanceItemId = null;
-
-    const form = formModalEl.querySelector("[data-maintenance-form]");
-    form.reset();
-
-    form.item_id.value = "";
-    form.performed_at.value = new Date().toISOString().slice(0, 16);
-
-    formModalEl.querySelector("[data-form-subtitle]").textContent =
-      "Bakım yapılacak bilgisayarı seçin.";
-
-    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
-    feedback.className = "alert d-none mt-3 mb-0";
-    feedback.textContent = "";
-
-    formModal.show();
-  }
-
   document.querySelectorAll("[data-maintenance-row]").forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
@@ -254,10 +213,6 @@
   document.querySelectorAll("[data-open-maintenance-form]").forEach((button) => {
     button.addEventListener("click", () => openMaintenanceForm(button.dataset.itemId));
   });
-
-  document.querySelector("[data-open-new-maintenance]")?.addEventListener("click", () => {
-    openNewMaintenanceForm();
-  });
   document.querySelector("[data-open-form-from-detail]")?.addEventListener("click", () => {
     if (detailModal) detailModal.hide();
     openMaintenanceForm(selectedMaintenanceItemId);
@@ -268,13 +223,6 @@
     const form = event.currentTarget;
     const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
     const itemId = form.item_id.value;
-
-    if (!itemId) {
-      feedback.className = "alert alert-warning mt-3 mb-0";
-      feedback.textContent = "Lütfen bakım yapılacak bilgisayarı seçin.";
-      return;
-    }
-
     feedback.className = "alert alert-info mt-3 mb-0";
     feedback.textContent = "Bakım kaydı oluşturuluyor...";
     try {
