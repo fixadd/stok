@@ -115,8 +115,8 @@
     <div class="modal-content shadow-lg">
       <div class="modal-header border-0 pb-0">
         <div>
-          <h5 class="modal-title" data-maintenance-title>Bakım Geçmişi</h5>
-          <p class="text-muted mb-0" data-maintenance-subtitle></p>
+          <h5 class="modal-title" data-detail-title>Bakım Geçmişi</h5>
+          <p class="text-muted mb-0" data-detail-meta></p>
         </div>
         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
       </div>
@@ -135,7 +135,7 @@
     <form class="modal-content shadow-lg" data-maintenance-form>
       <div class="modal-header border-0 pb-0">
         <div>
-          <h5 class="modal-title">Yeni Bakım Kaydı</h5>
+          <h5 class="modal-title" data-form-title>Yeni Bakım Kaydı</h5>
           <p class="text-muted mb-0" data-form-subtitle></p>
         </div>
         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
@@ -309,15 +309,27 @@
           </div>
 
           <div class="d-flex justify-content-end mt-3">
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-danger"
-              data-delete-maintenance="${record.id}"
-              data-item-id="${item.id}"
-            >
-              <i class="bi bi-trash me-1"></i>
-              Sil
-            </button>
+            <div class="btn-group btn-group-sm">
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                data-edit-maintenance="${record.id}"
+                data-item-id="${item.id}"
+              >
+                <i class="bi bi-pencil me-1"></i>
+                Düzenle
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-outline-danger"
+                data-delete-maintenance="${record.id}"
+                data-item-id="${item.id}"
+              >
+                <i class="bi bi-trash me-1"></i>
+                Sil
+              </button>
+            </div>
           </div>
         </div>
       `).join("");
@@ -331,6 +343,17 @@
             deleteMaintenanceRecord(
               button.dataset.itemId,
               button.dataset.deleteMaintenance
+            );
+          });
+        });
+
+      history
+        .querySelectorAll("[data-edit-maintenance]")
+        .forEach((button) => {
+          button.addEventListener("click", () => {
+            openMaintenanceEditForm(
+              button.dataset.itemId,
+              button.dataset.editMaintenance
             );
           });
         });
@@ -446,43 +469,132 @@
     openMaintenanceForm(selectedMaintenanceItemId);
   });
 
-  document.querySelector("[data-maintenance-form]")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
-    const itemId = form.item_id.value;
 
-    if (!itemId) {
-      feedback.className = "alert alert-warning mt-3 mb-0";
-      feedback.textContent = "Lütfen bakım yapılacak bilgisayarı seçin.";
-      return;
-    }
+  function openMaintenanceEditForm(itemId, maintenanceId) {
+    if (!formModal) return;
 
-    feedback.className = "alert alert-info mt-3 mb-0";
-    feedback.textContent = "Bakım kaydı oluşturuluyor...";
-    try {
-      const response = await fetch(`/api/inventory/${itemId}/maintenance`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          performed_at: form.performed_at.value,
-          performed_by: form.performed_by.value,
-          note: form.note.value,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Bakım kaydı oluşturulamadı.");
-      feedback.className = "alert alert-success mt-3 mb-0";
-      feedback.textContent = "Bakım kaydı oluşturuldu. Liste güncelleniyor...";
-      window.setTimeout(() => {
-        formModal?.hide();
-        window.location.reload();
-      }, 700);
-    } catch (error) {
-      feedback.className = "alert alert-danger mt-3 mb-0";
-      feedback.textContent = error.message;
-    }
-  });
+    const item = maintenanceById.get(String(itemId));
+    const record = item?.maintenances?.find(
+      (entry) => String(entry.id) === String(maintenanceId)
+    );
+
+    if (!item || !record) return;
+
+    selectedMaintenanceItemId = String(item.id);
+
+    const form = formModalEl.querySelector("[data-maintenance-form]");
+
+    form.reset();
+
+    form.item_id.value = item.id;
+
+    form.performed_at.value = record.performed_at
+      ? record.performed_at.slice(0, 16)
+      : "";
+
+    form.performed_by.value = record.performed_by || "";
+    form.note.value = record.note || "";
+
+    form.dataset.mode = "edit";
+    form.dataset.maintenanceId = String(record.id);
+
+    formModalEl.querySelector("[data-form-title]").textContent =
+      "Bakım Kaydını Düzenle";
+
+    formModalEl.querySelector("[data-form-subtitle]").textContent =
+      `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
+
+    const feedback =
+      formModalEl.querySelector("[data-maintenance-feedback]");
+
+    feedback.className = "alert d-none mt-3 mb-0";
+    feedback.textContent = "";
+
+    formModal.show();
+  }
+
+  document
+    .querySelector("[data-open-new-maintenance]")
+    ?.addEventListener("click", () => {
+      openNewMaintenanceForm();
+    });
+
+  document
+    .querySelector("[data-maintenance-form]")
+    ?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const form = event.currentTarget;
+      const feedback =
+        formModalEl.querySelector("[data-maintenance-feedback]");
+
+      const itemId = form.item_id.value;
+      const mode = form.dataset.mode || "create";
+      const maintenanceId = form.dataset.maintenanceId;
+
+      let url = `/api/inventory/${itemId}/maintenance`;
+      let method = "POST";
+
+      if (mode === "edit" && maintenanceId) {
+        url =
+          `/api/inventory/${itemId}/maintenance/${maintenanceId}`;
+        method = "PUT";
+      }
+
+      feedback.className = "alert alert-info mt-3 mb-0";
+      feedback.textContent =
+        mode === "edit"
+          ? "Bakım kaydı güncelleniyor..."
+          : "Bakım kaydı oluşturuluyor...";
+
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            performed_at: form.performed_at.value,
+            performed_by: form.performed_by.value,
+            note: form.note.value,
+          }),
+        });
+
+        const data =
+          await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+            (
+              mode === "edit"
+                ? "Bakım kaydı güncellenemedi."
+                : "Bakım kaydı oluşturulamadı."
+            )
+          );
+        }
+
+        feedback.className =
+          "alert alert-success mt-3 mb-0";
+
+        feedback.textContent =
+          mode === "edit"
+            ? "Bakım kaydı güncellendi."
+            : "Bakım kaydı oluşturuldu.";
+
+        window.setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } catch (error) {
+        feedback.className =
+          "alert alert-danger mt-3 mb-0";
+
+        feedback.textContent =
+          error.message ||
+          "Beklenmeyen bir hata oluştu.";
+      }
+    });
+
 
   const searchInput = document.getElementById("maintenanceSearch");
   function applyMaintenanceSearch() {

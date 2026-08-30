@@ -688,6 +688,7 @@ def create_app() -> Flask:
             "create_maintenance_record": create_maintenance_record,
             "list_maintenance_records": list_maintenance_records,
             "delete_maintenance_record": delete_maintenance_record,
+            "update_maintenance_record": update_maintenance_record,
         },
     )
     register_stock_routes(
@@ -3466,6 +3467,94 @@ def delete_maintenance_record(
         "success": True,
         "message": "Bakım kaydı silindi.",
         "maintenance_id": maintenance_id,
+    }, 200
+
+
+
+def update_maintenance_record(
+    item_id: int,
+    maintenance_id: int,
+    data: Any,
+) -> tuple[dict[str, Any], int]:
+    item = get_inventory_item_with_relations(item_id)
+
+    if item is None:
+        return json_error("Envanter kaydı bulunamadı."), 404
+
+    if not is_computer_hardware_type(
+        item.hardware_type.name if item.hardware_type else None
+    ):
+        return (
+            json_error(
+                "Bakım kaydı yalnızca bilgisayar envanterleri için güncellenebilir."
+            ),
+            400,
+        )
+
+    if not isinstance(data, dict):
+        return json_error("Geçersiz JSON gövdesi."), 400
+
+    maintenance = (
+        InventoryMaintenance.query
+        .filter_by(
+            id=maintenance_id,
+            item_id=item.id,
+        )
+        .first()
+    )
+
+    if maintenance is None:
+        return json_error("Bakım kaydı bulunamadı."), 404
+
+    performed_by = (
+        sanitize_input_text(
+            data.get("performed_by"),
+            max_length=128,
+        )
+        or current_actor_name()
+    )
+
+    note = sanitize_input_text(
+        data.get("note"),
+        max_length=2000,
+    )
+
+    performed_at_value = (
+        data.get("performed_at") or ""
+    ).strip()
+
+    performed_at = maintenance.performed_at
+
+    if performed_at_value:
+        try:
+            performed_at = datetime.fromisoformat(
+                performed_at_value
+            )
+        except ValueError:
+            return (
+                json_error(
+                    "Bakım tarihi geçerli bir tarih olmalıdır."
+                ),
+                400,
+            )
+
+    maintenance.performed_at = performed_at
+    maintenance.performed_by = performed_by
+    maintenance.note = note or None
+
+    add_inventory_event(
+        item,
+        "Bakım Kaydı Güncellendi",
+        f"Bakım tarihi: {performed_at.strftime('%d.%m.%Y %H:%M')}",
+        performed_by=performed_by,
+    )
+
+    db.session.commit()
+
+    return {
+        "maintenance": serialize_maintenance_record(
+            maintenance
+        )
     }, 200
 
 
