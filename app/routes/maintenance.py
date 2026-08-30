@@ -20,3 +20,18 @@ def register_maintenance_routes(app, deps):
         )
 
         return jsonify(payload), status_code
+
+    @app.get("/api/inventory/<int:item_id>/maintenance")
+    def get_inventory_maintenance(item_id: int):
+        payload, status_code = deps["list_maintenance_records"](item_id)
+
+        return jsonify(payload), status_code
+
+    @app.delete("/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>")
+    def delete_inventory_maintenance(item_id: int, maintenance_id: int):
+        payload, status_code = deps["delete_maintenance_record"](
+            item_id,
+            maintenance_id,
+        )
+
+        return jsonify(payload), status_code
