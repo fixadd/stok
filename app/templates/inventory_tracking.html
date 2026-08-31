@@ -275,6 +275,194 @@
   </div>
 </div>
 
+
+<div class="modal fade" id="inventoryMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" id="inventoryMaintenanceTitle">
+            Bakım Geçmişi
+          </h5>
+          <p class="text-muted mb-0 small" id="inventoryMaintenanceSubtitle">
+            Envantere ait bakım kayıtları.
+          </p>
+        </div>
+
+        <button
+          class="btn btn-light"
+          type="button"
+          data-bs-dismiss="modal"
+        >
+          Kapat
+        </button>
+      </div>
+
+      <div class="modal-body pt-3">
+
+        <div
+          id="inventoryMaintenanceAlert"
+          class="alert d-none"
+          role="alert"
+        ></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="text-muted small">Toplam kayıt</span>
+            <span
+              class="badge rounded-pill bg-light text-dark ms-2"
+              id="inventoryMaintenanceCount"
+            >
+              0
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="inventoryMaintenanceNewButton"
+          >
+            <i class="bi bi-plus-lg me-1"></i>
+            Yeni Bakım
+          </button>
+        </div>
+
+        <div
+          id="inventoryMaintenanceList"
+          class="maintenance-history-list"
+        ></div>
+
+        <div
+          id="inventoryMaintenanceEmpty"
+          class="text-center text-muted py-5 d-none"
+        >
+          <i class="bi bi-wrench-adjustable-circle fs-1 d-block mb-2"></i>
+          Bu envantere ait bakım kaydı bulunmuyor.
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="inventoryMaintenanceFormModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content shadow-lg" id="inventoryMaintenanceForm">
+
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="inventoryMaintenanceFormTitle">
+            Yeni Bakım Kaydı
+          </h5>
+          <p class="text-muted mb-0 small">
+            Bakım bilgilerini girin.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Kapat"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+
+        <div
+          id="inventoryMaintenanceFormError"
+          class="alert alert-danger d-none"
+        ></div>
+
+        <input
+          type="hidden"
+          id="inventoryMaintenanceEditId"
+          value=""
+        >
+
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <label
+              for="inventoryMaintenancePerformedAt"
+              class="form-label"
+            >
+              Bakım Tarihi
+            </label>
+
+            <input
+              type="datetime-local"
+              class="form-control"
+              id="inventoryMaintenancePerformedAt"
+              name="performed_at"
+              required
+            >
+          </div>
+
+          <div class="col-md-6">
+            <label
+              for="inventoryMaintenancePerformedBy"
+              class="form-label"
+            >
+              Bakımı Yapan
+            </label>
+
+            <input
+              type="text"
+              class="form-control"
+              id="inventoryMaintenancePerformedBy"
+              name="performed_by"
+              placeholder="Örn. Kadir Can"
+              required
+            >
+          </div>
+
+          <div class="col-12">
+            <label
+              for="inventoryMaintenanceNote"
+              class="form-label"
+            >
+              Açıklama
+            </label>
+
+            <textarea
+              class="form-control"
+              id="inventoryMaintenanceNote"
+              name="note"
+              rows="5"
+              placeholder="Yapılan bakım işlemini açıklayın..."
+            ></textarea>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-light"
+          data-bs-dismiss="modal"
+        >
+          İptal
+        </button>
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+          id="inventoryMaintenanceSubmitButton"
+        >
+          <i class="bi bi-check-lg me-1"></i>
+          Kaydet
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
 <div class="modal fade" id="inventoryLicenseDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow-lg">
@@ -708,10 +896,74 @@
   const detailFields = detailModalEl ? detailModalEl.querySelectorAll("[data-detail-field]") : [];
   const detailStatus = document.getElementById("inventoryDetailStatus");
   const detailTitleEl = detailModalEl ? detailModalEl.querySelector('[data-inventory-detail="title"]') : null;
+
+  const inventoryMaintenanceButton =
+    document.getElementById("inventoryMaintenanceButton");
+
   const detailSubtitleEl = detailModalEl ? detailModalEl.querySelector('[data-inventory-detail="subtitle"]') : null;
   const licenseList = document.getElementById("inventoryLicenseList");
   const licenseCount = document.getElementById("inventoryLicenseCount");
   const historyContainer = document.getElementById("inventoryHistory");
+
+  const maintenanceModalEl = document.getElementById("inventoryMaintenanceModal");
+  const maintenanceModal =
+    maintenanceModalEl && bootstrapLib
+      ? new bootstrapLib.Modal(maintenanceModalEl)
+      : null;
+
+  const maintenanceFormModalEl =
+    document.getElementById("inventoryMaintenanceFormModal");
+
+  const maintenanceFormModal =
+    maintenanceFormModalEl && bootstrapLib
+      ? new bootstrapLib.Modal(maintenanceFormModalEl)
+      : null;
+
+  const maintenanceTitle =
+    document.getElementById("inventoryMaintenanceTitle");
+
+  const maintenanceSubtitle =
+    document.getElementById("inventoryMaintenanceSubtitle");
+
+  const maintenanceList =
+    document.getElementById("inventoryMaintenanceList");
+
+  const maintenanceEmpty =
+    document.getElementById("inventoryMaintenanceEmpty");
+
+  const maintenanceCount =
+    document.getElementById("inventoryMaintenanceCount");
+
+  const maintenanceAlert =
+    document.getElementById("inventoryMaintenanceAlert");
+
+  const maintenanceNewButton =
+    document.getElementById("inventoryMaintenanceNewButton");
+
+  const maintenanceForm =
+    document.getElementById("inventoryMaintenanceForm");
+
+  const maintenanceFormTitle =
+    document.getElementById("inventoryMaintenanceFormTitle");
+
+  const maintenanceFormError =
+    document.getElementById("inventoryMaintenanceFormError");
+
+  const maintenanceEditId =
+    document.getElementById("inventoryMaintenanceEditId");
+
+  const maintenancePerformedAt =
+    document.getElementById("inventoryMaintenancePerformedAt");
+
+  const maintenancePerformedBy =
+    document.getElementById("inventoryMaintenancePerformedBy");
+
+  const maintenanceNote =
+    document.getElementById("inventoryMaintenanceNote");
+
+  const maintenanceSubmitButton =
+    document.getElementById("inventoryMaintenanceSubmitButton");
+
   const licenseDetailModalEl = document.getElementById("inventoryLicenseDetailModal");
   const licenseDetailModal = licenseDetailModalEl && bootstrapLib ? new bootstrapLib.Modal(licenseDetailModalEl) : null;
   const licenseDetailFields = licenseDetailModalEl
@@ -1021,6 +1273,679 @@
     });
   }
 
+
+  function maintenanceFormatDate(value) {
+    if (!value) {
+      return "—";
+    }
+
+    const raw = String(value);
+
+    if (raw.includes("T")) {
+      const parts = raw.split("T");
+      const date = parts[0] || "";
+      const time = (parts[1] || "").slice(0, 5);
+
+      if (date.includes("-")) {
+        const [year, month, day] = date.split("-");
+        return `${day}.${month}.${year}${time ? ` ${time}` : ""}`;
+      }
+    }
+
+    return raw;
+  }
+
+
+  function maintenanceToInputDate(value) {
+    if (!value) {
+      return "";
+    }
+
+    const raw = String(value);
+
+    if (raw.includes("T")) {
+      return raw.slice(0, 16);
+    }
+
+    return "";
+  }
+
+
+  function showMaintenanceAlert(message, variant = "success") {
+    if (!maintenanceAlert) {
+      return;
+    }
+
+    maintenanceAlert.textContent = message;
+    maintenanceAlert.className =
+      `alert alert-${variant}`;
+
+    maintenanceAlert.classList.remove("d-none");
+
+    window.setTimeout(() => {
+      maintenanceAlert.classList.add("d-none");
+    }, 3500);
+  }
+
+
+  function showMaintenanceFormError(message) {
+    if (!maintenanceFormError) {
+      return;
+    }
+
+    maintenanceFormError.textContent = message || "İşlem tamamlanamadı.";
+    maintenanceFormError.classList.remove("d-none");
+  }
+
+
+  function clearMaintenanceFormError() {
+    if (!maintenanceFormError) {
+      return;
+    }
+
+    maintenanceFormError.textContent = "";
+    maintenanceFormError.classList.add("d-none");
+  }
+
+
+  function getCurrentInventoryDetail() {
+    if (!detailModalEl) {
+      return null;
+    }
+
+    const itemId = Number(detailModalEl.dataset.itemId);
+
+    if (!itemId) {
+      return null;
+    }
+
+    return inventoryMap.get(itemId) || null;
+  }
+
+
+  function renderMaintenanceList(maintenances = []) {
+    if (!maintenanceList || !maintenanceEmpty) {
+      return;
+    }
+
+    maintenanceList.innerHTML = "";
+
+    if (maintenanceCount) {
+      maintenanceCount.textContent = String(maintenances.length);
+    }
+
+    if (!maintenances.length) {
+      maintenanceEmpty.classList.remove("d-none");
+      return;
+    }
+
+    maintenanceEmpty.classList.add("d-none");
+
+    const sorted = [...maintenances].sort((a, b) => {
+      const da = new Date(a.performed_at || 0).getTime();
+      const db = new Date(b.performed_at || 0).getTime();
+
+      return db - da;
+    });
+
+    sorted.forEach((record) => {
+      const card = document.createElement("div");
+      card.className =
+        "card border-0 shadow-sm mb-3 maintenance-history-card";
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      const header = document.createElement("div");
+      header.className =
+        "d-flex justify-content-between align-items-start gap-3";
+
+      const left = document.createElement("div");
+
+      const date = document.createElement("div");
+      date.className = "fw-semibold";
+      date.textContent =
+        maintenanceFormatDate(record.performed_at);
+
+      const actor = document.createElement("div");
+      actor.className = "text-muted small mt-1";
+      actor.textContent =
+        record.performed_by || "Belirtilmemiş";
+
+      left.append(date, actor);
+
+      const actions = document.createElement("div");
+      actions.className =
+        "d-flex gap-1 flex-shrink-0";
+
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className =
+        "btn btn-sm btn-outline-secondary";
+      editButton.innerHTML =
+        '<i class="bi bi-pencil"></i>';
+      editButton.title = "Düzenle";
+
+      editButton.addEventListener("click", () => {
+        openMaintenanceEditForm(record);
+      });
+
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className =
+        "btn btn-sm btn-outline-danger";
+      deleteButton.innerHTML =
+        '<i class="bi bi-trash"></i>';
+      deleteButton.title = "Sil";
+
+      deleteButton.addEventListener("click", () => {
+        deleteMaintenanceRecordFromDetail(record);
+      });
+
+      actions.append(editButton, deleteButton);
+      header.append(left, actions);
+
+      body.append(header);
+
+      if (record.note) {
+        const note = document.createElement("div");
+        note.className =
+          "mt-3 p-3 rounded bg-light";
+        note.textContent = record.note;
+        body.append(note);
+      }
+
+      card.append(body);
+      maintenanceList.append(card);
+    });
+  }
+
+
+  function openMaintenanceHistory(itemId = null) {
+    const id = Number(
+      itemId ||
+      detailModalEl?.dataset.itemId ||
+      activeInventoryId
+    );
+
+    if (!id) {
+      showActionAlert(
+        "Bakım geçmişi için envanter seçilmedi.",
+        "danger"
+      );
+      return;
+    }
+
+    const detail = inventoryMap.get(id);
+
+    if (!detail) {
+      showActionAlert(
+        "Envanter bilgisi bulunamadı.",
+        "danger"
+      );
+      return;
+    }
+
+    if (maintenanceModalEl) {
+      maintenanceModalEl.dataset.itemId = String(id);
+    }
+
+    if (maintenanceTitle) {
+      maintenanceTitle.textContent =
+        `${detail.inventory_no || `#${id}`} - Bakım Geçmişi`;
+    }
+
+    if (maintenanceSubtitle) {
+      const parts = [
+        detail.computer_name,
+        detail.responsible,
+        detail.factory
+      ].filter(Boolean);
+
+      maintenanceSubtitle.textContent =
+        parts.length
+          ? parts.join(" • ")
+          : "Envantere ait bakım kayıtları.";
+    }
+
+    renderMaintenanceList(detail.maintenances || []);
+
+    if (maintenanceModal) {
+      maintenanceModal.show();
+    } else if (maintenanceModalEl) {
+      maintenanceModalEl.classList.add("show");
+    }
+  }
+
+
+  function openNewMaintenanceForm() {
+    const detail = getCurrentInventoryDetail();
+
+    if (!detail) {
+      showActionAlert(
+        "Önce bir envanter seçin.",
+        "danger"
+      );
+      return;
+    }
+
+    clearMaintenanceFormError();
+
+    if (maintenanceForm) {
+      maintenanceForm.reset();
+    }
+
+    if (maintenanceEditId) {
+      maintenanceEditId.value = "";
+    }
+
+    if (maintenanceFormTitle) {
+      maintenanceFormTitle.textContent =
+        "Yeni Bakım Kaydı";
+    }
+
+    if (maintenanceSubmitButton) {
+      maintenanceSubmitButton.innerHTML =
+        '<i class="bi bi-check-lg me-1"></i> Kaydet';
+    }
+
+    if (maintenancePerformedBy) {
+      maintenancePerformedBy.value =
+        typeof defaultActor !== "undefined"
+          ? defaultActor
+          : "";
+    }
+
+    if (maintenancePerformedAt) {
+      const now = new Date();
+
+      const pad = (value) =>
+        String(value).padStart(2, "0");
+
+      maintenancePerformedAt.value =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+        `T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    if (maintenanceFormModal) {
+      maintenanceFormModal.show();
+    } else if (maintenanceFormModalEl) {
+      maintenanceFormModalEl.classList.add("show");
+    }
+  }
+
+
+  function openMaintenanceEditForm(record) {
+    if (!record) {
+      return;
+    }
+
+    clearMaintenanceFormError();
+
+    if (maintenanceEditId) {
+      maintenanceEditId.value = String(record.id || "");
+    }
+
+    if (maintenancePerformedAt) {
+      maintenancePerformedAt.value =
+        maintenanceToInputDate(record.performed_at);
+    }
+
+    if (maintenancePerformedBy) {
+      maintenancePerformedBy.value =
+        record.performed_by || "";
+    }
+
+    if (maintenanceNote) {
+      maintenanceNote.value =
+        record.note || "";
+    }
+
+    if (maintenanceFormTitle) {
+      maintenanceFormTitle.textContent =
+        "Bakım Kaydını Düzenle";
+    }
+
+    if (maintenanceSubmitButton) {
+      maintenanceSubmitButton.innerHTML =
+        '<i class="bi bi-check-lg me-1"></i> Güncelle';
+    }
+
+    if (maintenanceFormModal) {
+      maintenanceFormModal.show();
+    } else if (maintenanceFormModalEl) {
+      maintenanceFormModalEl.classList.add("show");
+    }
+  }
+
+
+  async function loadMaintenanceRecords(itemId) {
+    const id = Number(itemId);
+
+    if (!id) {
+      return [];
+    }
+
+    const response = await fetch(
+      `/api/inventory/${id}/maintenance`,
+      {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    let payload = {};
+
+    try {
+      payload = await response.json();
+    } catch (error) {
+      payload = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        payload.error ||
+        "Bakım kayıtları alınamadı."
+      );
+    }
+
+    const detail = inventoryMap.get(id);
+
+    if (detail) {
+      detail.maintenances =
+        Array.isArray(payload)
+          ? payload
+          : (
+              payload.maintenances ||
+              payload.records ||
+              payload.items ||
+              []
+            );
+
+      inventoryMap.set(id, detail);
+    }
+
+    return detail?.maintenances || [];
+  }
+
+
+  async function saveMaintenanceRecord(event) {
+    event.preventDefault();
+
+    const detail = getCurrentInventoryDetail();
+
+    if (!detail) {
+      showMaintenanceFormError(
+        "Envanter bilgisi bulunamadı."
+      );
+      return;
+    }
+
+    clearMaintenanceFormError();
+
+    const editId =
+      maintenanceEditId?.value
+        ? Number(maintenanceEditId.value)
+        : null;
+
+    const performedAt =
+      maintenancePerformedAt?.value || "";
+
+    const performedBy =
+      maintenancePerformedBy?.value.trim() || "";
+
+    const note =
+      maintenanceNote?.value.trim() || "";
+
+    if (!performedAt) {
+      showMaintenanceFormError(
+        "Bakım tarihi zorunludur."
+      );
+      return;
+    }
+
+    if (!performedBy) {
+      showMaintenanceFormError(
+        "Bakımı yapan kişi zorunludur."
+      );
+      return;
+    }
+
+    const body = {
+      performed_at: performedAt,
+      performed_by: performedBy,
+      note
+    };
+
+    const url = editId
+      ? `/api/inventory/${detail.id}/maintenance/${editId}`
+      : `/api/inventory/${detail.id}/maintenance`;
+
+    const method = editId ? "PUT" : "POST";
+
+    if (maintenanceSubmitButton) {
+      maintenanceSubmitButton.disabled = true;
+      maintenanceSubmitButton.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-1"></span> Kaydediliyor...';
+    }
+
+    try {
+      const response = await fetch(
+        url,
+        {
+          method,
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(body)
+        }
+      );
+
+      let payload = {};
+
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          payload.error ||
+          "Bakım kaydı kaydedilemedi."
+        );
+      }
+
+      const updatedRecords =
+        Array.isArray(payload)
+          ? payload
+          : (
+              payload.maintenances ||
+              payload.records ||
+              payload.items ||
+              null
+            );
+
+      if (updatedRecords) {
+        detail.maintenances = updatedRecords;
+      } else {
+        await loadMaintenanceRecords(detail.id);
+      }
+
+      inventoryMap.set(detail.id, detail);
+
+      renderMaintenanceList(
+        detail.maintenances || []
+      );
+
+      if (maintenanceFormModal) {
+        maintenanceFormModal.hide();
+      }
+
+      showMaintenanceAlert(
+        editId
+          ? "Bakım kaydı güncellendi."
+          : "Bakım kaydı oluşturuldu.",
+        "success"
+      );
+
+      if (maintenanceSubmitButton) {
+        maintenanceSubmitButton.disabled = false;
+      }
+
+    } catch (error) {
+      showMaintenanceFormError(
+        error.message ||
+        "Sunucuya ulaşılamadı."
+      );
+
+      if (maintenanceSubmitButton) {
+        maintenanceSubmitButton.disabled = false;
+        maintenanceSubmitButton.innerHTML =
+          editId
+            ? '<i class="bi bi-check-lg me-1"></i> Güncelle'
+            : '<i class="bi bi-check-lg me-1"></i> Kaydet';
+      }
+    }
+  }
+
+
+  async function deleteMaintenanceRecordFromDetail(record) {
+    const detail = getCurrentInventoryDetail();
+
+    if (!detail || !record?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Bu bakım kaydını silmek istediğinize emin misiniz?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/inventory/${detail.id}/maintenance/${record.id}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json"
+          }
+        }
+      );
+
+      let payload = {};
+
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          payload.error ||
+          "Bakım kaydı silinemedi."
+        );
+      }
+
+      if (Array.isArray(payload)) {
+        detail.maintenances = payload;
+      } else if (
+        Array.isArray(payload.maintenances)
+      ) {
+        detail.maintenances =
+          payload.maintenances;
+      } else {
+        detail.maintenances =
+          (detail.maintenances || [])
+            .filter(
+              (item) =>
+                Number(item.id) !== Number(record.id)
+            );
+      }
+
+      inventoryMap.set(detail.id, detail);
+
+      renderMaintenanceList(
+        detail.maintenances || []
+      );
+
+      showMaintenanceAlert(
+        "Bakım kaydı silindi.",
+        "success"
+      );
+
+    } catch (error) {
+      showMaintenanceAlert(
+        error.message ||
+        "Sunucuya ulaşılamadı.",
+        "danger"
+      );
+    }
+  }
+
+
+  if (maintenanceNewButton) {
+    maintenanceNewButton.addEventListener(
+      "click",
+      openNewMaintenanceForm
+    );
+  }
+
+
+  if (maintenanceForm) {
+    maintenanceForm.addEventListener(
+      "submit",
+      saveMaintenanceRecord
+    );
+  }
+
+
+  if (maintenanceModalEl) {
+    maintenanceModalEl.addEventListener(
+      "shown.bs.modal",
+      async () => {
+        const itemId =
+          Number(maintenanceModalEl.dataset.itemId);
+
+        if (!itemId) {
+          return;
+        }
+
+        try {
+          const records =
+            await loadMaintenanceRecords(itemId);
+
+          renderMaintenanceList(records);
+        } catch (error) {
+          showMaintenanceAlert(
+            error.message ||
+            "Bakım kayıtları alınamadı.",
+            "danger"
+          );
+        }
+      }
+    );
+  }
+
+
+  if (maintenanceFormModalEl) {
+    maintenanceFormModalEl.addEventListener(
+      "hidden.bs.modal",
+      clearMaintenanceFormError
+    );
+  }
+
+
   function renderLicenseList(licenses = []) {
     if (!licenseList) {
       return;
@@ -1226,6 +2151,23 @@
       historyContainer.append(item);
     });
   }
+
+
+  if (inventoryMaintenanceButton) {
+    inventoryMaintenanceButton.addEventListener(
+      "click",
+      () => {
+        const itemId =
+          Number(
+            detailModalEl?.dataset.itemId ||
+            activeInventoryId
+          );
+
+        openMaintenanceHistory(itemId);
+      }
+    );
+  }
+
 
   function renderInventoryDetail(itemId) {
     const detail = inventoryMap.get(Number(itemId));
