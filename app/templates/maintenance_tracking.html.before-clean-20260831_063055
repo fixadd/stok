@@ -471,210 +471,128 @@
   }
 
   function openMaintenanceForm(itemId) {
-    if (!formModal) return;
-
     const item = maintenanceById.get(String(itemId));
 
-    if (!item) return;
+    if (!item || !formModal) {
+      return;
+    }
 
     selectedMaintenanceItemId = String(item.id);
 
-    const form =
-      formModalEl.querySelector("[data-maintenance-form]");
+    const form = resetMaintenanceForm();
 
-    if (!form) return;
-
-    form.reset();
-
-    form.dataset.mode = "create";
-    form.dataset.maintenanceId = "";
-
-    if (form.item_id) {
-      form.item_id.value = item.id;
+    if (!form) {
+      return;
     }
 
-    if (form.performed_at) {
-      form.performed_at.value =
-        new Date().toISOString().slice(0, 16);
-    }
+    form.item_id.value = item.id;
 
-    const title =
-      formModalEl.querySelector("[data-form-title]");
+    form.performed_at.value =
+      new Date().toISOString().slice(0, 16);
 
-    if (title) {
-      title.textContent = "Yeni Bakım Kaydı";
-    }
-
-    const subtitle =
-      formModalEl.querySelector("[data-form-subtitle]");
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
 
     if (subtitle) {
       subtitle.textContent =
-        `${item.inventory_no} · ${
-          item.computer_name ||
-          item.brand_model ||
-          "-"
-        }`;
-    }
-
-    const feedback =
-      formModalEl.querySelector(
-        "[data-maintenance-feedback]"
-      );
-
-    if (feedback) {
-      feedback.className =
-        "alert d-none mt-3 mb-0";
-
-      feedback.textContent = "";
+        `${item.inventory_no} · ` +
+        `${item.computer_name || item.brand_model || "-"}`;
     }
 
     formModal.show();
   }
 
   function openNewMaintenanceForm() {
-    if (!formModal) return;
+    if (!formModal) {
+      return;
+    }
 
     selectedMaintenanceItemId = null;
 
-    const form =
-      formModalEl.querySelector("[data-maintenance-form]");
+    const form = resetMaintenanceForm();
 
-    if (!form) return;
-
-    form.reset();
-
-    form.dataset.mode = "create";
-    form.dataset.maintenanceId = "";
-
-    if (form.item_id) {
-      form.item_id.value = "";
+    if (!form) {
+      return;
     }
 
-    if (form.performed_at) {
-      form.performed_at.value =
-        new Date().toISOString().slice(0, 16);
-    }
+    form.item_id.value = "";
+    form.performed_at.value =
+      new Date().toISOString().slice(0, 16);
 
-    const title =
-      formModalEl.querySelector("[data-form-title]");
-
-    if (title) {
-      title.textContent = "Yeni Bakım Kaydı";
-    }
-
-    const subtitle =
-      formModalEl.querySelector("[data-form-subtitle]");
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
 
     if (subtitle) {
       subtitle.textContent =
         "Bakım yapılacak bilgisayarı seçin.";
     }
 
-    const feedback =
-      formModalEl.querySelector(
-        "[data-maintenance-feedback]"
-      );
-
-    if (feedback) {
-      feedback.className =
-        "alert d-none mt-3 mb-0";
-
-      feedback.textContent = "";
-    }
-
     formModal.show();
   }
 
-  function openMaintenanceEditForm(
-    itemId,
-    maintenanceId
-  ) {
-    if (!formModal) return;
+  function openMaintenanceEditForm(itemId, maintenanceId) {
+    if (!formModal) {
+      return;
+    }
 
-    const item =
-      maintenanceById.get(String(itemId));
+    const item = maintenanceById.get(String(itemId));
 
-    const record =
-      item?.maintenances?.find(
-        (entry) =>
-          String(entry.id) ===
-          String(maintenanceId)
-      );
+    const record = item?.maintenances?.find(
+      (entry) =>
+        String(entry.id) === String(maintenanceId)
+    );
 
-    if (!item || !record) return;
+    if (!item || !record) {
+      return;
+    }
 
-    selectedMaintenanceItemId =
-      String(item.id);
+    selectedMaintenanceItemId = String(item.id);
 
-    const form =
-      formModalEl.querySelector(
-        "[data-maintenance-form]"
-      );
+    const form = resetMaintenanceForm();
 
-    if (!form) return;
+    if (!form) {
+      return;
+    }
 
-    form.reset();
+    form.item_id.value = item.id;
+
+    if (form.querySelector("[name='maintenance_id']")) {
+      form.querySelector("[name='maintenance_id']").value = record.id;
+    }
+
+    form.performed_at.value = record.performed_at
+      ? record.performed_at.slice(0, 16)
+      : "";
+
+    form.performed_by.value =
+      record.performed_by || "";
+
+    form.note.value =
+      record.note || "";
 
     form.dataset.mode = "edit";
     form.dataset.maintenanceId =
       String(record.id);
 
-    if (form.item_id) {
-      form.item_id.value = item.id;
-    }
-
-    if (form.performed_at) {
-      form.performed_at.value =
-        record.performed_at
-          ? record.performed_at.slice(0, 16)
-          : "";
-    }
-
-    if (form.performed_by) {
-      form.performed_by.value =
-        record.performed_by || "";
-    }
-
-    if (form.note) {
-      form.note.value =
-        record.note || "";
-    }
-
-    const title =
-      formModalEl.querySelector(
-        "[data-form-title]"
-      );
+    const title = formModalEl.querySelector(
+      "[data-form-title]"
+    );
 
     if (title) {
       title.textContent =
         "Bakım Kaydını Düzenle";
     }
 
-    const subtitle =
-      formModalEl.querySelector(
-        "[data-form-subtitle]"
-      );
+    const subtitle = formModalEl.querySelector(
+      "[data-form-subtitle]"
+    );
 
     if (subtitle) {
       subtitle.textContent =
-        `${item.inventory_no} · ${
-          item.computer_name ||
-          item.brand_model ||
-          "-"
-        }`;
-    }
-
-    const feedback =
-      formModalEl.querySelector(
-        "[data-maintenance-feedback]"
-      );
-
-    if (feedback) {
-      feedback.className =
-        "alert d-none mt-3 mb-0";
-
-      feedback.textContent = "";
+        `${item.inventory_no} · ` +
+        `${item.computer_name || item.brand_model || "-"}`;
     }
 
     formModal.show();
@@ -740,10 +658,6 @@
     event.preventDefault();
 
     const form = event.currentTarget;
-
-      if (!form.dataset.mode) {
-        form.dataset.mode = "create";
-      }
 
     const feedback = formModalEl.querySelector(
       "[data-maintenance-feedback]"
