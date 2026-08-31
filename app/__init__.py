@@ -3444,44 +3444,6 @@ def list_maintenance_records(
 
 
 
-def get_maintenance_records(item_id: int) -> tuple[dict[str, Any], int]:
-    item = get_inventory_item_with_relations(item_id)
-
-    if item is None:
-        return json_error("Envanter kaydı bulunamadı."), 404
-
-    if not is_computer_hardware_type(
-        item.hardware_type.name if item.hardware_type else None
-    ):
-        return (
-            json_error(
-                "Bakım kayıtları yalnızca bilgisayar envanterleri için görüntülenebilir."
-            ),
-            400,
-        )
-
-    records = (
-        InventoryMaintenance.query
-        .filter_by(item_id=item_id)
-        .order_by(InventoryMaintenance.performed_at.desc())
-        .all()
-    )
-
-    return {
-        "item": {
-            "id": item.id,
-            "inventory_no": item.inventory_no,
-            "computer_name": item.computer_name or "",
-        },
-        "maintenances": [
-            serialize_maintenance_record(record)
-            for record in records
-        ],
-        "count": len(records),
-    }, 200
-
-
-
 
 
 def update_maintenance_record(
@@ -4354,10 +4316,29 @@ def serialize_inventory_item(item: InventoryItem) -> dict[str, Any]:
         "ifs_no": item.ifs_no,
         "related_machine_no": item.related_machine_no,
         "machine_no": item.machine_no,
-        "ip_address": item.related_machine_no,
-        "mac_address": item.machine_no,
         "note": item.note,
-        "is_ip_printer": bool(item.related_machine_no or item.machine_no),
+        "created_at": (
+            item.created_at.strftime("%d.%m.%Y %H:%M")
+            if item.created_at
+            else ""
+        ),
+        "updated_at": (
+            item.updated_at.strftime("%d.%m.%Y %H:%M")
+            if item.updated_at
+            else ""
+        ),
+        "is_ip_printer": (
+            "yazıcı" in (
+                item.hardware_type.name.lower()
+                if item.hardware_type
+                else ""
+            )
+            or "printer" in (
+                item.hardware_type.name.lower()
+                if item.hardware_type
+                else ""
+            )
+        ),
         "status": status_value,
         "history": history,
         "licenses": licenses,

@@ -220,11 +220,19 @@
                   <span class="detail-value" data-detail-field="ifs_no">—</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Bağlı Makina No</span>
+                  <span class="detail-label">Kayıt Tarihi</span>
+                  <span class="detail-value" data-detail-field="created_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Son Güncelleme</span>
+                  <span class="detail-value" data-detail-field="updated_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Bağlı Makine No</span>
                   <span class="detail-value" data-detail-field="related_machine_no">—</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Makina No</span>
+                  <span class="detail-label">Makine No</span>
                   <span class="detail-value" data-detail-field="machine_no">—</span>
                 </div>
                 <div class="detail-item detail-item-note">
@@ -2119,7 +2127,35 @@
       return;
     }
 
-    history.forEach((entry) => {
+    const sortedHistory = [...history].sort((a, b) => {
+      const parseDate = (value) => {
+        if (!value) {
+          return 0;
+        }
+
+        const match = String(value).match(
+          /^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/
+        );
+
+        if (match) {
+          const [, day, month, year, hour, minute] = match;
+          return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hour),
+            Number(minute)
+          ).getTime();
+        }
+
+        const timestamp = Date.parse(value);
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+      };
+
+      return parseDate(b.performed_at) - parseDate(a.performed_at);
+    });
+
+    sortedHistory.forEach((entry) => {
       const item = document.createElement("div");
       item.className = "history-item";
 
@@ -2132,7 +2168,14 @@
 
       const header = document.createElement("div");
       header.className = "history-header";
-      header.innerHTML = `<strong>${entry.event_type}</strong><span>${entry.performed_at}</span>`;
+
+      const eventTitle = document.createElement("strong");
+      eventTitle.textContent = safeText(entry.event_type);
+
+      const eventDate = document.createElement("span");
+      eventDate.textContent = safeText(entry.performed_at);
+
+      header.append(eventTitle, eventDate);
 
       const meta = document.createElement("div");
       meta.className = "history-meta text-muted";
@@ -2178,14 +2221,24 @@
     detailModalEl.dataset.itemId = String(detail.id);
 
     if (detailTitleEl) {
-      detailTitleEl.textContent = detail.inventory_no || `#${detail.id}`;
+      detailTitleEl.textContent =
+        detail.inventory_no
+          ? `${detail.inventory_no} - Envanter Detayı`
+          : `Envanter #${detail.id}`;
     }
 
     if (detailSubtitleEl) {
-      const subtitleParts = [detail.responsible, detail.factory].filter(Boolean);
-      detailSubtitleEl.textContent = subtitleParts.length
-        ? subtitleParts.join(" • ")
-        : "Seçilen envantere ait güncel bilgiler";
+      const subtitleParts = [
+        detail.computer_name,
+        detail.hardware_type,
+        detail.responsible,
+        detail.factory
+      ].filter(Boolean);
+
+      detailSubtitleEl.textContent =
+        subtitleParts.length
+          ? subtitleParts.join(" • ")
+          : "Seçilen envantere ait güncel bilgiler";
     }
 
     detailFields.forEach((field) => {
