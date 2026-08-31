@@ -39,6 +39,7 @@ from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
+from .routes.assignment import register_assignment_routes
 from .routes.maintenance import register_maintenance_routes
 from .routes.information import register_information_routes
 from .routes.profile import register_profile_routes
@@ -680,6 +681,28 @@ def create_app() -> Flask:
             "load_dashboard_metrics": load_dashboard_metrics,
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
+        },
+    )
+    register_assignment_routes(
+        app,
+        {
+            "db": db,
+            "InventoryItem": InventoryItem,
+            "InventoryAssignment": InventoryAssignment,
+            "User": User,
+            "Factory": Factory,
+
+            "serialize_inventory_item": serialize_inventory_item,
+            "get_inventory_item_with_relations": get_inventory_item_with_relations,
+            "add_inventory_event": add_inventory_event,
+
+            "parse_int_or_none": parse_int_or_none,
+            "sanitize_input_text": sanitize_input_text,
+            "json_error": json_error,
+            "active_user_by_id": active_user_by_id,
+            "format_datetime_display": format_datetime_display,
+            "current_actor_name": current_actor_name,
+            "DEFAULT_EVENT_ACTOR": DEFAULT_EVENT_ACTOR,
         },
     )
     register_maintenance_routes(
