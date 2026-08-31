@@ -495,12 +495,7 @@
       form.item_id.value = item.id;
     form.dataset.mode = "create";
     form.dataset.maintenanceId = "";
-    form.dataset.mode = "create";
-    form.dataset.maintenanceId = "";
-    }
-
-    if (form.performed_at) {
-      form.performed_at.value =
+    form.performed_at.value =
         new Date().toISOString().slice(0, 16);
     }
 
@@ -585,12 +580,7 @@
 
     formModal.show();
   }
-
-  document
-    .querySelector("[data-open-new-maintenance]")
-    ?.addEventListener("click", openNewMaintenanceForm);
-
-  function openMaintenanceEditForm(
+function openMaintenanceEditForm(
     itemId,
     maintenanceId
   ) {
@@ -715,6 +705,7 @@
         `/api/inventory/${itemId}/maintenance/${maintenanceId}`,
         {
           method: "DELETE",
+          credentials: "same-origin",
           headers: {
             "Content-Type": "application/json",
           },
@@ -725,6 +716,12 @@
         await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(
+            "Oturumunuz sona ermiş. Lütfen tekrar giriş yapın."
+          );
+        }
+
         throw new Error(
           data.error ||
           "Bakım kaydı silinemedi."
