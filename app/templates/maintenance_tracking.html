@@ -471,18 +471,20 @@
   }
 
   function openMaintenanceForm(itemId) {
-    if (!formModal) return;
-
     const item = maintenanceById.get(String(itemId));
 
-    if (!item) return;
+    if (!item || !formModal) {
+      return;
+    }
 
     selectedMaintenanceItemId = String(item.id);
 
     const form =
       formModalEl.querySelector("[data-maintenance-form]");
 
-    if (!form) return;
+    if (!form) {
+      return;
+    }
 
     form.reset();
 
@@ -491,6 +493,10 @@
 
     if (form.item_id) {
       form.item_id.value = item.id;
+    form.dataset.mode = "create";
+    form.dataset.maintenanceId = "";
+    form.dataset.mode = "create";
+    form.dataset.maintenanceId = "";
     }
 
     if (form.performed_at) {
@@ -510,17 +516,11 @@
 
     if (subtitle) {
       subtitle.textContent =
-        `${item.inventory_no} · ${
-          item.computer_name ||
-          item.brand_model ||
-          "-"
-        }`;
+        `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
     }
 
     const feedback =
-      formModalEl.querySelector(
-        "[data-maintenance-feedback]"
-      );
+      formModalEl.querySelector("[data-maintenance-feedback]");
 
     if (feedback) {
       feedback.className =
@@ -585,6 +585,10 @@
 
     formModal.show();
   }
+
+  document
+    .querySelector("[data-open-new-maintenance]")
+    ?.addEventListener("click", openNewMaintenanceForm);
 
   function openMaintenanceEditForm(
     itemId,
