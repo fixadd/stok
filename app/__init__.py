@@ -697,11 +697,49 @@ def create_app() -> Flask:
         {
             "get_active_user": get_active_user,
             "has_system_role": has_system_role,
+
             "load_stock_payload": load_stock_payload,
             "load_scrap_inventory_payload": load_scrap_inventory_payload,
+
+            "db": db,
+            "InventoryItem": InventoryItem,
+            "InventoryLicense": InventoryLicense,
+            "StockItem": StockItem,
+
+            "get_inventory_item_with_relations": get_inventory_item_with_relations,
+            "add_inventory_event": add_inventory_event,
+
+            "determine_stock_category_from_inventory": determine_stock_category_from_inventory,
+            "build_inventory_stock_metadata": build_inventory_stock_metadata,
+            "create_stock_item_from_inventory": create_stock_item_from_inventory,
+            "create_stock_item_from_license": create_stock_item_from_license,
+
+            "get_stock_item_with_relations": get_stock_item_with_relations,
+            "serialize_stock_item": serialize_stock_item,
+            "serialize_stock_log": serialize_stock_log,
+            "serialize_license_record": serialize_license_record,
+
+            "record_stock_log": record_stock_log,
+            "record_stock_movement": record_stock_movement,
+            "record_stock_audit": record_stock_audit,
+
+            "prepare_stock_metadata": prepare_stock_metadata,
+            "sanitize_metadata_payload": sanitize_metadata_payload,
+            "remove_assignment_only_metadata": remove_assignment_only_metadata,
+
+            "normalize_stock_category": normalize_stock_category,
+            "resolve_stock_category": resolve_stock_category,
+            "resolve_stock_unit": resolve_stock_unit,
+
+            "generate_unique_sku": generate_unique_sku,
+            "parse_excel_date": parse_excel_date,
+            "parse_int_or_none": parse_int_or_none,
+            "sanitize_input_text": sanitize_input_text,
+            "json_error": json_error,
+
+            "DEFAULT_EVENT_ACTOR": DEFAULT_EVENT_ACTOR,
         },
     )
-
     register_admin_routes(
         app,
         {
