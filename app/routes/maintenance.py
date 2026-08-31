@@ -1,8 +1,11 @@
-from flask import jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request
+
+
+maintenance_bp = Blueprint("maintenance", __name__)
 
 
 def register_maintenance_routes(app, deps):
-    @app.route("/bakim")
+    @maintenance_bp.route("/bakim")
     def maintenance_tracking():
         payload = deps["load_maintenance_payload"]()
 
@@ -12,7 +15,7 @@ def register_maintenance_routes(app, deps):
             **payload,
         )
 
-    @app.post("/api/inventory/<int:item_id>/maintenance")
+    @maintenance_bp.post("/api/inventory/<int:item_id>/maintenance")
     def create_inventory_maintenance(item_id: int):
         payload, status_code = deps["create_maintenance_record"](
             item_id,
@@ -21,7 +24,7 @@ def register_maintenance_routes(app, deps):
 
         return jsonify(payload), status_code
 
-    @app.get("/api/inventory/<int:item_id>/maintenance")
+    @maintenance_bp.get("/api/inventory/<int:item_id>/maintenance")
     def get_inventory_maintenance(item_id: int):
         payload, status_code = deps["list_maintenance_records"](
             item_id,
@@ -29,7 +32,7 @@ def register_maintenance_routes(app, deps):
 
         return jsonify(payload), status_code
 
-    @app.put(
+    @maintenance_bp.put(
         "/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>"
     )
     def update_inventory_maintenance(
@@ -44,7 +47,7 @@ def register_maintenance_routes(app, deps):
 
         return jsonify(payload), status_code
 
-    @app.delete(
+    @maintenance_bp.delete(
         "/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>"
     )
     def delete_inventory_maintenance(
@@ -57,3 +60,5 @@ def register_maintenance_routes(app, deps):
         )
 
         return jsonify(payload), status_code
+
+    app.register_blueprint(maintenance_bp)
