@@ -1,0 +1,101 @@
+[1mdiff --git a/app/templates/maintenance_tracking.html b/app/templates/maintenance_tracking.html[m
+[1mindex 4f1b578..7c0cda0 100644[m
+[1m--- a/app/templates/maintenance_tracking.html[m
+[1m+++ b/app/templates/maintenance_tracking.html[m
+[36m@@ -19,10 +19,18 @@[m
+         </div>[m
+       </div>[m
+       <div class="maintenance-search-card">[m
+[31m-        <label for="maintenanceSearch" class="form-label text-muted small">Sayfa içi arama</label>[m
+[31m-        <div class="input-group search-input">[m
+[31m-          <span class="input-group-text"><i class="bi bi-search"></i></span>[m
+[31m-          <input type="search" class="form-control" id="maintenanceSearch" placeholder="Envanter no, bilgisayar adı, sorumlu...">[m
+[32m+[m[32m        <div class="d-flex flex-column gap-3">[m
+[32m+[m[32m          <button class="btn btn-primary w-100" type="button" data-open-new-maintenance>[m
+[32m+[m[32m            <i class="bi bi-plus-lg me-1"></i>Yeni Bakım Kaydı[m
+[32m+[m[32m          </button>[m
+[32m+[m
+[32m+[m[32m          <div>[m
+[32m+[m[32m            <label for="maintenanceSearch" class="form-label text-muted small">Sayfa içi arama</label>[m
+[32m+[m[32m            <div class="input-group search-input">[m
+[32m+[m[32m              <span class="input-group-text"><i class="bi bi-search"></i></span>[m
+[32m+[m[32m              <input type="search" class="form-control" id="maintenanceSearch" placeholder="Envanter no, bilgisayar adı, sorumlu...">[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </div>[m
+         </div>[m
+       </div>[m
+     </div>[m
+[36m@@ -117,7 +125,19 @@[m
+         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>[m
+       </div>[m
+       <div class="modal-body">[m
+[31m-        <input type="hidden" name="item_id">[m
+[32m+[m[32m        <div class="mb-3">[m
+[32m+[m[32m          <label class="form-label">Bilgisayar</label>[m
+[32m+[m[32m          <select class="form-select" name="item_id" required>[m
+[32m+[m[32m            <option value="">Bilgisayar seçin...</option>[m
+[32m+[m[32m            {% for item in maintenance_items %}[m
+[32m+[m[32m            <option value="{{ item.id }}">[m
+[32m+[m[32m              {{ item.inventory_no }} · {{ item.computer_name or item.brand_model }}[m
+[32m+[m[32m              {% if item.responsible %} · {{ item.responsible }}{% endif %}[m
+[32m+[m[32m            </option>[m
+[32m+[m[32m            {% endfor %}[m
+[32m+[m[32m          </select>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+         <div class="mb-3">[m
+           <label class="form-label">Bakım Tarihi</label>[m
+           <input class="form-control" type="datetime-local" name="performed_at">[m
+[36m@@ -197,6 +217,27 @@[m
+     formModal.show();[m
+   }[m
+ [m
+[32m+[m[32m  function openNewMaintenanceForm() {[m
+[32m+[m[32m    if (!formModal) return;[m
+[32m+[m
+[32m+[m[32m    selectedMaintenanceItemId = null;[m
+[32m+[m
+[32m+[m[32m    const form = formModalEl.querySelector("[data-maintenance-form]");[m
+[32m+[m[32m    form.reset();[m
+[32m+[m
+[32m+[m[32m    form.item_id.value = "";[m
+[32m+[m[32m    form.performed_at.value = new Date().toISOString().slice(0, 16);[m
+[32m+[m
+[32m+[m[32m    formModalEl.querySelector("[data-form-subtitle]").textContent =[m
+[32m+[m[32m      "Bakım yapılacak bilgisayarı seçin.";[m
+[32m+[m
+[32m+[m[32m    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");[m
+[32m+[m[32m    feedback.className = "alert d-none mt-3 mb-0";[m
+[32m+[m[32m    feedback.textContent = "";[m
+[32m+[m
+[32m+[m[32m    formModal.show();[m
+[32m+[m[32m  }[m
+[32m+[m
+   document.querySelectorAll("[data-maintenance-row]").forEach((row) => {[m
+     row.addEventListener("click", (event) => {[m
+       if (event.target.closest("button")) return;[m
+[36m@@ -213,6 +254,10 @@[m
+   document.querySelectorAll("[data-open-maintenance-form]").forEach((button) => {[m
+     button.addEventListener("click", () => openMaintenanceForm(button.dataset.itemId));[m
+   });[m
+[32m+[m
+[32m+[m[32m  document.querySelector("[data-open-new-maintenance]")?.addEventListener("click", () => {[m
+[32m+[m[32m    openNewMaintenanceForm();[m
+[32m+[m[32m  });[m
+   document.querySelector("[data-open-form-from-detail]")?.addEventListener("click", () => {[m
+     if (detailModal) detailModal.hide();[m
+     openMaintenanceForm(selectedMaintenanceItemId);[m
+[36m@@ -223,6 +268,13 @@[m
+     const form = event.currentTarget;[m
+     const feedback = formModalEl.querySelector("[data-maintenance-feedback]");[m
+     const itemId = form.item_id.value;[m
+[32m+[m
+[32m+[m[32m    if (!itemId) {[m
+[32m+[m[32m      feedback.className = "alert alert-warning mt-3 mb-0";[m
+[32m+[m[32m      feedback.textContent = "Lütfen bakım yapılacak bilgisayarı seçin.";[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+     feedback.className = "alert alert-info mt-3 mb-0";[m
+     feedback.textContent = "Bakım kaydı oluşturuluyor...";[m
+     try {[m

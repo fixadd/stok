@@ -24,7 +24,7 @@ def register_maintenance_routes(app, deps):
     @app.get("/api/inventory/<int:item_id>/maintenance")
     def get_inventory_maintenance(item_id: int):
         payload, status_code = deps["list_maintenance_records"](
-            item_id,
+            item_id
         )
 
         return jsonify(payload), status_code

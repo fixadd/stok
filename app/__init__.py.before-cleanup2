@@ -7,8 +7,8 @@ from uuid import uuid4
 import mimetypes
 import os
 import shutil
+import sqlite3
 import tempfile
-import subprocess
 
 from pathlib import Path
 from typing import Any
@@ -34,14 +34,13 @@ from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
 from .routes.maintenance import register_maintenance_routes
 from .routes.information import register_information_routes
-from .routes.profile import register_profile_routes
 from .routes.requests import register_request_routes
 from .routes.stock import register_stock_routes
 
@@ -507,6 +506,41 @@ THEME_OPTIONS = {
 }
 
 
+def ensure_user_profile_columns() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_user_employment_columns() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_request_line_category_column() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_stock_item_relation_columns() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_soft_delete_and_sku_columns() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_stock_enterprise_columns() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
+def ensure_inventory_maintenance_table() -> None:
+    # PostgreSQL: Şema SQLAlchemy modellerinden db.create_all() ile oluşturulur.
+    return
+
+
 def user_is_active(user: User | None) -> bool:
     if user is None:
         return False
@@ -530,6 +564,178 @@ def active_user_by_id(
         .filter(User.id == user_id)
         .first()
     )
+
+
+def ensure_request_line_category_column() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(
+            text("PRAGMA table_info(request_lines)")
+        ).fetchall()
+    }
+    if "category" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE request_lines ADD COLUMN category VARCHAR(32)"
+                " NOT NULL DEFAULT 'envanter'"
+            )
+        )
+        db.session.execute(
+            text(
+                "UPDATE request_lines SET category = 'envanter'"
+                " WHERE category IS NULL OR TRIM(category) = ''"
+            )
+        )
+        db.session.commit()
+
+
+def ensure_stock_item_relation_columns() -> None:
+    existing_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
+    }
+    altered = False
+
+    if "category_id" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE stock_items ADD COLUMN category_id INTEGER"
+                " REFERENCES stock_categories(id)"
+            )
+        )
+        altered = True
+
+    if "unit_id" not in existing_columns:
+        db.session.execute(
+            text(
+                "ALTER TABLE stock_items ADD COLUMN unit_id INTEGER"
+                " REFERENCES stock_units(id)"
+            )
+        )
+        altered = True
+
+    if altered:
+        db.session.commit()
+
+
+def ensure_soft_delete_and_sku_columns() -> None:
+    table_specs = {
+        "product_catalog_entries": {
+            "is_deleted": "ALTER TABLE product_catalog_entries ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
+            "sku": "ALTER TABLE product_catalog_entries ADD COLUMN sku VARCHAR(64)",
+        },
+        "stock_items": {
+            "is_deleted": "ALTER TABLE stock_items ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
+            "sku": "ALTER TABLE stock_items ADD COLUMN sku VARCHAR(64)",
+        },
+    }
+    altered = False
+    for table_name, columns in table_specs.items():
+        existing_columns = {
+            row[1]
+            for row in db.session.execute(
+                text(f"PRAGMA table_info({table_name})")
+            ).fetchall()
+        }
+        for column_name, ddl in columns.items():
+            if column_name not in existing_columns:
+                db.session.execute(text(ddl))
+                altered = True
+
+    if altered:
+        db.session.commit()
+
+
+def ensure_stock_enterprise_columns() -> None:
+    stock_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(stock_items)")).fetchall()
+    }
+    altered = False
+
+    column_specs = {
+        "serial_no": "ALTER TABLE stock_items ADD COLUMN serial_no VARCHAR(128)",
+        "warranty_end_date": "ALTER TABLE stock_items ADD COLUMN warranty_end_date DATE",
+    }
+    for column_name, ddl in column_specs.items():
+        if column_name not in stock_columns:
+            db.session.execute(text(ddl))
+            altered = True
+
+    existing_indexes = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA index_list(stock_items)")).fetchall()
+    }
+    index_specs = {
+        "ix_stock_items_reference_code": "CREATE INDEX ix_stock_items_reference_code ON stock_items(reference_code)",
+        "ix_stock_items_title": "CREATE INDEX ix_stock_items_title ON stock_items(title)",
+    }
+    for index_name, ddl in index_specs.items():
+        if index_name not in existing_indexes:
+            db.session.execute(text(ddl))
+            altered = True
+
+    assignment_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "assigned_to": "assigned_to VARCHAR(128) NOT NULL",
+        "assigned_department": "assigned_department VARCHAR(128)",
+        "quantity": "quantity INTEGER NOT NULL DEFAULT 1",
+        "delivery_note": "delivery_note VARCHAR(512)",
+        "delivered_by": "delivered_by VARCHAR(128) NOT NULL",
+        "delivered_at": "delivered_at DATETIME NOT NULL",
+        "receipt_code": "receipt_code VARCHAR(64) NOT NULL UNIQUE",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+    audit_columns = {
+        "id": "id INTEGER PRIMARY KEY",
+        "stock_item_id": "stock_item_id INTEGER NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE",
+        "old_quantity": "old_quantity INTEGER NOT NULL",
+        "new_quantity": "new_quantity INTEGER NOT NULL",
+        "performed_by": "performed_by VARCHAR(128) NOT NULL",
+        "created_at": "created_at DATETIME NOT NULL",
+    }
+
+    def ensure_table(table_name: str, columns: dict[str, str]) -> None:
+        nonlocal altered
+        existing = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+            {"name": table_name},
+        ).scalar()
+        if existing:
+            return
+        ddl = f"CREATE TABLE {table_name} (" + ", ".join(columns.values()) + ")"
+        db.session.execute(text(ddl))
+        altered = True
+
+    ensure_table("stock_assignments", assignment_columns)
+    ensure_table("stok_hareketleri", audit_columns)
+
+    if altered:
+        db.session.commit()
+
+
+def ensure_inventory_maintenance_table() -> None:
+    existing = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+        {"name": "inventory_maintenances"},
+    ).scalar()
+    if existing:
+        return
+
+    db.session.execute(
+        text(
+            "CREATE TABLE inventory_maintenances ("
+            "id INTEGER PRIMARY KEY, "
+            "item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE, "
+            "performed_at DATETIME NOT NULL, "
+            "performed_by VARCHAR(128) NOT NULL, "
+            "note TEXT, "
+            "created_at DATETIME NOT NULL"
+            ")"
+        )
+    )
+    db.session.commit()
 
 
 def split_license_name(value: str) -> tuple[str, str]:
@@ -569,6 +775,13 @@ def create_app() -> Flask:
         data_dir = project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    database_path_env = os.environ.get("DATABASE_PATH")
+    if database_path_env:
+        database_path = Path(database_path_env)
+    else:
+        database_path = data_dir / "stok.db"
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
     info_upload_dir = data_dir / "info_uploads"
     info_upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -576,7 +789,7 @@ def create_app() -> Flask:
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        raise RuntimeError("DATABASE_URL yapılandırılmamış.")
+        database_url = f"sqlite:///{database_path.as_posix()}"
 
     app.config.from_mapping(
         SECRET_KEY="stok-admin-secret",
@@ -585,6 +798,7 @@ def create_app() -> Flask:
     )
     app.config["DATA_DIR"] = data_dir
     app.config["INFO_UPLOAD_DIR"] = info_upload_dir
+    app.config["DATABASE_PATH"] = database_path
     app.permanent_session_lifetime = timedelta(hours=8)
 
     db.init_app(app)
@@ -679,6 +893,7 @@ def create_app() -> Flask:
             "load_dashboard_metrics": load_dashboard_metrics,
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
+            "load_printer_payload": load_printer_payload,
         },
     )
     register_maintenance_routes(
@@ -686,9 +901,6 @@ def create_app() -> Flask:
         {
             "load_maintenance_payload": load_maintenance_payload,
             "create_maintenance_record": create_maintenance_record,
-            "list_maintenance_records": list_maintenance_records,
-            "update_maintenance_record": update_maintenance_record,
-            "delete_maintenance_record": delete_maintenance_record,
         },
     )
     register_stock_routes(
@@ -719,39 +931,106 @@ def create_app() -> Flask:
 
     register_information_routes(
         app,
-    {
-        "load_information_payload": load_information_payload,
-        "parse_int_or_none": parse_int_or_none,
-        "InfoCategory": InfoCategory,
-        "save_information_image": save_information_image,
-        "InfoEntry": InfoEntry,
-        "save_information_file": save_information_file,
-        "InfoAttachment": InfoAttachment,
-        "db": db,
-        "record_activity": record_activity,
-        "load_information_entry": load_information_entry,
-        "remove_information_image": remove_information_image,
-        "remove_information_file": remove_information_file,
-    },
-    )
-
-    register_profile_routes(
-        app,
         {
-            "get_active_user": get_active_user,
-            "has_system_role": has_system_role,
-            "active_users_query": active_users_query,
-            "User": User,
-            "active_user_by_id": active_user_by_id,
-            "set_active_user": set_active_user,
-            "parse_int_or_none": parse_int_or_none,
-            "THEME_OPTIONS": THEME_OPTIONS,
-            "record_activity": record_activity,
-            "current_actor_name": current_actor_name,
-            "db": db,
-            "generate_password_hash": generate_password_hash,
+            "load_information_payload": load_information_payload,
         },
     )
+
+    @app.route("/profil")
+    def profile():
+        profile_user = get_active_user()
+        can_switch_users = has_system_role(profile_user, "superadmin")
+        users = (
+            active_users_query().order_by(User.first_name, User.last_name).all()
+            if can_switch_users
+            else [profile_user] if profile_user else []
+        )
+        return render_template(
+            "profile.html",
+            active_page="profile",
+            users=users,
+            profile_user=profile_user,
+            can_switch_users=can_switch_users,
+        )
+
+    @app.post("/profil/kullanici")
+    def profile_switch_user():
+        active_user = get_active_user()
+        if not has_system_role(active_user, "superadmin"):
+            flash("Bu işlemi gerçekleştirmek için yetkiniz yok.", "danger")
+            return redirect(url_for("profile"))
+
+        user_id = parse_int_or_none(request.form.get("user_id"))
+        user = active_user_by_id(user_id) if user_id is not None else None
+
+        if user is None:
+            flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
+            return redirect(url_for("profile"))
+
+        set_active_user(user)
+        flash(f"{user.first_name} {user.last_name} profili görüntüleniyor.", "success")
+        return redirect(url_for("profile"))
+
+    @app.post("/profil/tema")
+    def profile_update_theme():
+        user = get_active_user()
+        if user is None:
+            flash("Tema güncellemek için kayıtlı kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("profile"))
+
+        theme = (request.form.get("theme") or "").strip()
+        if theme not in THEME_OPTIONS:
+            flash("Lütfen geçerli bir tema seçin.", "warning")
+            return redirect(url_for("profile"))
+
+        user.preferred_theme = theme
+
+        record_activity(
+            area="profil",
+            action="Tema güncellendi",
+            description=f"{user.first_name} {user.last_name}",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id, "theme": theme},
+        )
+        db.session.commit()
+        flash("Tema tercihi güncellendi.", "success")
+        return redirect(url_for("profile"))
+
+    @app.post("/profil/sifre")
+    def profile_update_password():
+        user = get_active_user()
+        if user is None:
+            flash("Şifre güncellemek için kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("profile"))
+
+        new_password = (request.form.get("new_password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
+
+        if not new_password or not confirm_password:
+            flash("Lütfen yeni şifre alanlarını doldurun.", "warning")
+            return redirect(url_for("profile"))
+
+        if new_password != confirm_password:
+            flash("Yeni şifre ve doğrulama şifresi eşleşmiyor.", "danger")
+            return redirect(url_for("profile"))
+
+        if len(new_password) < 8:
+            flash("Şifre en az 8 karakter olmalıdır.", "warning")
+            return redirect(url_for("profile"))
+
+        user.password_hash = generate_password_hash(new_password)
+        user.must_change_password = False
+
+        record_activity(
+            area="profil",
+            action="Şifre güncellendi",
+            description=f"{user.first_name} {user.last_name}",
+            actor=current_actor_name(),
+            metadata={"user_id": user.id},
+        )
+        db.session.commit()
+        flash("Şifre başarıyla güncellendi.", "success")
+        return redirect(url_for("profile"))
 
     @app.route("/uploads/info/<path:filename>")
     def info_uploads(filename: str):
@@ -772,29 +1051,148 @@ def create_app() -> Flask:
             response.headers["Content-Type"] = content_type
         return response
 
-           
+    @app.post("/bilgiler")
+    def create_information_entry():
+        title = (request.form.get("title") or "").strip()
+        category_id = parse_int_or_none(request.form.get("category_id"))
+        content = (request.form.get("content") or "").strip()
 
-    def _postgres_connection_parts():
-        database_url = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not title or not category_id or not content:
+            flash("Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger")
+            return redirect(url_for("information_list"))
 
-        if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise RuntimeError("PostgreSQL veritabanı yapılandırması bulunamadı.")
+        category = InfoCategory.query.get(category_id)
+        if category is None:
+            flash("Seçilen kategori bulunamadı.", "danger")
+            return redirect(url_for("information_list"))
 
-        parsed = urlparse(
-            database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+        image_filename = save_information_image(request.files.get("photo"))
+
+        entry = InfoEntry(
+            title=title,
+            category=category,
+            content=content,
+            image_filename=image_filename,
+        )
+        attachments = request.files.getlist("attachments")
+        for file in attachments:
+            saved = save_information_file(file)
+            if not saved:
+                continue
+            stored_name, original_name = saved
+            entry.attachments.append(
+                InfoAttachment(
+                    filename=stored_name,
+                    original_name=original_name,
+                    content_type=file.mimetype,
+                )
+            )
+        db.session.add(entry)
+        db.session.flush()
+
+        record_activity(
+            area="bilgi",
+            action="Bilgi kaydı oluşturuldu",
+            description=title,
+            metadata={"info_id": entry.id},
         )
 
-        if not parsed.hostname or not parsed.path:
-            raise RuntimeError("PostgreSQL bağlantı bilgileri geçersiz.")
+        db.session.commit()
 
-        return {
-            "host": parsed.hostname,
-            "port": str(parsed.port or 5432),
-            "user": parsed.username or "",
-            "password": parsed.password or "",
-            "database": parsed.path.lstrip("/"),
-        }
+        flash("Bilgi kaydı başarıyla oluşturuldu.", "success")
+        return redirect(url_for("information_list"))
 
+    @app.route("/bilgiler/<int:entry_id>")
+    def information_detail(entry_id: int):
+        entry = load_information_entry(entry_id)
+        if entry is None:
+            abort(404)
+
+        categories = InfoCategory.query.order_by(InfoCategory.name).all()
+        return render_template(
+            "information/detail.html",
+            active_page="information",
+            entry=entry,
+            categories=categories,
+            mode="view",
+        )
+
+    @app.route("/bilgiler/<int:entry_id>/duzenle", methods=["GET", "POST"])
+    def information_edit(entry_id: int):
+        entry = load_information_entry(entry_id)
+        if entry is None:
+            abort(404)
+
+        if request.method == "POST":
+            title = (request.form.get("title") or "").strip()
+            category_id = parse_int_or_none(request.form.get("category_id"))
+            content = (request.form.get("content") or "").strip()
+
+            if not title or not category_id or not content:
+                flash(
+                    "Lütfen başlık, kategori ve içerik alanlarını doldurun.", "danger"
+                )
+                return redirect(url_for("information_edit", entry_id=entry.id))
+
+            category = InfoCategory.query.get(category_id)
+            if category is None:
+                flash("Seçilen kategori bulunamadı.", "danger")
+                return redirect(url_for("information_edit", entry_id=entry.id))
+
+            entry.title = title
+            entry.category = category
+            entry.content = content
+
+            new_filename = save_information_image(request.files.get("photo"))
+            if new_filename:
+                remove_information_image(entry.image_filename)
+                entry.image_filename = new_filename
+
+            remove_ids = {
+                parse_int_or_none(raw)
+                for raw in request.form.getlist("remove_attachments")
+            }
+            remove_ids.discard(None)
+            if remove_ids:
+                for attachment in list(entry.attachments):
+                    if attachment.id in remove_ids:
+                        remove_information_file(attachment.filename)
+                        db.session.delete(attachment)
+
+            new_attachments = request.files.getlist("attachments")
+            for file in new_attachments:
+                saved = save_information_file(file)
+                if not saved:
+                    continue
+                stored_name, original_name = saved
+                entry.attachments.append(
+                    InfoAttachment(
+                        filename=stored_name,
+                        original_name=original_name,
+                        content_type=file.mimetype,
+                    )
+                )
+
+            record_activity(
+                area="bilgi",
+                action="Bilgi kaydı güncellendi",
+                description=title,
+                metadata={"info_id": entry.id},
+            )
+
+            db.session.commit()
+
+            flash("Bilgi kaydı güncellendi.", "success")
+            return redirect(url_for("information_detail", entry_id=entry.id))
+
+        categories = InfoCategory.query.order_by(InfoCategory.name).all()
+        return render_template(
+            "information/detail.html",
+            active_page="information",
+            entry=entry,
+            categories=categories,
+            mode="edit",
+        )
 
     @app.get("/admin-panel/data/export")
     def export_database():
@@ -805,210 +1203,207 @@ def create_app() -> Flask:
             )
             return redirect(url_for("admin_panel", section="data-section"))
 
-        try:
-            connection = _postgres_connection_parts()
+        database_path = get_database_path()
+        if not database_path.exists():
+            flash("Veritabanı dosyası bulunamadı.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
 
-            timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".dump",
-            ) as tmp:
-                backup_path = Path(tmp.name)
+        record_activity(
+            area="sistem",
+            action="Veritabanı yedeği indirildi",
+            description="Sistem yöneticisi mevcut veritabanını indirdi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
 
-            env = os.environ.copy()
-            env["PGPASSWORD"] = connection["password"]
-
-            result = subprocess.run(
-                [
-                    "pg_dump",
-                    "-Fc",
-                    "--no-owner",
-                    "--no-privileges",
-                    "-h",
-                    connection["host"],
-                    "-p",
-                    connection["port"],
-                    "-U",
-                    connection["user"],
-                    "-d",
-                    connection["database"],
-                    "-f",
-                    str(backup_path),
-                ],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-
-            if result.returncode != 0:
-                current_app.logger.error(
-                    "PostgreSQL backup başarısız: %s",
-                    result.stderr.strip(),
-                )
-                backup_path.unlink(missing_ok=True)
-                flash("PostgreSQL veritabanı yedeği oluşturulamadı.", "danger")
-                return redirect(
-                    url_for("admin_panel", section="data-section")
-                )
-
-            record_activity(
-                area="sistem",
-                action="PostgreSQL veritabanı yedeği indirildi",
-                description="Sistem yöneticisi PostgreSQL veritabanının tam yedeğini indirdi.",
-                actor=current_actor_name(),
-            )
-            db.session.commit()
-
-            response = send_file(
-                backup_path,
-                as_attachment=True,
-                download_name=f"stok-postgresql-{timestamp}.dump",
-                mimetype="application/octet-stream",
-            )
-
-            @after_this_request
-            def remove_backup_file(response):
-                backup_path.unlink(missing_ok=True)
-                return response
-
-            return response
-
-        except Exception:
-            current_app.logger.exception(
-                "PostgreSQL veritabanı dışa aktarılamadı"
-            )
-            flash("PostgreSQL veritabanı yedeği oluşturulamadı.", "danger")
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return send_file(
+            database_path,
+            as_attachment=True,
+            download_name=f"stok-veritabani-{timestamp}.db",
+            mimetype="application/x-sqlite3",
+        )
 
     @app.post("/admin-panel/data/import")
     def import_database_backup():
         user = get_active_user()
         if not has_system_role(user, "superadmin"):
-            flash(
-                "Veri içe aktarma işlemi için süper admin yetkisi gerekir.",
-                "danger",
-            )
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
+            flash("Veri içe aktarma işlemi için süper admin yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
 
         file: FileStorage | None = request.files.get("data_file")
-
         if file is None or not file.filename:
-            flash("Lütfen bir PostgreSQL yedeği seçin.", "warning")
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
+            flash("Lütfen bir veritabanı yedeği seçin.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
 
         filename = secure_filename(file.filename)
         extension = Path(filename).suffix.lower()
-
-        if extension != ".dump":
-            flash(
-                "Yalnızca PostgreSQL .dump yedekleri içe aktarılabilir.",
-                "warning",
-            )
-            return redirect(
-                url_for("admin_panel", section="data-section")
-            )
-
-        temp_path: Path | None = None
+        if extension not in {".db", ".sqlite", ".sqlite3"}:
+            flash("Yalnızca SQLite veritabanı dosyaları içe aktarılabilir.", "warning")
+            return redirect(url_for("admin_panel", section="data-section"))
 
         try:
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".dump",
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
                 file.save(tmp.name)
                 temp_path = Path(tmp.name)
+        except Exception:
+            flash("Yüklenen dosya kaydedilirken bir hata oluştu.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
 
-            connection = _postgres_connection_parts()
+        try:
+            connection = sqlite3.connect(temp_path)
+            connection.execute("PRAGMA schema_version;")
+            connection.close()
+        except sqlite3.Error:
+            temp_path.unlink(missing_ok=True)
+            flash("Yüklenen dosya geçerli bir SQLite veritabanı değil.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
 
-            env = os.environ.copy()
-            env["PGPASSWORD"] = connection["password"]
+        database_path = get_database_path()
+        backup_path = database_path.with_suffix(".bak")
+
+        try:
+            if database_path.exists():
+                shutil.copy2(database_path, backup_path)
 
             db.session.remove()
             db.engine.dispose()
 
-            result = subprocess.run(
-                [
-                    "pg_restore",
-                    "--clean",
-                    "--if-exists",
-                    "--no-owner",
-                    "--no-privileges",
-                    "-h",
-                    connection["host"],
-                    "-p",
-                    connection["port"],
-                    "-U",
-                    connection["user"],
-                    "-d",
-                    connection["database"],
-                    str(temp_path),
-                ],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
+            shutil.copy2(temp_path, database_path)
 
-            if result.returncode != 0:
-                current_app.logger.error(
-                    "PostgreSQL restore başarısız: %s",
-                    result.stderr.strip(),
-                )
-                flash(
-                    "PostgreSQL veritabanı yedeği geri yüklenemedi.",
-                    "danger",
-                )
-                return redirect(
-                    url_for("admin_panel", section="data-section")
-                )
-
-            db.session.remove()
-
-            record_activity(
-                area="sistem",
-                action="PostgreSQL veritabanı yedeği geri yüklendi",
-                description="Sistem yöneticisi PostgreSQL veritabanını bir yedekten geri yükledi.",
-                actor=current_actor_name(),
-            )
-            db.session.commit()
-
-            flash(
-                "PostgreSQL veritabanı yedeği başarıyla geri yüklendi.",
-                "success",
-            )
-
-        except subprocess.TimeoutExpired:
-            current_app.logger.exception(
-                "PostgreSQL restore zaman aşımına uğradı"
-            )
-            flash(
-                "PostgreSQL geri yükleme işlemi zaman aşımına uğradı.",
-                "danger",
-            )
-
-        except Exception:
-            current_app.logger.exception(
-                "PostgreSQL veritabanı içe aktarılamadı"
-            )
-            flash(
-                "PostgreSQL veritabanı yedeği geri yüklenemedi.",
-                "danger",
-            )
-
+            db.create_all()
+            ensure_user_profile_columns()
+            ensure_user_employment_columns()
+            ensure_request_line_category_column()
+            ensure_stock_item_relation_columns()
+            ensure_soft_delete_and_sku_columns()
+            ensure_stock_enterprise_columns()
+            ensure_inventory_maintenance_table()
+        except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
+            current_app.logger.exception("Veritabanı içe aktarılamadı")
+            if backup_path.exists():
+                shutil.copy2(backup_path, database_path)
+            flash("Veritabanı içe aktarılırken bir hata oluştu.", "danger")
+            temp_path.unlink(missing_ok=True)
+            return redirect(url_for("admin_panel", section="data-section"))
         finally:
-            if temp_path:
-                temp_path.unlink(missing_ok=True)
+            temp_path.unlink(missing_ok=True)
 
-        return redirect(
-            url_for("admin_panel", section="data-section")
+        record_activity(
+            area="sistem",
+            action="Veritabanı yedeği içe aktarıldı",
+            description="Sistem verileri yeni bir yedekten geri yüklendi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
+
+        flash("Veritabanı yedeği başarıyla içe aktarıldı.", "success")
+        return redirect(url_for("admin_panel", section="data-section"))
+
+    @app.get("/admin-panel/data/stock/export-excel")
+    def export_stock_excel():
+        user = get_active_user()
+        if not has_system_role(user, "admin"):
+            flash("Excel dışa aktarma işlemi için yönetici yetkisi gerekir.", "danger")
+            return redirect(url_for("admin_panel", section="data-section"))
+
+        items = (
+            StockItem.query.options(
+                joinedload(StockItem.inventory_item).joinedload(
+                    InventoryItem.hardware_type
+                ),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.brand),
+                joinedload(StockItem.inventory_item).joinedload(InventoryItem.model),
+                joinedload(StockItem.license),
+            )
+            .order_by(StockItem.created_at.desc())
+            .all()
+        )
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Stok"
+
+        headers = [
+            "Başlık",
+            "Kategori",
+            "Donanım Tipi",
+            "Marka",
+            "Model",
+            "Miktar",
+            "Birim",
+            "Durum",
+            "Kaynak",
+            "Referans",
+            "Not",
+            "Seri No",
+            "Garanti Bitiş",
+            "SKU",
+            "QR URL",
+            "Fabrika",
+            "Departman",
+            "Sorumlu",
+            "Oluşturulma",
+            "Güncellenme",
+        ]
+        sheet.append(headers)
+
+        for item in items:
+            serialized = serialize_stock_item(item)
+            metadata = serialized.get("metadata") or {}
+            sheet.append(
+                [
+                    serialized.get("title"),
+                    serialized.get("category_label"),
+                    serialized.get("hardware_type"),
+                    serialized.get("brand"),
+                    serialized.get("model"),
+                    serialized.get("quantity"),
+                    serialized.get("unit"),
+                    serialized.get("status_label"),
+                    serialized.get("source_label"),
+                    serialized.get("reference_code"),
+                    serialized.get("note"),
+                    serialized.get("serial_no"),
+                    serialized.get("warranty_end_date"),
+                    serialized.get("sku"),
+                    serialized.get("qr_code_url"),
+                    metadata.get("factory"),
+                    metadata.get("department"),
+                    metadata.get("responsible"),
+                    serialized.get("created_display"),
+                    serialized.get("updated_display"),
+                ]
+            )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            workbook.save(tmp.name)
+            temp_path = Path(tmp.name)
+
+        @after_this_request
+        def cleanup_excel(response):
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                current_app.logger.warning(
+                    "Geçici Excel dosyası silinemedi", exc_info=True
+                )
+            return response
+
+        record_activity(
+            area="sistem",
+            action="Stok Excel'e aktarıldı",
+            description="Sistem yöneticisi stok kayıtlarını Excel olarak indirdi.",
+            actor=current_actor_name(),
+        )
+        db.session.commit()
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=f"stok-verileri-{timestamp}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     @app.post("/admin-panel/data/stock/import-excel")
@@ -1222,6 +1617,13 @@ def create_app() -> Flask:
             db.session.remove()
             db.drop_all()
             db.create_all()
+            ensure_user_profile_columns()
+            ensure_user_employment_columns()
+            ensure_request_line_category_column()
+            ensure_stock_item_relation_columns()
+            ensure_soft_delete_and_sku_columns()
+            ensure_stock_enterprise_columns()
+            ensure_inventory_maintenance_table()
             if info_upload_dir.exists():
                 shutil.rmtree(info_upload_dir, ignore_errors=True)
             info_upload_dir.mkdir(parents=True, exist_ok=True)
@@ -2305,16 +2707,16 @@ def create_app() -> Flask:
         associated_item = license.item
         stock_item = create_stock_item_from_license(license, note=note, actor=actor)
 
-        license.status = "pasif"
-        license.item = None
+            license.status = "pasif"
+            license.item = None
 
-        if associated_item:
-            add_inventory_event(
-                associated_item,
-                "Lisans stoklandı",
-                note or f"{license.name} lisansı stok listesine taşındı.",
-                performed_by=actor,
-            )
+            if associated_item:
+                add_inventory_event(
+                    associated_item,
+                    "Lisans stoklandı",
+                    note or f"{license.name} lisansı stok listesine taşındı.",
+                    performed_by=actor,
+                )
 
         fresh_license = (
             InventoryLicense.query.options(
@@ -2384,49 +2786,49 @@ def create_app() -> Flask:
 
         active_user = get_active_user()
         category_ref = resolve_stock_category(category)
-        unit_ref = resolve_stock_unit(unit)
-        stock_item = StockItem(
-            source_type="manual",
-            title=title,
-            category=category,
-            category_id=category_ref.id if category_ref else None,
-            quantity=quantity,
-            status="stokta",
-            reference_code=reference_code,
-            unit=unit,
-            unit_id=unit_ref.id if unit_ref else None,
-            note=note or None,
-            sku=generate_unique_sku("STK"),
-            serial_no=serial_no,
-            warranty_end_date=warranty_end_date,
-        )
-        stock_item.metadata_payload = {
-            k: v for k, v in metadata_payload.items() if v
-        }
-        db.session.add(stock_item)
-        db.session.flush()
+            unit_ref = resolve_stock_unit(unit)
+            stock_item = StockItem(
+                source_type="manual",
+                title=title,
+                category=category,
+                category_id=category_ref.id if category_ref else None,
+                quantity=quantity,
+                status="stokta",
+                reference_code=reference_code,
+                unit=unit,
+                unit_id=unit_ref.id if unit_ref else None,
+                note=note or None,
+                sku=generate_unique_sku("STK"),
+                serial_no=serial_no,
+                warranty_end_date=warranty_end_date,
+            )
+            stock_item.metadata_payload = {
+                k: v for k, v in metadata_payload.items() if v
+            }
+            db.session.add(stock_item)
+            db.session.flush()
 
-        log_entry = record_stock_log(
-            stock_item,
-            "Manuel stok girişi",
-            action_type="in",
-            performed_by=actor,
-            quantity_change=stock_item.quantity,
-            note=note,
-        )
-        record_stock_movement(
-            stock_item,
-            operation_type="giris",
-            old_quantity=0,
-            new_quantity=stock_item.quantity,
-            user=active_user,
-        )
-        record_stock_audit(
-            stock_item,
-            old_quantity=0,
-            new_quantity=stock_item.quantity,
-            performed_by=actor,
-        )
+            log_entry = record_stock_log(
+                stock_item,
+                "Manuel stok girişi",
+                action_type="in",
+                performed_by=actor,
+                quantity_change=stock_item.quantity,
+                note=note,
+            )
+            record_stock_movement(
+                stock_item,
+                operation_type="giris",
+                old_quantity=0,
+                new_quantity=stock_item.quantity,
+                user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=0,
+                new_quantity=stock_item.quantity,
+                performed_by=actor,
+            )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {
@@ -2508,32 +2910,32 @@ def create_app() -> Flask:
         active_user = get_active_user()
         remaining_item_id: int | None = None
         stock_item.quantity = quantity
-        stock_item.metadata_payload = combined_metadata or None
-        stock_item.status = "devredildi"
-        if note:
-            stock_item.note = note
+            stock_item.metadata_payload = combined_metadata or None
+            stock_item.status = "devredildi"
+            if note:
+                stock_item.note = note
 
-        remaining_item: StockItem | None = None
-        if remaining_quantity > 0:
-            remaining_item = StockItem(
-                source_type=stock_item.source_type,
-                source_id=stock_item.source_id,
-                inventory_item_id=stock_item.inventory_item_id,
-                license_id=stock_item.license_id,
-                reference_code=stock_item.reference_code,
-                title=stock_item.title,
-                category=stock_item.category,
-                category_id=stock_item.category_id,
-                quantity=remaining_quantity,
-                unit=stock_item.unit,
-                unit_id=stock_item.unit_id,
-                status="stokta",
-                note=existing_note,
-            )
-            remaining_item.metadata_payload = metadata_defaults or None
-            db.session.add(remaining_item)
-            db.session.flush()
-            remaining_item_id = remaining_item.id
+            remaining_item: StockItem | None = None
+            if remaining_quantity > 0:
+                remaining_item = StockItem(
+                    source_type=stock_item.source_type,
+                    source_id=stock_item.source_id,
+                    inventory_item_id=stock_item.inventory_item_id,
+                    license_id=stock_item.license_id,
+                    reference_code=stock_item.reference_code,
+                    title=stock_item.title,
+                    category=stock_item.category,
+                    category_id=stock_item.category_id,
+                    quantity=remaining_quantity,
+                    unit=stock_item.unit,
+                    unit_id=stock_item.unit_id,
+                    status="stokta",
+                    note=existing_note,
+                )
+                remaining_item.metadata_payload = metadata_defaults or None
+                db.session.add(remaining_item)
+                db.session.flush()
+                remaining_item_id = remaining_item.id
 
             if stock_item.inventory_item:
                 inventory = stock_item.inventory_item
@@ -2699,40 +3101,40 @@ def create_app() -> Flask:
         previous_quantity = stock_item.quantity
         active_user = get_active_user()
         stock_item.status = "hurda"
-        if note:
-            stock_item.note = note
+            if note:
+                stock_item.note = note
 
-        if stock_item.inventory_item:
-            inventory = stock_item.inventory_item
-            inventory.status = "hurda"
-            add_inventory_event(
-                inventory,
+            if stock_item.inventory_item:
+                inventory = stock_item.inventory_item
+                inventory.status = "hurda"
+                add_inventory_event(
+                    inventory,
+                    "Stok ürünü hurdaya ayrıldı",
+                    note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
+                    performed_by=actor,
+                )
+
+            log_entry = record_stock_log(
+                stock_item,
                 "Stok ürünü hurdaya ayrıldı",
-                note or f"{stock_item.title} stok kaydı hurdaya ayrıldı.",
+                action_type="out",
+                performed_by=actor,
+                quantity_change=-max(1, previous_quantity),
+                note=note,
+            )
+            record_stock_movement(
+                stock_item,
+                operation_type="satis",
+                old_quantity=previous_quantity,
+                new_quantity=0,
+                user=active_user,
+            )
+            record_stock_audit(
+                stock_item,
+                old_quantity=previous_quantity,
+                new_quantity=0,
                 performed_by=actor,
             )
-
-        log_entry = record_stock_log(
-            stock_item,
-            "Stok ürünü hurdaya ayrıldı",
-            action_type="out",
-            performed_by=actor,
-            quantity_change=-max(1, previous_quantity),
-            note=note,
-        )
-        record_stock_movement(
-            stock_item,
-            operation_type="satis",
-            old_quantity=previous_quantity,
-            new_quantity=0,
-            user=active_user,
-        )
-        record_stock_audit(
-            stock_item,
-            old_quantity=previous_quantity,
-            new_quantity=0,
-            performed_by=actor,
-        )
 
         fresh_item = get_stock_item_with_relations(stock_item.id)
         response_payload: dict[str, Any] = {
@@ -2765,7 +3167,6 @@ def create_app() -> Flask:
             cleaned_note or f"{item.inventory_no} kaydı stok durumuna döndürüldü.",
             performed_by=actor,
         )
-
 
         db.session.commit()
 
@@ -3284,6 +3685,18 @@ def create_app() -> Flask:
     return app
 
 
+def get_database_path() -> Path:
+    configured = current_app.config.get("DATABASE_PATH")
+    if configured:
+        return Path(configured)
+
+    database_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if database_uri.startswith("sqlite:///"):
+        return Path(database_uri.replace("sqlite:///", "", 1))
+
+    raise RuntimeError("Veritabanı yolu yapılandırmada bulunamadı.")
+
+
 def load_inventory_payload() -> dict:
     items = (
         InventoryItem.query.options(
@@ -3401,215 +3814,6 @@ def create_maintenance_record(item_id: int, data: Any) -> tuple[dict[str, Any], 
     return {"maintenance": serialize_maintenance_record(maintenance)}, 201
 
 
-
-def list_maintenance_records(
-    item_id: int,
-) -> tuple[dict[str, Any], int]:
-    item = get_inventory_item_with_relations(item_id)
-
-    if item is None:
-        return json_error("Envanter kaydı bulunamadı."), 404
-
-    if not is_computer_hardware_type(
-        item.hardware_type.name if item.hardware_type else None
-    ):
-        return (
-            json_error(
-                "Bakım geçmişi yalnızca bilgisayar envanterleri için görüntülenebilir."
-            ),
-            400,
-        )
-
-    records = (
-        InventoryMaintenance.query
-        .filter_by(item_id=item.id)
-        .order_by(
-            InventoryMaintenance.performed_at.desc(),
-            InventoryMaintenance.id.desc(),
-        )
-        .all()
-    )
-
-    return {
-        "item": serialize_inventory_item(item),
-        "maintenances": [
-            serialize_maintenance_record(record)
-            for record in records
-        ],
-    }, 200
-
-
-
-
-
-
-
-def get_maintenance_records(item_id: int) -> tuple[dict[str, Any], int]:
-    item = get_inventory_item_with_relations(item_id)
-
-    if item is None:
-        return json_error("Envanter kaydı bulunamadı."), 404
-
-    if not is_computer_hardware_type(
-        item.hardware_type.name if item.hardware_type else None
-    ):
-        return (
-            json_error(
-                "Bakım kayıtları yalnızca bilgisayar envanterleri için görüntülenebilir."
-            ),
-            400,
-        )
-
-    records = (
-        InventoryMaintenance.query
-        .filter_by(item_id=item_id)
-        .order_by(InventoryMaintenance.performed_at.desc())
-        .all()
-    )
-
-    return {
-        "item": {
-            "id": item.id,
-            "inventory_no": item.inventory_no,
-            "computer_name": item.computer_name or "",
-        },
-        "maintenances": [
-            serialize_maintenance_record(record)
-            for record in records
-        ],
-        "count": len(records),
-    }, 200
-
-
-
-
-
-def update_maintenance_record(
-    item_id: int,
-    maintenance_id: int,
-    data: Any,
-) -> tuple[dict[str, Any], int]:
-    item = get_inventory_item_with_relations(item_id)
-
-    if item is None:
-        return json_error("Envanter kaydı bulunamadı."), 404
-
-    if not is_computer_hardware_type(
-        item.hardware_type.name if item.hardware_type else None
-    ):
-        return json_error(
-            "Bakım kaydı yalnızca bilgisayar envanterleri için güncellenebilir."
-        ), 400
-
-    maintenance = InventoryMaintenance.query.filter_by(
-        id=maintenance_id,
-        item_id=item_id,
-    ).first()
-
-    if maintenance is None:
-        return json_error("Bakım kaydı bulunamadı."), 404
-
-    if not isinstance(data, dict):
-        return json_error("Geçersiz JSON gövdesi."), 400
-
-    performed_by = (
-        sanitize_input_text(data.get("performed_by"), max_length=128)
-        or current_actor_name()
-    )
-
-    note = sanitize_input_text(
-        data.get("note"),
-        max_length=2000,
-    )
-
-    performed_at_value = (data.get("performed_at") or "").strip()
-
-    if not performed_at_value:
-        return json_error("Bakım tarihi zorunludur."), 400
-
-    try:
-        performed_at = datetime.fromisoformat(performed_at_value)
-    except ValueError:
-        return json_error("Bakım tarihi geçerli bir tarih olmalıdır."), 400
-
-    old_date = maintenance.performed_at
-    old_performed_by = maintenance.performed_by
-
-    maintenance.performed_at = performed_at
-    maintenance.performed_by = performed_by
-    maintenance.note = note or None
-
-    event_note_parts = [
-        f"Bakım kaydı güncellendi.",
-        f"Eski tarih: {old_date.strftime('%d.%m.%Y %H:%M')}",
-        f"Yeni tarih: {performed_at.strftime('%d.%m.%Y %H:%M')}",
-    ]
-
-    if old_performed_by != performed_by:
-        event_note_parts.append(
-            f"Bakımı yapan: {old_performed_by} → {performed_by}"
-        )
-
-    if note:
-        event_note_parts.append(note)
-
-    add_inventory_event(
-        item,
-        "Bakım Kaydı Güncellendi",
-        " • ".join(event_note_parts),
-        performed_by=current_actor_name(),
-    )
-
-    db.session.commit()
-
-    return {
-        "success": True,
-        "maintenance": serialize_maintenance_record(maintenance),
-    }, 200
-
-
-def delete_maintenance_record(
-    item_id: int,
-    maintenance_id: int,
-) -> tuple[dict[str, Any], int]:
-    item = get_inventory_item_with_relations(item_id)
-
-    if item is None:
-        return json_error("Envanter kaydı bulunamadı."), 404
-
-    maintenance = InventoryMaintenance.query.filter_by(
-        id=maintenance_id,
-        item_id=item_id,
-    ).first()
-
-    if maintenance is None:
-        return json_error("Bakım kaydı bulunamadı."), 404
-
-    performed_at = maintenance.performed_at
-    performed_by = maintenance.performed_by
-    note = maintenance.note or ""
-
-    add_inventory_event(
-        item,
-        "Bakım Kaydı Silindi",
-        (
-            f"Silinen bakım tarihi: "
-            f"{performed_at.strftime('%d.%m.%Y %H:%M')}"
-            f" • Bakımı yapan: {performed_by}"
-            + (f" • {note}" if note else "")
-        ),
-        performed_by=current_actor_name(),
-    )
-
-    db.session.delete(maintenance)
-    db.session.commit()
-
-    return {
-        "success": True,
-        "message": "Bakım kaydı silindi.",
-        "maintenance_id": maintenance_id,
-    }, 200
-
 def load_maintenance_payload() -> dict[str, Any]:
     items = (
         InventoryItem.query.options(
@@ -3634,20 +3838,11 @@ def load_maintenance_payload() -> dict[str, Any]:
             continue
 
         maintenances = [
-            serialize_maintenance_record(record)
-            for record in item.maintenances
+            serialize_maintenance_record(record) for record in item.maintenances
         ]
-
-        last_maintenance = (
-            item.maintenances[0]
-            if item.maintenances
-            else None
-        )
-
+        last_maintenance = item.maintenances[0] if item.maintenances else None
         maintenance_status_payload = calculate_maintenance_status(
-            last_maintenance.performed_at
-            if last_maintenance
-            else None
+            last_maintenance.performed_at if last_maintenance else None
         )
         maintenance_status = maintenance_status_payload["label"]
         maintenance_status_key = maintenance_status_payload["status"]
@@ -3677,7 +3872,6 @@ def load_maintenance_payload() -> dict[str, Any]:
             brand_model,
             item.hardware_type.name if item.hardware_type else "",
             maintenance_status,
-            maintenance_status_payload["next_maintenance_display"],
         ]
         computers.append(
             {
@@ -3691,9 +3885,6 @@ def load_maintenance_payload() -> dict[str, Any]:
                 "last_maintenance_at": maintenance_status_payload[
                     "last_maintenance_display"
                 ],
-                "next_maintenance_at": maintenance_status_payload[
-                    "next_maintenance_display"
-                ],
                 "days_since_maintenance": maintenance_status_payload[
                     "days_since_maintenance"
                 ],
@@ -3701,10 +3892,7 @@ def load_maintenance_payload() -> dict[str, Any]:
                 "maintenance_status": maintenance_status,
                 "maintenance_status_key": maintenance_status_key,
                 "maintenance_status_class": maintenance_status_class,
-                "maintenance_row_class": maintenance_row_class(
-                    maintenance_status_key
-                ),
-                "maintenance_interval_days": MAINTENANCE_INTERVAL_DAYS,
+                "maintenance_row_class": maintenance_row_class(maintenance_status_key),
                 "maintenances": maintenances,
                 "search_index": " ".join(
                     token for token in search_tokens if token
@@ -3715,39 +3903,105 @@ def load_maintenance_payload() -> dict[str, Any]:
     return {
         "maintenance_items": computers,
         "maintenance_total_count": len(computers),
-
         "maintenance_due_count": sum(
             1
             for item in computers
-            if item["maintenance_status_key"]
-            in {"overdue", "none", "warning"}
+            if item["maintenance_status_key"] in {"overdue", "none", "warning"}
         ),
+    }
 
-        "maintenance_overdue_count": sum(
-            1
-            for item in computers
-            if item["maintenance_status_key"] == "overdue"
-        ),
 
-        "maintenance_warning_count": sum(
-            1
-            for item in computers
-            if item["maintenance_status_key"] == "warning"
-        ),
+def load_printer_payload() -> dict[str, Any]:
+    printer_type = HardwareType.query.filter(
+        func.lower(HardwareType.name) == "yazıcı"
+    ).first()
 
-        "maintenance_none_count": sum(
-            1
-            for item in computers
-            if item["maintenance_status_key"] == "none"
-        ),
+    query = InventoryItem.query.options(
+        joinedload(InventoryItem.factory),
+        joinedload(InventoryItem.hardware_type),
+        joinedload(InventoryItem.brand),
+        joinedload(InventoryItem.model),
+        joinedload(InventoryItem.responsible_user),
+        joinedload(InventoryItem.events),
+        joinedload(InventoryItem.licenses),
+    ).order_by(InventoryItem.inventory_no)
 
-        "maintenance_current_count": sum(
-            1
-            for item in computers
-            if item["maintenance_status_key"] == "current"
-        ),
+    if printer_type is None:
+        items: list[InventoryItem] = []
+    else:
+        items = query.filter(InventoryItem.hardware_type_id == printer_type.id).all()
 
-        "maintenance_interval_days": MAINTENANCE_INTERVAL_DAYS,
+    printers = [serialize_inventory_item(item) for item in items]
+    hidden_statuses = {"stokta", "hurda"}
+    printers = [
+        printer for printer in printers if printer.get("status") not in hidden_statuses
+    ]
+    faulty_count = sum(1 for printer in printers if printer["status"] == "arizali")
+
+    status_choices = [
+        {"value": "aktif", "label": "Aktif"},
+        {"value": "beklemede", "label": "Beklemede"},
+        {"value": "arizali", "label": "Arızalı"},
+        {"value": "hurda", "label": "Hurdaya Ayrıldı"},
+    ]
+    status_labels = {choice["value"]: choice["label"] for choice in status_choices}
+
+    status_summary = [
+        {
+            "value": value,
+            "label": status_labels[value],
+            "count": sum(1 for printer in printers if printer["status"] == value),
+        }
+        for value in status_labels
+    ]
+
+    factories = [factory.to_dict() for factory in Factory.query.order_by(Factory.name)]
+    usage_areas = [ua.to_dict() for ua in UsageArea.query.order_by(UsageArea.name)]
+    brand_models = [
+        brand.to_dict(include_models=True)
+        for brand in Brand.query.options(joinedload(Brand.models)).order_by(Brand.name)
+    ]
+    users = [
+        {
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "department": user.department,
+        }
+        for user in active_users_query().order_by(User.first_name, User.last_name)
+    ]
+
+    inventory_catalog = [
+        {
+            "id": item.id,
+            "inventory_no": item.inventory_no,
+            "label": " · ".join(
+                filter(
+                    None,
+                    [
+                        item.inventory_no,
+                        item.computer_name,
+                        item.hardware_type.name if item.hardware_type else "",
+                    ],
+                )
+            ),
+        }
+        for item in InventoryItem.query.options(
+            joinedload(InventoryItem.hardware_type)
+        ).order_by(InventoryItem.inventory_no)
+        if (item.status or "").lower() != "stokta"
+    ]
+
+    return {
+        "printers": printers,
+        "printer_faulty_count": faulty_count,
+        "printer_status_summary": status_summary,
+        "printer_status_labels": status_labels,
+        "factories": factories,
+        "usage_areas": usage_areas,
+        "brand_models": brand_models,
+        "users": users,
+        "inventory_catalog": inventory_catalog,
+        "status_choices": status_choices,
     }
 
 
@@ -5137,53 +5391,45 @@ def maintenance_candidate_items_query():
     )
 
 
-MAINTENANCE_INTERVAL_DAYS = 90
-MAINTENANCE_WARNING_DAYS = 15
-
-
 def calculate_maintenance_status(
-    performed_at: datetime | None,
+    last_maintenance_at: date | datetime | None, today: date | None = None
 ) -> dict[str, Any]:
-    if not performed_at:
+    check_date = today or datetime.utcnow().date()
+    if last_maintenance_at is None:
         return {
-            "status": "none",
-            "label": "Bakım Yok",
-            "last_maintenance_display": "Henüz bakım yapılmadı",
+            "last_maintenance_display": "-",
             "days_since_maintenance": None,
             "days_until_due": None,
+            "status": "none",
+            "label": "Bakım kaydı yok",
         }
 
-    today = datetime.utcnow()
-    elapsed = today - performed_at
-    days_since = max(0, elapsed.days)
+    maintenance_date = (
+        last_maintenance_at.date()
+        if isinstance(last_maintenance_at, datetime)
+        else last_maintenance_at
+    )
+    days_since_maintenance = (check_date - maintenance_date).days
+    days_until_due = 365 - days_since_maintenance
 
-    days_until_due = MAINTENANCE_INTERVAL_DAYS - days_since
-
-    if days_since >= MAINTENANCE_INTERVAL_DAYS:
-        return {
-            "status": "overdue",
-            "label": "Gecikmiş",
-            "last_maintenance_display": format_datetime_display(performed_at),
-            "days_since_maintenance": days_since,
-            "days_until_due": days_until_due,
-        }
-
-    if days_until_due <= MAINTENANCE_WARNING_DAYS:
-        return {
-            "status": "warning",
-            "label": "Yaklaşıyor",
-            "last_maintenance_display": format_datetime_display(performed_at),
-            "days_since_maintenance": days_since,
-            "days_until_due": days_until_due,
-        }
+    if days_since_maintenance >= 365:
+        status = "overdue"
+        label = "Bakım gecikti"
+    elif 335 <= days_since_maintenance < 365:
+        status = "warning"
+        label = "1 ay içinde bakım"
+    else:
+        status = "ok"
+        label = "Güncel"
 
     return {
-        "status": "ok",
-        "label": "Güncel",
-        "last_maintenance_display": format_datetime_display(performed_at),
-        "days_since_maintenance": days_since,
+        "last_maintenance_display": maintenance_date.strftime("%d.%m.%Y"),
+        "days_since_maintenance": days_since_maintenance,
         "days_until_due": days_until_due,
+        "status": status,
+        "label": label,
     }
+
 
 def maintenance_status_badge_class(status: str) -> str:
     if status in {"overdue", "none"}:
