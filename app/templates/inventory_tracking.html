@@ -220,11 +220,19 @@
                   <span class="detail-value" data-detail-field="ifs_no">—</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Bağlı Makina No</span>
+                  <span class="detail-label">Kayıt Tarihi</span>
+                  <span class="detail-value" data-detail-field="created_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Son Güncelleme</span>
+                  <span class="detail-value" data-detail-field="updated_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Bağlı Makine No</span>
                   <span class="detail-value" data-detail-field="related_machine_no">—</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Makina No</span>
+                  <span class="detail-label">Makine No</span>
                   <span class="detail-value" data-detail-field="machine_no">—</span>
                 </div>
                 <div class="detail-item detail-item-note">
@@ -859,6 +867,288 @@
   }
 
   const inventoryItems = {{ inventory_items | tojson }};
+
+const inventoryFilterState = {
+  search: "",
+  status: "",
+  factory: "",
+  hardwareType: "",
+};
+
+const inventoryFilterEls = {
+  search: document.getElementById("inventorySearch"),
+  status: document.getElementById("inventoryStatusFilter"),
+  factory: document.getElementById("inventoryFactoryFilter"),
+  type: document.getElementById("inventoryTypeFilter"),
+  clear: document.getElementById("inventoryClearFilters"),
+  summary: document.getElementById("inventoryFilterSummary"),
+  count: document.getElementById("inventoryResultCount"),
+};
+
+function inventoryNormalize(value) {
+  return String(value ?? "")
+    .toLocaleLowerCase("tr-TR")
+    .trim();
+}
+
+function inventoryItemSearchText(item) {
+  return [
+    item.inventory_no,
+    item.serial_no,
+    item.serial_number,
+    item.brand,
+    item.model,
+    item.hardware_type,
+    item.hardware_type_name,
+    item.responsible_name,
+    item.user_name,
+    item.factory,
+    item.factory_name,
+    item.computer_name,
+    item.status,
+  ]
+    .filter(Boolean)
+    .map(inventoryNormalize)
+    .join(" ");
+}
+
+function inventoryPopulateFilter(select, values, emptyLabel) {
+  if (!select) return;
+
+  const current = select.value;
+
+  const uniqueValues = [...new Set(
+    values
+      .filter(Boolean)
+      .map(value => String(value).trim())
+      .filter(Boolean)
+  )].sort((a, b) =>
+    a.localeCompare(b, "tr-TR", { sensitivity: "base" })
+  );
+
+  select.innerHTML = "";
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = emptyLabel;
+  select.appendChild(emptyOption);
+
+  uniqueValues.forEach(value => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  });
+
+  if (uniqueValues.includes(current)) {
+    select.value = current;
+  }
+}
+
+function inventoryGetStatus(item) {
+  const status = inventoryNormalize(item.status);
+
+  if (
+    status.includes("zimmet") ||
+    item.assigned_user_id ||
+    item.responsible_user_id ||
+    item.responsible_name
+  ) {
+    return "zimmetli";
+  }
+
+  if (status.includes("ariza") || status.includes("arız")) {
+    return "arizali";
+  }
+
+  if (status.includes("hurda")) {
+    return "hurda";
+  }
+
+  if (status.includes("stok")) {
+    return "stok";
+  }
+
+  return "aktif";
+}
+
+function inventoryMatches(item) {
+  const search = inventoryNormalize(inventoryFilterState.search);
+
+  if (search) {
+    const haystack = inventoryItemSearchText(item);
+
+    if (!haystack.includes(search)) {
+      return false;
+    }
+  }
+
+  if (inventoryFilterState.status) {
+    if (inventoryGetStatus(item) !== inventoryFilterState.status) {
+      return false;
+    }
+  }
+
+  if (inventoryFilterState.factory) {
+    const factory = String(
+      item.factory_name ??
+      item.factory ??
+      item.factory_name_text ??
+      ""
+    ).trim();
+
+    if (factory !== inventoryFilterState.factory) {
+      return false;
+    }
+  }
+
+  if (inventoryFilterState.hardwareType) {
+    const hardwareType = String(
+      item.hardware_type_name ??
+      item.hardware_type ??
+      item.hardware ??
+      ""
+    ).trim();
+
+    if (hardwareType !== inventoryFilterState.hardwareType) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function inventoryApplyFilters() {
+  const rows = document.querySelectorAll(
+    "[data-inventory-item-id], .inventory-item-row"
+  );
+
+  let visibleCount = 0;
+
+  inventoryItems.forEach(item => {
+    const visible = inventoryMatches(item);
+
+    if (visible) {
+      visibleCount++;
+    }
+
+    const row = document.querySelector(
+      `[data-inventory-item-id="${item.id}"]`
+    );
+
+    if (row) {
+      row.classList.toggle("d-none", !visible);
+    }
+  });
+
+  if (inventoryFilterEls.count) {
+    inventoryFilterEls.count.textContent =
+      `${visibleCount} / ${inventoryItems.length} kayıt`;
+  }
+
+  if (inventoryFilterEls.summary) {
+    const active = [];
+
+    if (inventoryFilterState.search) {
+      active.push(`arama: "${inventoryFilterState.search}"`);
+    }
+
+    if (inventoryFilterState.status) {
+      active.push(`durum: ${inventoryFilterState.status}`);
+    }
+
+    if (inventoryFilterState.factory) {
+      active.push(`fabrika: ${inventoryFilterState.factory}`);
+    }
+
+    if (inventoryFilterState.hardwareType) {
+      active.push(`donanım: ${inventoryFilterState.hardwareType}`);
+    }
+
+    inventoryFilterEls.summary.textContent =
+      active.length
+        ? active.join(" • ")
+        : "Tüm envanterler gösteriliyor";
+  }
+
+  return visibleCount;
+}
+
+function inventoryInitializeFilters() {
+  if (!Array.isArray(inventoryItems)) {
+    return;
+  }
+
+  inventoryPopulateFilter(
+    inventoryFilterEls.factory,
+    inventoryItems.map(item =>
+      item.factory_name ??
+      item.factory
+    ),
+    "Tüm Fabrikalar"
+  );
+
+  inventoryPopulateFilter(
+    inventoryFilterEls.type,
+    inventoryItems.map(item =>
+      item.hardware_type_name ??
+      item.hardware_type ??
+      item.hardware
+    ),
+    "Tüm Donanımlar"
+  );
+
+  inventoryFilterEls.search?.addEventListener("input", event => {
+    inventoryFilterState.search = event.target.value;
+    inventoryApplyFilters();
+  });
+
+  inventoryFilterEls.status?.addEventListener("change", event => {
+    inventoryFilterState.status = event.target.value;
+    inventoryApplyFilters();
+  });
+
+  inventoryFilterEls.factory?.addEventListener("change", event => {
+    inventoryFilterState.factory = event.target.value;
+    inventoryApplyFilters();
+  });
+
+  inventoryFilterEls.type?.addEventListener("change", event => {
+    inventoryFilterState.hardwareType = event.target.value;
+    inventoryApplyFilters();
+  });
+
+  inventoryFilterEls.clear?.addEventListener("click", () => {
+    inventoryFilterState.search = "";
+    inventoryFilterState.status = "";
+    inventoryFilterState.factory = "";
+    inventoryFilterState.hardwareType = "";
+
+    if (inventoryFilterEls.search) {
+      inventoryFilterEls.search.value = "";
+    }
+
+    if (inventoryFilterEls.status) {
+      inventoryFilterEls.status.value = "";
+    }
+
+    if (inventoryFilterEls.factory) {
+      inventoryFilterEls.factory.value = "";
+    }
+
+    if (inventoryFilterEls.type) {
+      inventoryFilterEls.type.value = "";
+    }
+
+    inventoryApplyFilters();
+  });
+
+  inventoryApplyFilters();
+}
+
+inventoryInitializeFilters();
+
+
   const brandModels = {{ brand_models | tojson }};
   const factories = {{ factories | tojson }};
   const hardwareTypes = {{ hardware_types | tojson }};
@@ -2119,7 +2409,35 @@
       return;
     }
 
-    history.forEach((entry) => {
+    const sortedHistory = [...history].sort((a, b) => {
+      const parseDate = (value) => {
+        if (!value) {
+          return 0;
+        }
+
+        const match = String(value).match(
+          /^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/
+        );
+
+        if (match) {
+          const [, day, month, year, hour, minute] = match;
+          return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hour),
+            Number(minute)
+          ).getTime();
+        }
+
+        const timestamp = Date.parse(value);
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+      };
+
+      return parseDate(b.performed_at) - parseDate(a.performed_at);
+    });
+
+    sortedHistory.forEach((entry) => {
       const item = document.createElement("div");
       item.className = "history-item";
 
@@ -2132,7 +2450,14 @@
 
       const header = document.createElement("div");
       header.className = "history-header";
-      header.innerHTML = `<strong>${entry.event_type}</strong><span>${entry.performed_at}</span>`;
+
+      const eventTitle = document.createElement("strong");
+      eventTitle.textContent = safeText(entry.event_type);
+
+      const eventDate = document.createElement("span");
+      eventDate.textContent = safeText(entry.performed_at);
+
+      header.append(eventTitle, eventDate);
 
       const meta = document.createElement("div");
       meta.className = "history-meta text-muted";
@@ -2178,14 +2503,24 @@
     detailModalEl.dataset.itemId = String(detail.id);
 
     if (detailTitleEl) {
-      detailTitleEl.textContent = detail.inventory_no || `#${detail.id}`;
+      detailTitleEl.textContent =
+        detail.inventory_no
+          ? `${detail.inventory_no} - Envanter Detayı`
+          : `Envanter #${detail.id}`;
     }
 
     if (detailSubtitleEl) {
-      const subtitleParts = [detail.responsible, detail.factory].filter(Boolean);
-      detailSubtitleEl.textContent = subtitleParts.length
-        ? subtitleParts.join(" • ")
-        : "Seçilen envantere ait güncel bilgiler";
+      const subtitleParts = [
+        detail.computer_name,
+        detail.hardware_type,
+        detail.responsible,
+        detail.factory
+      ].filter(Boolean);
+
+      detailSubtitleEl.textContent =
+        subtitleParts.length
+          ? subtitleParts.join(" • ")
+          : "Seçilen envantere ait güncel bilgiler";
     }
 
     detailFields.forEach((field) => {
