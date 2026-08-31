@@ -4059,7 +4059,7 @@ def load_maintenance_payload() -> dict[str, Any]:
         "maintenance_current_count": sum(
             1
             for item in computers
-            if item["maintenance_status_key"] == "current"
+            if item["maintenance_status_key"] == "ok"
         ),
 
         "maintenance_interval_days": MAINTENANCE_INTERVAL_DAYS,
