@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: stok
+      POSTGRES_USER: stok
+      POSTGRES_PASSWORD: stok_secure_password_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stok-web:latest
+    ports:
+      - "5001:5001"
+    environment:
+      FLASK_APP: app
+      FLASK_RUN_HOST: 0.0.0.0
+      FLASK_RUN_PORT: 5001
+      DATABASE_URL: postgresql+psycopg://stok:stok_secure_password_change_me@db:5432/stok
+    volumes:
+      - ./app:/app/app:ro
+      - ./data:/app/data
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
