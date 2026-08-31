@@ -6,6 +6,9 @@ from flask import Blueprint, jsonify, request
 
 
 
+inventory_bp = Blueprint("inventory", __name__)
+
+
 def register_inventory_routes(app, helpers):
     db = helpers["db"]
     InventoryItem = helpers["InventoryItem"]
@@ -27,7 +30,7 @@ def register_inventory_routes(app, helpers):
     build_inventory_stock_metadata = helpers["build_inventory_stock_metadata"]
     create_stock_item_from_inventory = helpers["create_stock_item_from_inventory"]
 
-    @app.post("/api/inventory")
+    @inventory_bp.post("/api/inventory")
     def create_inventory():
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
@@ -97,7 +100,7 @@ def register_inventory_routes(app, helpers):
             201,
         )
 
-    @app.patch("/api/inventory/<int:item_id>")
+    @inventory_bp.patch("/api/inventory/<int:item_id>")
     def update_inventory(item_id: int):
         item = get_inventory_item_with_relations(item_id)
         if item is None:
@@ -177,7 +180,7 @@ def register_inventory_routes(app, helpers):
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
 
-    @app.post("/api/inventory/<int:item_id>/assign")
+    @inventory_bp.post("/api/inventory/<int:item_id>/assign")
     def assign_inventory(item_id: int):
         item = get_inventory_item_with_relations(item_id)
 
@@ -330,7 +333,7 @@ def register_inventory_routes(app, helpers):
             "item": serialize_inventory_item(fresh_item)
         })
 
-    @app.get("/api/inventory/<int:item_id>/assignments")
+    @inventory_bp.get("/api/inventory/<int:item_id>/assignments")
     def get_inventory_assignments(item_id: int):
         item = get_inventory_item_with_relations(item_id)
 
@@ -400,7 +403,7 @@ def register_inventory_routes(app, helpers):
         })
 
 
-    @app.post("/api/inventory/<int:item_id>/return")
+    @inventory_bp.post("/api/inventory/<int:item_id>/return")
     def return_inventory_assignment(item_id: int):
         item = get_inventory_item_with_relations(item_id)
 
@@ -491,7 +494,7 @@ def register_inventory_routes(app, helpers):
         })
 
 
-    @app.get("/api/users/<int:user_id>/inventory")
+    @inventory_bp.get("/api/users/<int:user_id>/inventory")
     def get_user_inventory_assignments(user_id: int):
         user = active_user_by_id(user_id)
 
@@ -567,7 +570,7 @@ def register_inventory_routes(app, helpers):
         })
 
 
-    @app.post("/api/inventory/<int:item_id>/mark-faulty")
+    @inventory_bp.post("/api/inventory/<int:item_id>/mark-faulty")
     def mark_inventory_faulty(item_id: int):
         item = get_inventory_item_with_relations(item_id)
         if item is None:
@@ -592,7 +595,7 @@ def register_inventory_routes(app, helpers):
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
 
-    @app.post("/api/inventory/<int:item_id>/stock")
+    @inventory_bp.post("/api/inventory/<int:item_id>/stock")
     def move_inventory_to_stock(item_id: int):
         item = get_inventory_item_with_relations(item_id)
         if item is None:
@@ -679,7 +682,7 @@ def register_inventory_routes(app, helpers):
                     payload["log"] = serialize_stock_log(fresh_stock.logs[0])
         return jsonify(payload)
 
-    @app.post("/api/inventory/<int:item_id>/scrap")
+    @inventory_bp.post("/api/inventory/<int:item_id>/scrap")
     def scrap_inventory(item_id: int):
         item = get_inventory_item_with_relations(item_id)
         if item is None:
@@ -699,7 +702,7 @@ def register_inventory_routes(app, helpers):
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
 
-    @app.post("/api/licenses/<int:license_id>/stock")
+    @inventory_bp.post("/api/licenses/<int:license_id>/stock")
     def move_license_to_stock(license_id: int):
         license = (
             InventoryLicense.query.options(
@@ -767,7 +770,7 @@ def register_inventory_routes(app, helpers):
                 response["log"] = serialize_stock_log(fresh_stock.logs[0])
         return jsonify(response)
 
-    @app.post("/api/stock")
+    @inventory_bp.post("/api/stock")
     def create_stock_entry():
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
@@ -861,3 +864,6 @@ def register_inventory_routes(app, helpers):
         return jsonify(response_payload), 201
 
 
+
+
+    app.register_blueprint(inventory_bp)
