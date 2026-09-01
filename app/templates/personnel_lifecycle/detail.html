@@ -17,8 +17,8 @@
         <p class="text-muted mb-0">{{ person.department or 'Departman belirtilmedi' }}</p>
       </div>
       <div class="d-flex gap-2 flex-wrap">
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_tracking') }}">Envanter</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('stock_tracking') }}">Stok</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory.inventory_tracking') }}">Envanter</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('stock.stock_tracking') }}">Stok</a>
         <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('talep_takip') }}">Talep</a>
         <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_panel') }}">Admin</a>
         <a class="btn btn-primary btn-sm" href="{{ url_for('personnel_lifecycle.list_page') }}">Listeye dön</a>
