@@ -2,17 +2,12 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, render_template, request
 
-from ..services.authz import get_active_user, has_system_role
 from ..services import inventory_service
+from ..services.permissions import require_admin
 
 
 def register_inventory_routes(app, helpers):
     inventory_bp = Blueprint("inventory", __name__)
-
-    def require_admin():
-        if not has_system_role(get_active_user(), "admin"):
-            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
-        return None
 
     @inventory_bp.get("/envanter-takip")
     def inventory_tracking():
