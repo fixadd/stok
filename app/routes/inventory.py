@@ -4,10 +4,17 @@ from typing import Any
 
 from flask import Blueprint, jsonify, render_template, request
 
+from ..services.authz import get_active_user, has_system_role
+
 
 
 def register_inventory_routes(app, helpers):
     inventory_bp = Blueprint("inventory", __name__)
+
+    def require_admin():
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
+        return None
 
     @inventory_bp.get("/envanter-takip")
     def inventory_tracking():
@@ -47,6 +54,10 @@ def register_inventory_routes(app, helpers):
 
     @inventory_bp.post("/api/inventory")
     def create_inventory():
+        denied = require_admin()
+        if denied:
+            return denied
+
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return json_error("Geçersiz JSON gövdesi."), 400
@@ -110,13 +121,14 @@ def register_inventory_routes(app, helpers):
         db.session.commit()
 
         fresh_item = get_inventory_item_with_relations(item.id)
-        return (
-            jsonify({"item": serialize_inventory_item(fresh_item)}),
-            201,
-        )
+        return jsonify({"item": serialize_inventory_item(fresh_item)}), 201
 
     @inventory_bp.patch("/api/inventory/<int:item_id>")
     def update_inventory(item_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
+
         item = get_inventory_item_with_relations(item_id)
         if item is None:
             return json_error("Envanter kaydı bulunamadı."), 404
@@ -181,9 +193,7 @@ def register_inventory_routes(app, helpers):
         item.serial_no = (data.get("serial_no") or "").strip() or None
         item.ifs_no = (data.get("ifs_no") or "").strip() or None
         if "related_machine_no" in data:
-            item.related_machine_no = (
-                data.get("related_machine_no") or ""
-            ).strip() or None
+            item.related_machine_no = (data.get("related_machine_no") or "").strip() or None
         if "machine_no" in data:
             item.machine_no = (data.get("machine_no") or "").strip() or None
         item.note = (data.get("note") or "").strip() or None
@@ -197,6 +207,10 @@ def register_inventory_routes(app, helpers):
 
     @inventory_bp.post("/api/inventory/<int:item_id>/mark-faulty")
     def mark_inventory_faulty(item_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
+
         item = get_inventory_item_with_relations(item_id)
         if item is None:
             return json_error("Envanter kaydı bulunamadı."), 404
