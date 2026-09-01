@@ -39,6 +39,7 @@ from .navigation import build_breadcrumbs, build_sidebar_sections
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
+from .routes.index import register_index_routes
 from .routes.assignment import register_assignment_routes
 from .routes.maintenance import register_maintenance_routes
 from .routes.information import register_information_routes
@@ -659,6 +660,14 @@ def create_app() -> Flask:
             "sidebar_sections": sidebar_sections,
             "build_breadcrumbs": build_breadcrumbs,
         }
+
+    register_index_routes(
+        app,
+        {
+            "load_recent_activity": load_recent_activity,
+            "load_dashboard_metrics": load_dashboard_metrics,
+        },
+    )
 
     register_auth_routes(
         app,
