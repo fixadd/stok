@@ -3,6 +3,8 @@ from __future__ import annotations
 from flask import flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from ..services.authz import has_system_role
+
 
 def register_auth_routes(app, deps):
     get_active_user = deps["get_active_user"]
@@ -14,7 +16,6 @@ def register_auth_routes(app, deps):
     record_activity = deps["record_activity"]
     current_actor_name = deps["current_actor_name"]
     db = deps["db"]
-    has_system_role = deps.get("has_system_role")
 
     @app.before_request
     def enforce_api_write_roles():
@@ -47,11 +48,11 @@ def register_auth_routes(app, deps):
         )
 
         if requires_superadmin:
-            if has_system_role and not has_system_role(user, "superadmin"):
+            if not has_system_role(user, "superadmin"):
                 return jsonify({"error": "Bu işlem için süper admin yetkisi gerekir."}), 403
             return
 
-        if requires_admin and has_system_role and not has_system_role(user, "admin"):
+        if requires_admin and not has_system_role(user, "admin"):
             return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
 
     @app.route("/giris", methods=["GET", "POST"])
