@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from flask import abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
+
+from ..services.authz import get_active_user, has_system_role
 
 
 def register_information_routes(app, deps):
-    get_active_user = deps.get("get_active_user")
-    has_system_role = deps.get("has_system_role")
-
     def require_admin_redirect():
-        user = get_active_user() if get_active_user else None
-        if has_system_role and has_system_role(user, "admin"):
+        if has_system_role(get_active_user(), "admin"):
             return None
         flash("Bilgi kayıtlarını değiştirmek için admin yetkisi gerekir.", "danger")
         return redirect(url_for("information_list"))
@@ -43,7 +41,6 @@ def register_information_routes(app, deps):
             return redirect(url_for("information_list"))
 
         image_filename = deps["save_information_image"](request.files.get("photo"))
-
         entry = deps["InfoEntry"](
             title=title,
             category=category,
@@ -51,12 +48,10 @@ def register_information_routes(app, deps):
             image_filename=image_filename,
         )
 
-        attachments = request.files.getlist("attachments")
-        for file in attachments:
+        for file in request.files.getlist("attachments"):
             saved = deps["save_information_file"](file)
             if not saved:
                 continue
-
             stored_name, original_name = saved
             entry.attachments.append(
                 deps["InfoAttachment"](
@@ -68,14 +63,12 @@ def register_information_routes(app, deps):
 
         deps["db"].session.add(entry)
         deps["db"].session.flush()
-
         deps["record_activity"](
             area="bilgi",
             action="Bilgi kaydı oluşturuldu",
             description=title,
             metadata={"info_id": entry.id},
         )
-
         deps["db"].session.commit()
 
         flash("Bilgi kaydı başarıyla oluşturuldu.", "success")
@@ -87,13 +80,7 @@ def register_information_routes(app, deps):
         if entry is None:
             abort(404)
 
-        categories = (
-            deps["InfoCategory"]
-            .query
-            .order_by(deps["InfoCategory"].name)
-            .all()
-        )
-
+        categories = deps["InfoCategory"].query.order_by(deps["InfoCategory"].name).all()
         return render_template(
             "information/detail.html",
             active_page="information",
@@ -140,7 +127,6 @@ def register_information_routes(app, deps):
                 for raw in request.form.getlist("remove_attachments")
             }
             remove_ids.discard(None)
-
             if remove_ids:
                 for attachment in list(entry.attachments):
                     if attachment.id in remove_ids:
@@ -151,7 +137,6 @@ def register_information_routes(app, deps):
                 saved = deps["save_information_file"](file)
                 if not saved:
                     continue
-
                 stored_name, original_name = saved
                 entry.attachments.append(
                     deps["InfoAttachment"](
@@ -172,13 +157,7 @@ def register_information_routes(app, deps):
             flash("Bilgi kaydı güncellendi.", "success")
             return redirect(url_for("information_detail", entry_id=entry.id))
 
-        categories = (
-            deps["InfoCategory"]
-            .query
-            .order_by(deps["InfoCategory"].name)
-            .all()
-        )
-
+        categories = deps["InfoCategory"].query.order_by(deps["InfoCategory"].name).all()
         return render_template(
             "information/detail.html",
             active_page="information",
