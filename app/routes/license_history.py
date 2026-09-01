@@ -11,14 +11,18 @@ from ..services.authz import current_actor_name
 def register_license_history_routes(app, deps):
     license_bp = Blueprint("license", __name__)
 
-    try:
-        if db.engine.dialect.name == "postgresql":
-            db.session.execute(
-                text("ALTER TABLE inventory_licenses ALTER COLUMN item_id DROP NOT NULL")
-            )
-            db.session.commit()
-    except Exception:
-        db.session.rollback()
+    with app.app_context():
+        try:
+            if db.engine.dialect.name == "postgresql":
+                db.session.execute(
+                    text(
+                        "ALTER TABLE inventory_licenses "
+                        "ALTER COLUMN item_id DROP NOT NULL"
+                    )
+                )
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     @license_bp.route("/lisans-takip")
     def license_tracking():
@@ -63,7 +67,11 @@ def register_license_history_routes(app, deps):
             "ifs_no": item.ifs_no if item else "",
         }
 
-    def record_history(license_record: InventoryLicense, action: str, description: str):
+    def record_history(
+        license_record: InventoryLicense,
+        action: str,
+        description: str,
+    ):
         db.session.add(
             ActivityLog(
                 area="lisans",
@@ -95,10 +103,18 @@ def register_license_history_routes(app, deps):
         if InventoryLicense.query.filter_by(name=raw_name).first():
             return jsonify({"error": "Bu lisans kaydı zaten mevcut."}), 409
 
-        license_record = InventoryLicense(name=raw_name, status="pasif", item_id=None)
+        license_record = InventoryLicense(
+            name=raw_name,
+            status="pasif",
+            item_id=None,
+        )
         db.session.add(license_record)
         db.session.flush()
-        record_history(license_record, "Lisans oluşturuldu", f"{name} lisans kaydı oluşturuldu.")
+        record_history(
+            license_record,
+            "Lisans oluşturuldu",
+            f"{name} lisans kaydı oluşturuldu.",
+        )
         db.session.commit()
         return jsonify({"license": serialize_license(license_record)}), 201
 
@@ -114,7 +130,9 @@ def register_license_history_routes(app, deps):
 
         name = str(data.get("name") or "").strip()
         key = str(data.get("key") or "").strip()
-        status = str(data.get("status") or license_record.status or "aktif").strip().lower()
+        status = str(
+            data.get("status") or license_record.status or "aktif"
+        ).strip().lower()
         if not name or not key:
             return jsonify({"error": "Lisans adı ve anahtarı zorunludur."}), 400
         if status not in {"aktif", "pasif", "beklemede"}:
@@ -123,7 +141,10 @@ def register_license_history_routes(app, deps):
         raw_name = f"{name} - {key}"
         duplicate = (
             InventoryLicense.query
-            .filter(InventoryLicense.name == raw_name, InventoryLicense.id != license_id)
+            .filter(
+                InventoryLicense.name == raw_name,
+                InventoryLicense.id != license_id,
+            )
             .first()
         )
         if duplicate:
@@ -151,7 +172,8 @@ def register_license_history_routes(app, deps):
         record_history(
             license_record,
             "Lisans düzenlendi",
-            f"{old_name} → {license_record.name}; durum: {old_status} → {license_record.status}.",
+            f"{old_name} → {license_record.name}; "
+            f"durum: {old_status} → {license_record.status}.",
         )
         db.session.commit()
         return jsonify({"license": serialize_license(license_record)})
@@ -163,7 +185,9 @@ def register_license_history_routes(app, deps):
             return jsonify({"error": "Lisans kaydı bulunamadı."}), 404
 
         data = request.get_json(silent=True) or {}
-        raw_inventory_id = data.get("inventory_id") if isinstance(data, dict) else None
+        raw_inventory_id = (
+            data.get("inventory_id") if isinstance(data, dict) else None
+        )
         if raw_inventory_id in (None, ""):
             return jsonify({"error": "Lisans ataması için envanter seçilmelidir."}), 400
 
@@ -182,7 +206,8 @@ def register_license_history_routes(app, deps):
         record_history(
             license_record,
             "Lisans atandı",
-            f"{previous_inventory.inventory_no if previous_inventory else 'Atamasız'} → {item.inventory_no}.",
+            f"{previous_inventory.inventory_no if previous_inventory else 'Atamasız'} "
+            f"→ {item.inventory_no}.",
         )
         db.session.commit()
         return jsonify({"license": serialize_license(license_record)})
@@ -228,6 +253,12 @@ def register_license_history_routes(app, deps):
             }
             for record in records
         ]
-        return jsonify({"license_id": license_id, "history": history, "count": len(history)})
+        return jsonify(
+            {
+                "license_id": license_id,
+                "history": history,
+                "count": len(history),
+            }
+        )
 
     app.register_blueprint(license_bp)
