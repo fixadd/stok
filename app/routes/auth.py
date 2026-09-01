@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -14,6 +14,45 @@ def register_auth_routes(app, deps):
     record_activity = deps["record_activity"]
     current_actor_name = deps["current_actor_name"]
     db = deps["db"]
+    has_system_role = deps.get("has_system_role")
+
+    @app.before_request
+    def enforce_api_write_roles():
+        endpoint = request.endpoint or ""
+        if endpoint in {"login", "static", "force_password_change", "logout"}:
+            return
+        if endpoint.startswith("static"):
+            return
+
+        user = get_active_user()
+        if user is None:
+            return
+
+        path = request.path
+        method = request.method.upper()
+        if method not in {"POST", "PUT", "PATCH", "DELETE"}:
+            return
+
+        requires_admin = (
+            path.startswith("/api/options/")
+            or path.startswith("/api/ldap-profiles")
+            or path.startswith("/api/catalog/products")
+            or path == "/api/stock"
+            or path.startswith("/api/stock/")
+            or (path.startswith("/api/inventory/") and path.endswith(("/stock", "/scrap")))
+            or (path.startswith("/api/requests/") and path.endswith("/actions"))
+        )
+        requires_superadmin = path.startswith("/api/inventory/") and path.endswith(
+            "/restore-from-scrap"
+        )
+
+        if requires_superadmin:
+            if has_system_role and not has_system_role(user, "superadmin"):
+                return jsonify({"error": "Bu işlem için süper admin yetkisi gerekir."}), 403
+            return
+
+        if requires_admin and has_system_role and not has_system_role(user, "admin"):
+            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
 
     @app.route("/giris", methods=["GET", "POST"])
     def login():
