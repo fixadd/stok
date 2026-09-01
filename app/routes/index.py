@@ -4,7 +4,7 @@ from .license_history import register_license_history_routes
 
 
 def register_index_routes(app, deps):
-    register_license_history_routes(app)
+    register_license_history_routes(app, deps)
 
     @app.route("/")
     def index():
