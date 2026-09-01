@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 from sqlalchemy import text
 
 from ..models import ActivityLog, InventoryItem, InventoryLicense, db
-from ..services.authz import current_actor_name
+from ..services.authz import current_actor_name, get_active_user, has_system_role
 
 
 
@@ -23,6 +23,11 @@ def register_license_history_routes(app, deps):
                 db.session.commit()
         except Exception:
             db.session.rollback()
+
+    def require_admin():
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
+        return None
 
     def serialize_license(license_record: InventoryLicense) -> dict:
         item = license_record.item
@@ -83,14 +88,16 @@ def register_license_history_routes(app, deps):
         item = db.session.get(InventoryItem, item_id)
         if item is None:
             return jsonify({"error": "Envanter kaydı bulunamadı."}), 404
-
         records = (
             InventoryLicense.query
             .filter(InventoryLicense.item_id == item_id)
             .order_by(InventoryLicense.id)
             .all()
         )
-        return jsonify({"inventory_id": item_id, "items": [serialize_license(record) for record in records]})
+        return jsonify({
+            "inventory_id": item_id,
+            "items": [serialize_license(record) for record in records],
+        })
 
     @license_bp.route("/lisans-takip")
     def license_tracking():
@@ -103,38 +110,44 @@ def register_license_history_routes(app, deps):
 
     @license_bp.post("/api/licenses")
     def create_license():
+        denied = require_admin()
+        if denied:
+            return denied
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify({"error": "Geçersiz JSON gövdesi."}), 400
-
         name = str(data.get("name") or "").strip()
         key = str(data.get("key") or "").strip()
+        note = str(data.get("note") or "").strip()
         if not name:
             return jsonify({"error": "Lisans adı zorunludur."}), 400
         if not key:
             return jsonify({"error": "Lisans anahtarı zorunludur."}), 400
-
         raw_name = f"{name} - {key}"
         if InventoryLicense.query.filter_by(name=raw_name).first():
             return jsonify({"error": "Bu lisans kaydı zaten mevcut."}), 409
-
         license_record = InventoryLicense(name=raw_name, status="pasif", item_id=None)
         db.session.add(license_record)
         db.session.flush()
-        record_history(license_record, "Lisans oluşturuldu", f"{name} lisans kaydı oluşturuldu.")
+        record_history(
+            license_record,
+            "Lisans oluşturuldu",
+            note or f"{name} lisans kaydı oluşturuldu.",
+        )
         db.session.commit()
         return jsonify({"license": serialize_license(license_record)}), 201
 
     @license_bp.patch("/api/licenses/<int:license_id>")
     def update_license(license_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         license_record = db.session.get(InventoryLicense, license_id)
         if license_record is None:
             return jsonify({"error": "Lisans kaydı bulunamadı."}), 404
-
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify({"error": "Geçersiz JSON gövdesi."}), 400
-
         name = str(data.get("name") or "").strip()
         key = str(data.get("key") or "").strip()
         status = str(data.get("status") or license_record.status or "aktif").strip().lower()
@@ -142,7 +155,6 @@ def register_license_history_routes(app, deps):
             return jsonify({"error": "Lisans adı ve anahtarı zorunludur."}), 400
         if status not in {"aktif", "pasif", "beklemede"}:
             return jsonify({"error": "Geçersiz lisans durumu."}), 400
-
         raw_name = f"{name} - {key}"
         duplicate = InventoryLicense.query.filter(
             InventoryLicense.name == raw_name,
@@ -150,12 +162,10 @@ def register_license_history_routes(app, deps):
         ).first()
         if duplicate:
             return jsonify({"error": "Bu lisans kaydı zaten mevcut."}), 409
-
         old_name = license_record.name
         old_status = license_record.status
         license_record.name = raw_name
         license_record.status = status
-
         if "inventory_id" in data:
             raw_inventory_id = data.get("inventory_id")
             if raw_inventory_id in (None, ""):
@@ -169,7 +179,6 @@ def register_license_history_routes(app, deps):
                 if item is None:
                     return jsonify({"error": "Seçilen envanter kaydı bulunamadı."}), 404
                 license_record.item = item
-
         record_history(
             license_record,
             "Lisans düzenlendi",
@@ -180,24 +189,23 @@ def register_license_history_routes(app, deps):
 
     @license_bp.post("/api/licenses/<int:license_id>/assign")
     def assign_license(license_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         license_record = db.session.get(InventoryLicense, license_id)
         if license_record is None:
             return jsonify({"error": "Lisans kaydı bulunamadı."}), 404
-
         data = request.get_json(silent=True) or {}
         raw_inventory_id = data.get("inventory_id") if isinstance(data, dict) else None
         if raw_inventory_id in (None, ""):
             return jsonify({"error": "Lisans ataması için envanter seçilmelidir."}), 400
-
         try:
             inventory_id = int(raw_inventory_id)
         except (TypeError, ValueError):
             return jsonify({"error": "Geçersiz envanter seçimi."}), 400
-
         item = db.session.get(InventoryItem, inventory_id)
         if item is None:
             return jsonify({"error": "Seçilen envanter kaydı bulunamadı."}), 404
-
         previous_inventory = license_record.item
         license_record.item = item
         license_record.status = "aktif"
@@ -211,10 +219,12 @@ def register_license_history_routes(app, deps):
 
     @license_bp.post("/api/licenses/<int:license_id>/passive")
     def passive_license(license_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         license_record = db.session.get(InventoryLicense, license_id)
         if license_record is None:
             return jsonify({"error": "Lisans kaydı bulunamadı."}), 404
-
         license_record.status = "pasif"
         record_history(
             license_record,
@@ -229,17 +239,15 @@ def register_license_history_routes(app, deps):
         license_record = db.session.get(InventoryLicense, license_id)
         if license_record is None:
             return jsonify({"error": "Lisans kaydı bulunamadı."}), 404
-
         records = (
             ActivityLog.query
             .filter(
                 ActivityLog.metadata_json["license_id"].as_integer() == license_id,
-                ActivityLog.area.in_(["lisans", "stok"]),
+                ActivityLog.area == "lisans",
             )
             .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
             .all()
         )
-
         history = [
             {
                 "id": record.id,
