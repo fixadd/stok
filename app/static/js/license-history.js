@@ -2,7 +2,6 @@
   const detailModal = document.getElementById("licenseDetailModal");
   const historyList = document.getElementById("licenseHistoryList");
   const historyEmpty = document.getElementById("licenseHistoryEmpty");
-  const createModal = document.getElementById("licenseCreateModal");
   const createSubmit = document.getElementById("licenseCreateSubmit");
   const assignSubmit = document.getElementById("licenseAssignSubmit");
   const editSubmit = document.getElementById("licenseEditSubmit");
@@ -42,19 +41,15 @@
 
   function renderHistory(history) {
     historyList.innerHTML = "";
-
     if (!Array.isArray(history) || history.length === 0) {
       historyList.classList.add("d-none");
       historyEmpty?.classList.remove("d-none");
-      if (historyEmpty) {
-        historyEmpty.textContent = "Kayıt yok.";
-      }
+      if (historyEmpty) historyEmpty.textContent = "Kayıt yok.";
       return;
     }
 
     historyList.classList.remove("d-none");
     historyEmpty?.classList.add("d-none");
-
     history.forEach((entry) => {
       const row = document.createElement("li");
       row.className = "list-group-item license-history-item";
@@ -74,10 +69,7 @@
   }
 
   async function refreshHistory() {
-    if (!activeLicenseId) {
-      return;
-    }
-
+    if (!activeLicenseId) return;
     try {
       const payload = await apiRequest(`/api/licenses/${activeLicenseId}/history`, "GET");
       renderHistory(payload.history);
@@ -94,17 +86,20 @@
   async function createLicense() {
     const nameInput = document.getElementById("licenseCreateName");
     const keyInput = document.getElementById("licenseCreateKey");
+    const noteInput = document.getElementById("licenseCreateNote");
     const name = nameInput?.value?.trim() || "";
     const key = keyInput?.value?.trim() || "";
-
     if (!name || !key) {
       nameInput?.reportValidity();
       keyInput?.reportValidity();
       return;
     }
-
     try {
-      await apiRequest("/api/licenses", "POST", { name, key });
+      await apiRequest("/api/licenses", "POST", {
+        name,
+        key,
+        note: noteInput?.value?.trim() || "",
+      });
       window.location.reload();
     } catch (error) {
       window.alert(error.message || "Lisans oluşturulamadı.");
@@ -112,16 +107,12 @@
   }
 
   async function assignLicense() {
-    if (!activeLicenseId) {
-      return;
-    }
-
+    if (!activeLicenseId) return;
     const inventoryId = document.getElementById("assignInventorySelect")?.value || "";
     if (!inventoryId) {
       window.alert("Lisans ataması için envanter seçilmelidir.");
       return;
     }
-
     try {
       await apiRequest(`/api/licenses/${activeLicenseId}/assign`, "POST", {
         inventory_id: inventoryId,
@@ -133,18 +124,15 @@
   }
 
   async function editLicense() {
-    if (!activeLicenseId) {
-      return;
-    }
-
-    const name = document.getElementById("editNameSelect")?.value?.trim() || "";
-    const key = document.getElementById("editKeyInput")?.value?.trim() || "";
+    if (!activeLicenseId) return;
+    const name = document.getElementById("editLicenseName")?.value?.trim() || "";
+    const key = document.getElementById("editLicenseKey")?.value?.trim() || "";
     const status = document.getElementById("editStatusSelect")?.value || "aktif";
     const inventoryId = document.getElementById("editInventorySelect")?.value || "";
 
     if (!name || !key) {
-      document.getElementById("editNameSelect")?.reportValidity();
-      document.getElementById("editKeyInput")?.reportValidity();
+      document.getElementById("editLicenseName")?.reportValidity();
+      document.getElementById("editLicenseKey")?.reportValidity();
       return;
     }
 
@@ -171,20 +159,16 @@
   }
 
   document.addEventListener("click", (event) => {
-    const trigger = event.target.closest(".license-detail-trigger[data-license-id]");
-    if (trigger) {
-      activeLicenseId = trigger.dataset.licenseId || null;
+    const detailTrigger = event.target.closest(".license-detail-trigger[data-license-id]");
+    if (detailTrigger) {
+      activeLicenseId = detailTrigger.dataset.licenseId || null;
       window.setTimeout(refreshHistory, 0);
     }
   });
 
-  // The legacy page script keeps its local-state handlers. These capture
-  // handlers replace them for mutations so changes are actually persisted.
   document.addEventListener("click", (event) => {
     const action = event.target.closest(".license-action[data-action][data-license-id]");
-    if (!action) {
-      return;
-    }
+    if (!action) return;
 
     const actionType = action.dataset.action;
     const licenseId = action.dataset.licenseId;
@@ -194,11 +178,6 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       passiveLicense(licenseId);
-      return;
-    }
-
-    if (actionType === "assign") {
-      activeLicenseId = licenseId;
     }
   }, true);
 
@@ -221,15 +200,10 @@
   }, true);
 
   detailModal.addEventListener("show.bs.modal", (event) => {
-    const trigger = event.relatedTarget;
-    const id = trigger?.dataset?.licenseId;
-    if (id) {
-      activeLicenseId = id;
-    }
+    const id = event.relatedTarget?.dataset?.licenseId;
+    if (id) activeLicenseId = id;
   });
-
   detailModal.addEventListener("shown.bs.modal", refreshHistory);
-
   detailModal.addEventListener("hidden.bs.modal", () => {
     activeLicenseId = null;
   });
