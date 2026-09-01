@@ -24,15 +24,6 @@ def register_license_history_routes(app, deps):
         except Exception:
             db.session.rollback()
 
-    @license_bp.route("/lisans-takip")
-    def license_tracking():
-        payload = deps["load_license_payload"]()
-        return render_template(
-            "license_tracking.html",
-            active_page="license_tracking",
-            **payload,
-        )
-
     def serialize_license(license_record: InventoryLicense) -> dict:
         item = license_record.item
         responsible_user = item.responsible_user if item else None
@@ -84,6 +75,24 @@ def register_license_history_routes(app, deps):
                     "inventory_id": license_record.item_id,
                 },
             )
+        )
+
+    @license_bp.get("/api/licenses")
+    def list_licenses():
+        records = (
+            InventoryLicense.query
+            .order_by(InventoryLicense.id)
+            .all()
+        )
+        return jsonify({"items": [serialize_license(record) for record in records]})
+
+    @license_bp.route("/lisans-takip")
+    def license_tracking():
+        payload = deps["load_license_payload"]()
+        return render_template(
+            "license_tracking.html",
+            active_page="license_tracking",
+            **payload,
         )
 
     @license_bp.post("/api/licenses")
