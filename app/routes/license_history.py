@@ -3,8 +3,9 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, render_template, request
 
 from ..models import ActivityLog, InventoryItem, InventoryLicense, db
-from ..services.authz import get_active_user, has_system_role, current_actor_name
+from ..services.authz import current_actor_name
 from ..services import license_service
+from ..services.permissions import require_admin
 
 
 def register_license_history_routes(app, deps=None):
@@ -15,11 +16,6 @@ def register_license_history_routes(app, deps=None):
     if load_license_payload is None:
         from .. import load_license_payload as default_loader
         load_license_payload = default_loader
-
-    def require_admin():
-        if not has_system_role(get_active_user(), "admin"):
-            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
-        return None
 
     serialize_license = license_service.serialize_license
 
