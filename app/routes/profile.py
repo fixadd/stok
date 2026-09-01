@@ -179,3 +179,23 @@ def register_profile_routes(app, deps):
         )
 
         return redirect(url_for("profile"))
+
+    # Eski şablon ve entegrasyon çağrılarının Blueprint refactor sonrası
+    # kırılmaması için yalnızca endpoint takma adları oluşturulur.
+    legacy_aliases = {
+        "inventory_tracking": ("/envanter-takip", "inventory.inventory_tracking"),
+        "stock_tracking": ("/stok-takip", "stock.stock_tracking"),
+        "maintenance_tracking": ("/bakim", "maintenance.maintenance_tracking"),
+        "scrap_inventory_page": ("/hurdalar", "stock.scrap_inventory_page"),
+    }
+
+    for alias_endpoint, (path, target_endpoint) in legacy_aliases.items():
+        view_func = app.view_functions.get(target_endpoint)
+        if view_func is None or alias_endpoint in app.view_functions:
+            continue
+        app.add_url_rule(
+            path,
+            endpoint=alias_endpoint,
+            view_func=view_func,
+            methods=["GET"],
+        )
