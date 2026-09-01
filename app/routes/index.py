@@ -1,10 +1,12 @@
 from flask import render_template
 
 from .license_history import register_license_history_routes
+from .license_stock import register_license_stock_routes
 
 
 def register_index_routes(app, deps):
     register_license_history_routes(app, deps)
+    register_license_stock_routes(app, deps)
 
     @app.route("/")
     def index():
