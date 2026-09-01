@@ -1,14 +1,20 @@
 from flask import Blueprint, jsonify, render_template, request
 
+from ..services.authz import get_active_user, has_system_role
 
 
 
 def register_maintenance_routes(app, deps):
     maintenance_bp = Blueprint("maintenance", __name__)
+
+    def require_admin():
+        if not has_system_role(get_active_user(), "admin"):
+            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
+        return None
+
     @maintenance_bp.route("/bakim")
     def maintenance_tracking():
         payload = deps["load_maintenance_payload"]()
-
         return render_template(
             "maintenance_tracking.html",
             active_page="maintenance_tracking",
@@ -17,48 +23,45 @@ def register_maintenance_routes(app, deps):
 
     @maintenance_bp.post("/api/inventory/<int:item_id>/maintenance")
     def create_inventory_maintenance(item_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         payload, status_code = deps["create_maintenance_record"](
             item_id,
             request.get_json(silent=True) or {},
         )
-
         return jsonify(payload), status_code
 
     @maintenance_bp.get("/api/inventory/<int:item_id>/maintenance")
     def get_inventory_maintenance(item_id: int):
-        payload, status_code = deps["list_maintenance_records"](
-            item_id,
-        )
-
+        payload, status_code = deps["list_maintenance_records"](item_id)
         return jsonify(payload), status_code
 
     @maintenance_bp.put(
         "/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>"
     )
-    def update_inventory_maintenance(
-        item_id: int,
-        maintenance_id: int,
-    ):
+    def update_inventory_maintenance(item_id: int, maintenance_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         payload, status_code = deps["update_maintenance_record"](
             item_id,
             maintenance_id,
             request.get_json(silent=True) or {},
         )
-
         return jsonify(payload), status_code
 
     @maintenance_bp.delete(
         "/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>"
     )
-    def delete_inventory_maintenance(
-        item_id: int,
-        maintenance_id: int,
-    ):
+    def delete_inventory_maintenance(item_id: int, maintenance_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         payload, status_code = deps["delete_maintenance_record"](
             item_id,
             maintenance_id,
         )
-
         return jsonify(payload), status_code
 
     app.register_blueprint(maintenance_bp)
