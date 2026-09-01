@@ -6,10 +6,12 @@ import unittest
 
 from app import calculate_maintenance_status, create_app, load_dashboard_metrics
 from app.models import (
+    ActivityLog,
     HardwareType,
     InventoryEvent,
     InventoryItem,
     InventoryMaintenance,
+    InventoryLicense,
     User,
     db,
 )
@@ -18,7 +20,13 @@ from app.models import (
 class SmokeRouteTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        self.database_tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self.database_tmp.close()
+        self.previous_data_dir = os.environ.get("DATA_DIR")
+        self.previous_database_url = os.environ.get("DATABASE_URL")
         os.environ["DATA_DIR"] = self.tmp.name
+        os.environ["DATABASE_URL"] = f"sqlite:///{self.database_tmp.name}"
+
         self.app = create_app()
         self.app.config.update(TESTING=True)
         self.client = self.app.test_client()
@@ -36,38 +44,26 @@ class SmokeRouteTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
-        os.environ.pop("DATA_DIR", None)
+        Path(self.database_tmp.name).unlink(missing_ok=True)
+        if self.previous_data_dir is None:
+            os.environ.pop("DATA_DIR", None)
+        else:
+            os.environ["DATA_DIR"] = self.previous_data_dir
+        if self.previous_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = self.previous_database_url
 
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
             session["active_user_id"] = user_id
 
-    def test_database_path_environment_overrides_data_dir(self):
-        with tempfile.TemporaryDirectory() as data_dir, tempfile.TemporaryDirectory() as root_dir:
-            custom_database_path = os.path.join(
-                root_dir, "external", "backup", "stok.db"
+    def test_database_url_configures_database(self):
+        with self.app.app_context():
+            self.assertEqual(
+                self.app.config["SQLALCHEMY_DATABASE_URI"],
+                f"sqlite:///{self.database_tmp.name}",
             )
-            previous_data_dir = os.environ.get("DATA_DIR")
-            previous_database_path = os.environ.get("DATABASE_PATH")
-            os.environ["DATA_DIR"] = data_dir
-            os.environ["DATABASE_PATH"] = custom_database_path
-            try:
-                custom_app = create_app()
-                with custom_app.app_context():
-                    self.assertEqual(
-                        custom_app.config["DATABASE_PATH"], Path(custom_database_path)
-                    )
-                    self.assertTrue(Path(custom_database_path).parent.exists())
-                    self.assertEqual(custom_app.config["DATA_DIR"], Path(data_dir))
-            finally:
-                if previous_data_dir is None:
-                    os.environ.pop("DATA_DIR", None)
-                else:
-                    os.environ["DATA_DIR"] = previous_data_dir
-                if previous_database_path is None:
-                    os.environ.pop("DATABASE_PATH", None)
-                else:
-                    os.environ["DATABASE_PATH"] = previous_database_path
 
     def test_login_page(self):
         resp = self.client.get("/giris")
@@ -81,6 +77,8 @@ class SmokeRouteTests(unittest.TestCase):
             "/bakim",
             "/stok-takip",
             "/talep-takip",
+            "/lisans-takip",
+            "/personnel-lifecycle/",
             "/admin-panel",
         ]:
             with self.subTest(path=path):
@@ -199,6 +197,46 @@ class SmokeRouteTests(unittest.TestCase):
         resp = self.client.get("/")
         html = resp.get_data(as_text=True)
         self.assertNotIn("Admin Paneli", html)
+
+    def test_regular_user_cannot_mutate_inventory(self):
+        self.login_as(self.user_id)
+        with self.app.app_context():
+            computer_type = HardwareType.query.filter(
+                HardwareType.name.ilike("%laptop%")
+            ).first()
+            item = InventoryItem.query.filter_by(
+                hardware_type_id=computer_type.id
+            ).first()
+            item_id = item.id
+
+        resp = self.client.post(
+            f"/api/inventory/{item_id}/mark-faulty",
+            json={"reason": "test"},
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_license_history_is_record_based(self):
+        self.login_as(self.admin_id)
+        with self.app.app_context():
+            license_record = InventoryLicense.query.first()
+            license_id = license_record.id
+
+            db.session.add(
+                ActivityLog(
+                    area="lisans",
+                    action="Test geçmiş kaydı",
+                    description="Kayıt bazlı geçmiş testi.",
+                    actor="Test",
+                    metadata_payload={"license_id": license_id},
+                )
+            )
+            db.session.commit()
+
+        resp = self.client.get(f"/api/licenses/{license_id}/history")
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.get_json()
+        self.assertEqual(payload["license_id"], license_id)
+        self.assertTrue(any(item["title"] == "Test geçmiş kaydı" for item in payload["history"]))
 
 
 if __name__ == "__main__":
