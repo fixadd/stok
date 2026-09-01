@@ -6,7 +6,6 @@ from flask import Blueprint, jsonify, render_template, request
 
 
 
-
 def register_inventory_routes(app, helpers):
     inventory_bp = Blueprint("inventory", __name__)
 
@@ -38,6 +37,13 @@ def register_inventory_routes(app, helpers):
     determine_stock_category_from_inventory = helpers["determine_stock_category_from_inventory"]
     build_inventory_stock_metadata = helpers["build_inventory_stock_metadata"]
     create_stock_item_from_inventory = helpers["create_stock_item_from_inventory"]
+
+    parse_int_or_none = helpers["parse_int_or_none"]
+    sanitize_input_text = helpers["sanitize_input_text"]
+    json_error = helpers["json_error"]
+    active_user_by_id = helpers["active_user_by_id"]
+    format_datetime_display = helpers["format_datetime_display"]
+    INVENTORY_STATUSES = helpers["INVENTORY_STATUSES"]
 
     @inventory_bp.post("/api/inventory")
     def create_inventory():
@@ -213,25 +219,5 @@ def register_inventory_routes(app, helpers):
 
         fresh_item = get_inventory_item_with_relations(item.id)
         return jsonify({"item": serialize_inventory_item(fresh_item)})
-
-    
-
-    
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
 
     app.register_blueprint(inventory_bp)
