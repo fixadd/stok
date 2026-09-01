@@ -14,7 +14,15 @@ Uygulama ilk kez başlatıldığında varsayılan yönetici hesabı oluşturulur
 
 ## Kurulum
 
-Önerilen çalışma şekli Docker Compose'tur:
+Önce ortam dosyasını oluşturun:
+
+```bash
+cp .env.example .env
+```
+
+Windows'ta `.env.example` dosyasını `.env` adıyla kopyalayabilirsiniz. Ardından `POSTGRES_PASSWORD` değerini güçlü ve rastgele bir parola ile değiştirin.
+
+Docker Compose'u başlatın:
 
 ```bash
 docker compose up --build -d
@@ -22,17 +30,13 @@ docker compose up --build -d
 
 Ardından tarayıcıdan `http://localhost:5001` adresine erişebilirsiniz.
 
-Compose yapısında uygulama ve PostgreSQL ayrı servisler olarak çalışır. PostgreSQL verileri `postgres_data` isimli Docker volume'unda tutulur; bu nedenle web konteynerinin yeniden oluşturulması veritabanını sıfırlamaz.
+Compose yapısında uygulama ve PostgreSQL ayrı servisler olarak çalışır. PostgreSQL verileri `postgres_data` isimli Docker volume'unda tutulur; web konteynerinin yeniden oluşturulması veritabanını sıfırlamaz.
 
 ## Veritabanı
 
-Uygulama `DATABASE_URL` ortam değişkeni üzerinden SQLAlchemy bağlantısı kullanır. Compose ortamındaki varsayılan bağlantı:
+Uygulama `DATABASE_URL` üzerinden SQLAlchemy bağlantısı kullanır. Compose bu değeri `.env` içindeki PostgreSQL kullanıcı, parola ve veritabanı değerlerinden oluşturur.
 
-```text
-postgresql+psycopg://stok:stok_secure_password_change_me@db:5432/stok
-```
-
-Üretimde `POSTGRES_PASSWORD` ve karşılık gelen `DATABASE_URL` değerlerini mutlaka güçlü, özel bir parola ile değiştirin.
+Üretimde PostgreSQL parolasını kesinlikle gerçek bir gizli değerle değiştirin ve `.env` dosyasını sürüm kontrolüne eklemeyin.
 
 ## Veri ve dosya saklama
 
@@ -48,18 +52,27 @@ Stok Excel içe aktarma işlemi yönetici yetkisi ister ve `.xlsx` / `.xlsm` dos
 
 ## Geliştirme
 
-Yerel geliştirme için Python ortamını kurup `DATABASE_URL` tanımlamanız gerekir. Örnek olarak Docker Compose'taki PostgreSQL servisini kullanabilirsiniz:
+Yerel geliştirme için Python ortamını kurup `DATABASE_URL` tanımlamanız gerekir. Örnek:
 
 ```bash
 pip install -r requirements.txt
-set DATABASE_URL=postgresql+psycopg://stok:stok_secure_password_change_me@localhost:5432/stok
+export DATABASE_URL=postgresql+psycopg://stok:CHANGE_ME@localhost:5432/stok
 python -m flask --app app run --host 0.0.0.0 --port 5001 --debug
 ```
 
-Linux/macOS için `set` yerine:
+PowerShell:
+
+```powershell
+$env:DATABASE_URL="postgresql+psycopg://stok:CHANGE_ME@localhost:5432/stok"
+python -m flask --app app run --host 0.0.0.0 --port 5001 --debug
+```
+
+## Test
+
+Smoke testleri çalıştırmak için:
 
 ```bash
-export DATABASE_URL=postgresql+psycopg://stok:stok_secure_password_change_me@localhost:5432/stok
+pytest -q
 ```
 
 ## Temel Modüller
