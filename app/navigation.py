@@ -8,7 +8,7 @@ from .services.authz import has_system_role
 NAV_ITEMS: dict[str, dict[str, Any]] = {
     "index": {"title": "Ana Sayfa", "endpoint": "index", "icon": "bi-house", "min_role": "user", "parent": None, "section": "general"},
     "inventory_tracking": {"title": "Envanter Takip", "endpoint": "inventory.inventory_tracking", "icon": "bi-box-seam", "min_role": "user", "parent": "index", "section": "inventory"},
-    "license_tracking": {"title": "Lisans Takip", "endpoint": "license_tracking", "icon": "bi-key", "min_role": "user", "parent": "index", "section": "inventory"},
+    "license_tracking": {"title": "Lisans Takip", "endpoint": "license.license_tracking", "icon": "bi-key", "min_role": "user", "parent": "index", "section": "inventory"},
     "stock_tracking": {"title": "Stok Takip", "endpoint": "stock.stock_tracking", "icon": "bi-bar-chart", "min_role": "user", "parent": "index", "section": "inventory"},
     "maintenance_tracking": {"title": "Bakım", "endpoint": "maintenance.maintenance_tracking", "icon": "bi-tools", "min_role": "user", "parent": "stock_tracking", "section": "inventory"},
     "talep_takip": {"title": "Talep Takip", "endpoint": "talep_takip", "icon": "bi-file-earmark-text", "min_role": "user", "parent": "index", "section": "operations"},
