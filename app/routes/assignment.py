@@ -5,10 +5,10 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 
-assignment_bp = Blueprint("assignment", __name__)
 
 
 def register_assignment_routes(app, helpers):
+    assignment_bp = Blueprint("assignment", __name__)
     db = helpers["db"]
     InventoryItem = helpers["InventoryItem"]
     InventoryAssignment = helpers["InventoryAssignment"]

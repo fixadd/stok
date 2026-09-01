@@ -681,6 +681,35 @@ def create_app() -> Flask:
             "load_dashboard_metrics": load_dashboard_metrics,
             "load_inventory_payload": load_inventory_payload,
             "load_license_payload": load_license_payload,
+
+            "db": db,
+            "InventoryItem": InventoryItem,
+            "InventoryAssignment": InventoryAssignment,
+            "InventoryMaintenance": InventoryMaintenance,
+            "InventoryLicense": InventoryLicense,
+            "StockItem": StockItem,
+            "User": User,
+            "Factory": Factory,
+            "HardwareType": HardwareType,
+            "Brand": Brand,
+            "HardwareModel": HardwareModel,
+
+            "serialize_inventory_item": serialize_inventory_item,
+            "serialize_maintenance_record": serialize_maintenance_record,
+            "get_inventory_item_with_relations": get_inventory_item_with_relations,
+            "add_inventory_event": add_inventory_event,
+
+            "determine_stock_category_from_inventory": determine_stock_category_from_inventory,
+            "build_inventory_stock_metadata": build_inventory_stock_metadata,
+            "create_stock_item_from_inventory": create_stock_item_from_inventory,
+
+            "parse_int_or_none": parse_int_or_none,
+            "sanitize_input_text": sanitize_input_text,
+            "json_error": json_error,
+            "active_user_by_id": active_user_by_id,
+            "format_datetime_display": format_datetime_display,
+
+            "INVENTORY_STATUSES": INVENTORY_STATUSES,
         },
     )
     register_assignment_routes(

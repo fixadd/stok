@@ -4,10 +4,10 @@ from flask import Blueprint, jsonify, render_template, request
 from sqlalchemy.orm import joinedload
 
 
-stock_bp = Blueprint("stock", __name__)
 
 
 def register_stock_routes(app, deps):
+    stock_bp = Blueprint("stock", __name__)
     get_active_user = deps["get_active_user"]
     has_system_role = deps["has_system_role"]
 

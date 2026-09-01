@@ -1,10 +1,10 @@
 from flask import Blueprint, jsonify, render_template, request
 
 
-maintenance_bp = Blueprint("maintenance", __name__)
 
 
 def register_maintenance_routes(app, deps):
+    maintenance_bp = Blueprint("maintenance", __name__)
     @maintenance_bp.route("/bakim")
     def maintenance_tracking():
         payload = deps["load_maintenance_payload"]()
