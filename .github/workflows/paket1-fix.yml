@@ -1,0 +1,141 @@
+name: Paket 1 one-shot fix
+on:
+  push:
+    branches: [feature/it-varlik-yonetimi]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor == 'fixadd'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Apply fixes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('.')
+
+          # 1-2: assignment endpoints must live only in assignment.py.
+          p = root/'app/routes/inventory.py'
+          s = p.read_text()
+          a = '@inventory_bp.post("/api/inventory/<int:item_id>/assign")'
+          b = '@inventory_bp.post("/api/inventory/<int:item_id>/mark-faulty")'
+          i, j = s.find(a), s.find(b)
+          if i >= 0 and j > i:
+              s = s[:i] + s[j:]
+          marker = '    HardwareModel = helpers["HardwareModel"]\n'
+          helpers = '''    HardwareModel = helpers["HardwareModel"]\n    active_user_by_id = helpers["active_user_by_id"]\n    parse_int_or_none = helpers["parse_int_or_none"]\n    sanitize_input_text = helpers["sanitize_input_text"]\n    json_error = helpers["json_error"]\n'''
+          if marker in s and 'active_user_by_id = helpers["active_user_by_id"]' not in s:
+              s = s.replace(marker, helpers, 1)
+          # 4: explicit record-scoped history endpoint.
+          mark = '    @inventory_bp.post("/api/inventory/<int:item_id>/mark-faulty")\n'
+          route = '''    @inventory_bp.get("/api/inventory/<int:item_id>/history")
+    def get_inventory_history(item_id: int):
+        item = get_inventory_item_with_relations(item_id)
+        if item is None:
+            return json_error("Envanter kaydı bulunamadı."), 404
+        return jsonify({
+            "item_id": item.id,
+            "history": [
+                {
+                    "id": event.id,
+                    "event_type": event.event_type,
+                    "performed_by": event.performed_by,
+                    "performed_at": event.performed_at.strftime("%d.%m.%Y %H:%M"),
+                    "note": event.note or "",
+                }
+                for event in item.events
+            ],
+        })
+
+'''
+          if 'def get_inventory_history(' not in s:
+              if mark not in s: raise SystemExit('inventory marker missing')
+              s = s.replace(mark, route + mark, 1)
+          p.write_text(s)
+
+          # 3: maintenance modal must not die when bootstrap is unavailable and form setup must be clean.
+          p = root/'app/templates/maintenance_tracking.html'
+          s = p.read_text()
+          s = s.replace('  const detailModal = detailModalEl\n    ? new bootstrap.Modal(detailModalEl)\n    : null;\n\n  const formModal = formModalEl\n    ? new bootstrap.Modal(formModalEl)\n    : null;', '  const bootstrapLib = window.bootstrap;\n\n  const detailModal = detailModalEl && bootstrapLib\n    ? new bootstrapLib.Modal(detailModalEl)\n    : null;\n\n  const formModal = formModalEl && bootstrapLib\n    ? new bootstrapLib.Modal(formModalEl)\n    : null;')
+          pat = re.compile(r'  function openMaintenanceForm\(itemId\) \{.*?\n  \}\n\n  function openNewMaintenanceForm\(\)', re.S)
+          rep = '''  function openMaintenanceForm(itemId) {
+    const item = maintenanceById.get(String(itemId));
+    if (!item || !formModal || !formModalEl) return;
+    selectedMaintenanceItemId = String(item.id);
+    const form = formModalEl.querySelector("[data-maintenance-form]");
+    if (!form) return;
+    form.reset();
+    form.dataset.mode = "create";
+    form.dataset.maintenanceId = "";
+    const itemField = form.querySelector("[name='item_id']");
+    const dateField = form.querySelector("[name='performed_at']");
+    const subtitle = formModalEl.querySelector("[data-form-subtitle]");
+    const feedback = formModalEl.querySelector("[data-maintenance-feedback]");
+    if (itemField) itemField.value = String(item.id);
+    if (dateField) {
+      const now = new Date();
+      const pad = (v) => String(v).padStart(2, "0");
+      dateField.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+    if (subtitle) subtitle.textContent = `${item.inventory_no} · ${item.computer_name || item.brand_model || "-"}`;
+    if (feedback) { feedback.className = "alert d-none mt-3 mb-0"; feedback.textContent = ""; }
+    formModal.show();
+  }
+
+  function openNewMaintenanceForm()'''
+          s, n = pat.subn(rep, s, 1)
+          if n != 1: raise SystemExit('maintenance form block missing')
+          s = s.replace('colspan="9"','colspan="8"')
+          p.write_text(s)
+
+          # 5: license history must use license_id-scoped ActivityLog entries, not inventory item history.
+          p = root/'app/__init__.py'
+          s = p.read_text()
+          old = '''    history: list[dict[str, Any]] = []
+    if item and item.events:
+        for event in sorted(item.events, key=lambda e: e.performed_at, reverse=True):
+            history.append(
+                {
+                    "title": event.event_type,
+                    "actor": event.performed_by,
+                    "note": event.note or "",
+                    "performed_at": event.performed_at.strftime("%d.%m.%Y %H:%M"),
+                }
+            )
+'''
+          new = '''    history: list[dict[str, Any]] = []
+    license_logs = (
+        ActivityLog.query
+        .filter_by(area="lisans")
+        .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
+        .limit(1000)
+        .all()
+    )
+    for log in license_logs:
+        metadata = log.metadata_payload or {}
+        if str(metadata.get("license_id")) != str(license.id):
+            continue
+        history.append(
+            {
+                "title": log.action,
+                "actor": log.actor,
+                "note": log.description or "",
+                "performed_at": log.created_at.strftime("%d.%m.%Y %H:%M"),
+            }
+        )
+'''
+          if old not in s: raise SystemExit('license history block missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+          git config user.name fixadd
+          git config user.email kadir.can426@gmail.com
+          git add app/routes/inventory.py app/templates/maintenance_tracking.html app/__init__.py
+          git rm -f .github/workflows/paket1-fix.yml
+          git commit -m "Paket 1: route bakım ve kayıt geçmişi düzeltmeleri"
+          git push origin feature/it-varlik-yonetimi
