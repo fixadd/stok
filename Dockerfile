@@ -19,4 +19,7 @@ COPY app ./app
 
 EXPOSE 5001
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/giris', timeout=5)" || exit 1
+
 CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
