@@ -7,6 +7,7 @@ from urllib.parse import quote_plus
 from flask import Blueprint, jsonify, render_template, request
 
 from .models import ActivityLog, InventoryItem, RequestOrder, StockAssignment, User, db
+from .services.authz import get_active_user, has_system_role
 from .utils.parsing import sanitize_input_text
 
 personnel_lifecycle_bp = Blueprint(
@@ -139,7 +140,6 @@ def build_personnel_detail_payload(person_key: str) -> dict | None:
         return None
 
     person_name = person["name"]
-
     assignments = (
         StockAssignment.query.filter(StockAssignment.assigned_to.ilike(person_name))
         .order_by(StockAssignment.delivered_at.desc())
@@ -176,9 +176,7 @@ def build_personnel_detail_payload(person_key: str) -> dict | None:
     ]
 
     transfer_history = [
-        row
-        for row in activity_rows
-        if "devir" in row["action"].lower() or "iade" in row["action"].lower()
+        row for row in activity_rows if "devir" in row["action"].lower() or "iade" in row["action"].lower()
     ]
 
     return {
@@ -214,11 +212,17 @@ def detail_page(person_key: str):
 
 @personnel_lifecycle_bp.post("/api/<person_key>/action")
 def process_action(person_key: str):
+    if not has_system_role(get_active_user(), "admin"):
+        return jsonify({"error": "Bu işlemi gerçekleştirmek için admin yetkisi gerekir."}), 403
+
     payload = build_personnel_detail_payload(person_key)
     if payload is None:
         return jsonify({"error": "Personel bulunamadı."}), 404
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Geçersiz JSON gövdesi."}), 400
+
     action = sanitize_input_text(data.get("action"), max_length=64)
     actor = sanitize_input_text(data.get("actor"), max_length=128) or "Sistem"
 
