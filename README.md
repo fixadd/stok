@@ -1,56 +1,75 @@
 # Stok Yönetim Paneli
 
-Bootstrap 5 tasarımına sahip, Docker ile 5001 portunda ayağa kaldırılabilen basit bir stok yönetim arayüzü.
+Bootstrap 5 tabanlı, Flask + PostgreSQL kullanan web tabanlı stok ve IT varlık yönetim panelidir. Uygulama Docker Compose ile 5001 portunda çalışır.
 
 ## Varsayılan Yönetici Hesabı
 
-Uygulama ilk kez başlatıldığında sisteme giriş yapabilmek için varsayılan olarak şu yönetici hesabı oluşturulur:
+Uygulama ilk kez başlatıldığında varsayılan yönetici hesabı oluşturulur:
 
 | Kullanıcı Adı | Şifre |
 | ------------- | ----- |
 | `admin`       | `admin` |
 
-İlk girişte bu hesap için yeni ve güçlü bir şifre belirlemeniz istenir. Şifre değişikliğini tamamladıktan sonra panelin tüm özelliklerine erişebilirsiniz.
+İlk girişte bu hesap için yeni ve güçlü bir şifre belirlemeniz istenir.
 
 ## Kurulum
 
-Projeyi yerel ortamınızda çalıştırmak için Docker kullanabilirsiniz:
+Önerilen çalışma şekli Docker Compose'tur:
 
 ```bash
-docker build -t stok-uygulama .
-docker run --rm -p 5001:5001 stok-uygulama
+docker compose up --build -d
 ```
 
-Ardından tarayıcınızdan `http://localhost:5001` adresine gidin.
+Ardından tarayıcıdan `http://localhost:5001` adresine erişebilirsiniz.
 
-Docker Compose tercih ediyorsanız aşağıdaki komutu kullanabilirsiniz:
+Compose yapısında uygulama ve PostgreSQL ayrı servisler olarak çalışır. PostgreSQL verileri `postgres_data` isimli Docker volume'unda tutulur; bu nedenle web konteynerinin yeniden oluşturulması veritabanını sıfırlamaz.
 
-```bash
-docker compose up --build
+## Veritabanı
+
+Uygulama `DATABASE_URL` ortam değişkeni üzerinden SQLAlchemy bağlantısı kullanır. Compose ortamındaki varsayılan bağlantı:
+
+```text
+postgresql+psycopg://stok:stok_secure_password_change_me@db:5432/stok
 ```
 
-Compose ortamı ilk kez ayağa kaldırıldığında proje kök dizininde `data/` klasörü oluşturulur ve uygulama bu klasörün içine `stok.db` dosyası ile yüklenen görsellere ait alt klasörleri kaydeder. Docker konteyneri çalışırken bu klasör `/app/data` olarak bağlanır; böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunur. `data/` klasörünü başka bir ortama taşıyarak veya versiyon kontrolü dışında bir yedekle saklayarak veritabanını koruyabilirsiniz.
+Üretimde `POSTGRES_PASSWORD` ve karşılık gelen `DATABASE_URL` değerlerini mutlaka güçlü, özel bir parola ile değiştirin.
 
+## Veri ve dosya saklama
 
-## Veritabanı Konumu
+`./data` klasörü konteynere `/app/data` olarak bağlanır ve bilgi ekranındaki yüklemeler gibi dosya tabanlı verileri korur. PostgreSQL verileri ise `postgres_data` volume'unda tutulur.
 
-Varsayılan çalışmada uygulama veritabanını proje kökündeki `./data/stok.db` dosyasında tutar. `DATA_DIR` değişkeni verilirse aynı varsayılan isimle bu klasörün altında `stok.db` oluşturulur.
+## Yedekleme / Geri Yükleme
 
-Harici bir yedek disk veya özel bir dosya yolu kullanmak için `DATABASE_PATH` ortam değişkenini doğrudan veritabanı dosyasına işaret edecek şekilde verebilirsiniz:
+Yönetici panelindeki **Veritabanı İşlemleri** bölümünden PostgreSQL `.dump` yedeği dışa aktarılabilir ve geri yüklenebilir. Bu işlemler yalnızca süper admin yetkisine açıktır.
 
-```bash
-DATABASE_PATH=/mnt/backup/stok/stok.db docker compose up --build
-```
+## Excel
 
-Bu kullanımda uygulama `/mnt/backup/stok/` klasörünü otomatik oluşturur; yüklenen dosyalar ve diğer varsayılan veri klasörleri için `DATA_DIR` kullanılmaya devam eder.
+Stok Excel içe aktarma işlemi yönetici yetkisi ister ve `.xlsx` / `.xlsm` dosyalarını destekler.
 
 ## Geliştirme
 
-Yerel geliştirme için Flask uygulamasını doğrudan çalıştırabilirsiniz:
+Yerel geliştirme için Python ortamını kurup `DATABASE_URL` tanımlamanız gerekir. Örnek olarak Docker Compose'taki PostgreSQL servisini kullanabilirsiniz:
 
 ```bash
 pip install -r requirements.txt
+set DATABASE_URL=postgresql+psycopg://stok:stok_secure_password_change_me@localhost:5432/stok
 python -m flask --app app run --host 0.0.0.0 --port 5001 --debug
 ```
 
-Bu komut arayüzü 5001 portu üzerinden erişilebilir şekilde başlatır.
+Linux/macOS için `set` yerine:
+
+```bash
+export DATABASE_URL=postgresql+psycopg://stok:stok_secure_password_change_me@localhost:5432/stok
+```
+
+## Temel Modüller
+
+- Envanter Takip
+- Lisans Takip
+- Bakım Takip
+- Stok Takip
+- Talep Takip
+- Personel Lifecycle
+- Bilgi / Dokümantasyon
+- Yönetici Paneli
+- PostgreSQL yedekleme ve geri yükleme
