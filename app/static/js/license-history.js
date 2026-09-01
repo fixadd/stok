@@ -2,6 +2,10 @@
   const detailModal = document.getElementById("licenseDetailModal");
   const historyList = document.getElementById("licenseHistoryList");
   const historyEmpty = document.getElementById("licenseHistoryEmpty");
+  const createModal = document.getElementById("licenseCreateModal");
+  const createSubmit = document.getElementById("licenseCreateSubmit");
+  const assignSubmit = document.getElementById("licenseAssignSubmit");
+  const editSubmit = document.getElementById("licenseEditSubmit");
 
   if (!detailModal || !historyList) {
     return;
@@ -19,12 +23,32 @@
     })[char]);
   }
 
+  async function apiRequest(url, method, body) {
+    const response = await fetch(url, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "İşlem gerçekleştirilemedi.");
+    }
+    return payload;
+  }
+
   function renderHistory(history) {
     historyList.innerHTML = "";
 
     if (!Array.isArray(history) || history.length === 0) {
       historyList.classList.add("d-none");
       historyEmpty?.classList.remove("d-none");
+      if (historyEmpty) {
+        historyEmpty.textContent = "Kayıt yok.";
+      }
       return;
     }
 
@@ -55,16 +79,7 @@
     }
 
     try {
-      const response = await fetch(`/api/licenses/${activeLicenseId}/history`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error || "Lisans geçmişi alınamadı.");
-      }
-
+      const payload = await apiRequest(`/api/licenses/${activeLicenseId}/history`, "GET");
       renderHistory(payload.history);
     } catch (error) {
       historyList.innerHTML = "";
@@ -76,6 +91,85 @@
     }
   }
 
+  async function createLicense() {
+    const nameInput = document.getElementById("licenseCreateName");
+    const keyInput = document.getElementById("licenseCreateKey");
+    const name = nameInput?.value?.trim() || "";
+    const key = keyInput?.value?.trim() || "";
+
+    if (!name || !key) {
+      nameInput?.reportValidity();
+      keyInput?.reportValidity();
+      return;
+    }
+
+    try {
+      await apiRequest("/api/licenses", "POST", { name, key });
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message || "Lisans oluşturulamadı.");
+    }
+  }
+
+  async function assignLicense() {
+    if (!activeLicenseId) {
+      return;
+    }
+
+    const inventoryId = document.getElementById("assignInventorySelect")?.value || "";
+    if (!inventoryId) {
+      window.alert("Lisans ataması için envanter seçilmelidir.");
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/licenses/${activeLicenseId}/assign`, "POST", {
+        inventory_id: inventoryId,
+      });
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message || "Lisans atanamadı.");
+    }
+  }
+
+  async function editLicense() {
+    if (!activeLicenseId) {
+      return;
+    }
+
+    const name = document.getElementById("editNameSelect")?.value?.trim() || "";
+    const key = document.getElementById("editKeyInput")?.value?.trim() || "";
+    const status = document.getElementById("editStatusSelect")?.value || "aktif";
+    const inventoryId = document.getElementById("editInventorySelect")?.value || "";
+
+    if (!name || !key) {
+      document.getElementById("editNameSelect")?.reportValidity();
+      document.getElementById("editKeyInput")?.reportValidity();
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/licenses/${activeLicenseId}`, "PATCH", {
+        name,
+        key,
+        status,
+        inventory_id: inventoryId || null,
+      });
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message || "Lisans güncellenemedi.");
+    }
+  }
+
+  async function passiveLicense(licenseId) {
+    try {
+      await apiRequest(`/api/licenses/${licenseId}/passive`, "POST");
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message || "Lisans pasife alınamadı.");
+    }
+  }
+
   document.addEventListener("click", (event) => {
     const trigger = event.target.closest(".license-detail-trigger[data-license-id]");
     if (trigger) {
@@ -83,6 +177,48 @@
       window.setTimeout(refreshHistory, 0);
     }
   });
+
+  // The legacy page script keeps its local-state handlers. These capture
+  // handlers replace them for mutations so changes are actually persisted.
+  document.addEventListener("click", (event) => {
+    const action = event.target.closest(".license-action[data-action][data-license-id]");
+    if (!action) {
+      return;
+    }
+
+    const actionType = action.dataset.action;
+    const licenseId = action.dataset.licenseId;
+    activeLicenseId = licenseId || activeLicenseId;
+
+    if (actionType === "passive") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      passiveLicense(licenseId);
+      return;
+    }
+
+    if (actionType === "assign") {
+      activeLicenseId = licenseId;
+    }
+  }, true);
+
+  createSubmit?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    createLicense();
+  }, true);
+
+  assignSubmit?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    assignLicense();
+  }, true);
+
+  editSubmit?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    editLicense();
+  }, true);
 
   detailModal.addEventListener("show.bs.modal", (event) => {
     const trigger = event.relatedTarget;
