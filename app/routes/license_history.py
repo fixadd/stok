@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 from sqlalchemy import text
 
 from ..models import ActivityLog, InventoryItem, InventoryLicense, db
@@ -8,7 +8,7 @@ from ..services.authz import current_actor_name
 
 
 
-def register_license_history_routes(app):
+def register_license_history_routes(app, deps):
     license_bp = Blueprint("license", __name__)
 
     try:
@@ -19,6 +19,15 @@ def register_license_history_routes(app):
             db.session.commit()
     except Exception:
         db.session.rollback()
+
+    @license_bp.route("/lisans-takip")
+    def license_tracking():
+        payload = deps["load_license_payload"]()
+        return render_template(
+            "license_tracking.html",
+            active_page="license_tracking",
+            **payload,
+        )
 
     def serialize_license(license_record: InventoryLicense) -> dict:
         item = license_record.item
