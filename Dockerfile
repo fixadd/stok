@@ -17,10 +17,6 @@ RUN pip install --no-cache-dir \
 
 COPY app ./app
 
-ENV FLASK_APP=app \
-    FLASK_RUN_HOST=0.0.0.0 \
-    FLASK_RUN_PORT=5001
-
 EXPOSE 5001
 
-CMD ["flask", "run"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
