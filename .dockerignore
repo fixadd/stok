@@ -1,0 +1,18 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
+*.sqlite3
+*.before-*
+*.bak
+*.backup
+backup/
+backend-audit.txt
+--tail 30 stok-web-1
+.gitignore
+README.md
