@@ -7,22 +7,17 @@ from ..models import ActivityLog, InventoryItem, InventoryLicense, db
 from ..services.authz import current_actor_name, get_active_user, has_system_role
 
 
-
-def register_license_history_routes(app, deps):
+def register_license_history_routes(app, deps=None):
     license_bp = Blueprint("license", __name__)
 
-    with app.app_context():
-        try:
-            if db.engine.dialect.name == "postgresql":
-                db.session.execute(
-                    text(
-                        "ALTER TABLE inventory_licenses "
-                        "ALTER COLUMN item_id DROP NOT NULL"
-                    )
-                )
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
+    if deps is None:
+        deps = {}
+
+    load_license_payload = deps.get("load_license_payload")
+    if load_license_payload is None:
+        def load_license_payload():
+            from .. import load_license_payload as loader
+            return loader()
 
     def require_admin():
         if not has_system_role(get_active_user(), "admin"):
@@ -101,7 +96,7 @@ def register_license_history_routes(app, deps):
 
     @license_bp.route("/lisans-takip")
     def license_tracking():
-        payload = deps["load_license_payload"]()
+        payload = load_license_payload()
         return render_template(
             "license_tracking.html",
             active_page="license_tracking",
