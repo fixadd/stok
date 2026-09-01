@@ -23,7 +23,7 @@
   <section class="dashboard-kpis">
 
     <a class="dashboard-kpi kpi-primary"
-       href="{{ url_for('stock_tracking') }}">
+       href="{{ url_for('stock.stock_tracking') }}">
       <div class="kpi-icon">
         <i class="bi bi-box-seam"></i>
       </div>
@@ -61,7 +61,7 @@
     </a>
 
     <a class="dashboard-kpi kpi-warning"
-       href="{{ url_for('inventory_tracking') }}">
+       href="{{ url_for('inventory.inventory_tracking') }}">
       <div class="kpi-icon">
         <i class="bi bi-exclamation-triangle"></i>
       </div>
@@ -218,7 +218,7 @@
         </div>
 
         <a class="dashboard-panel-link"
-           href="{{ url_for('stock_tracking') }}">
+           href="{{ url_for('stock.stock_tracking') }}">
           Stok Ekranı
           <i class="bi bi-arrow-right"></i>
         </a>
