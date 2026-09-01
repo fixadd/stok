@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 
 from ..services.authz import get_active_user, has_system_role
 from ..services import stock_service
+from ..services.permissions import require_admin
 
 
 def register_stock_routes(app, deps):
@@ -31,6 +32,9 @@ def register_stock_routes(app, deps):
 
     @stock_bp.post("/api/inventory/<int:item_id>/stock")
     def move_inventory_to_stock(item_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return deps["json_error"]("Geçersiz JSON gövdesi."), 400
@@ -39,6 +43,9 @@ def register_stock_routes(app, deps):
 
     @stock_bp.post("/api/inventory/<int:item_id>/scrap")
     def scrap_inventory(item_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return deps["json_error"]("Geçersiz JSON gövdesi."), 400
@@ -47,6 +54,9 @@ def register_stock_routes(app, deps):
 
     @stock_bp.post("/api/licenses/<int:license_id>/stock")
     def move_license_to_stock(license_id: int):
+        denied = require_admin()
+        if denied:
+            return denied
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return deps["json_error"]("Geçersiz JSON gövdesi."), 400
@@ -55,6 +65,9 @@ def register_stock_routes(app, deps):
 
     @stock_bp.post("/api/stock")
     def create_stock_entry():
+        denied = require_admin()
+        if denied:
+            return denied
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return deps["json_error"]("Geçersiz JSON gövdesi."), 400
