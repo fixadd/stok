@@ -2,17 +2,12 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
 
-from ..services.authz import get_active_user, has_system_role
 from ..services import assignment_service
+from ..services.permissions import require_admin
 
 
 def register_assignment_routes(app, helpers):
     assignment_bp = Blueprint("assignment", __name__)
-
-    def require_admin():
-        if not has_system_role(get_active_user(), "admin"):
-            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
-        return None
 
     @assignment_bp.post("/api/inventory/<int:item_id>/assign")
     def assign_inventory(item_id: int):
