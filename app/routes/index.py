@@ -1,7 +1,11 @@
 from flask import render_template
 
+from .license_history import register_license_history_routes
+
 
 def register_index_routes(app, deps):
+    register_license_history_routes(app)
+
     @app.route("/")
     def index():
         recent_activity = deps["load_recent_activity"]()
