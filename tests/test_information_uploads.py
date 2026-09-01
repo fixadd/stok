@@ -1,6 +1,7 @@
 import os
 import tempfile
 from io import BytesIO
+from pathlib import Path
 import unittest
 
 from app import create_app, db, MAX_INFO_UPLOAD_SIZE
@@ -10,8 +11,13 @@ from app.models import InfoAttachment, InfoCategory, User
 class InformationUploadTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.database_tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self.database_tmp.close()
+
         self.original_data_dir = os.environ.get("DATA_DIR")
+        self.original_database_url = os.environ.get("DATABASE_URL")
         os.environ["DATA_DIR"] = self.temp_dir.name
+        os.environ["DATABASE_URL"] = f"sqlite:///{self.database_tmp.name}"
 
         self.app = create_app()
         self.app.config["TESTING"] = True
@@ -26,6 +32,7 @@ class InformationUploadTests(unittest.TestCase):
                 email="test@example.com",
                 password_hash="hash",
                 system_role="admin",
+                must_change_password=False,
             )
             db.session.add_all([category, user])
             db.session.commit()
@@ -34,10 +41,17 @@ class InformationUploadTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+        Path(self.database_tmp.name).unlink(missing_ok=True)
+
         if self.original_data_dir is None:
             os.environ.pop("DATA_DIR", None)
         else:
             os.environ["DATA_DIR"] = self.original_data_dir
+
+        if self.original_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = self.original_database_url
 
     def login(self):
         with self.client.session_transaction() as session:
