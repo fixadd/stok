@@ -180,10 +180,10 @@ def register_profile_routes(app, deps):
 
         return redirect(url_for("profile"))
 
-    # Eski şablon ve entegrasyon çağrılarının Blueprint refactor sonrası
-    # kırılmaması için yalnızca endpoint takma adları oluşturulur.
+    # Blueprint refactor öncesi şablonlar için geri uyumluluk takma adları.
     legacy_aliases = {
         "inventory_tracking": ("/envanter-takip", "inventory.inventory_tracking"),
+        "license_tracking": ("/lisans-takip", "license.license_tracking"),
         "stock_tracking": ("/stok-takip", "stock.stock_tracking"),
         "maintenance_tracking": ("/bakim", "maintenance.maintenance_tracking"),
         "scrap_inventory_page": ("/hurdalar", "stock.scrap_inventory_page"),
