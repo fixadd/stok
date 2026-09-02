@@ -46,6 +46,18 @@ class InventoryRepair(db.Model):
         nullable=False,
     )
 
+    # Post-repair quality control / approval
+    testing_status = db.Column(db.String(32), nullable=False, default="bekliyor")
+    tested_at = db.Column(db.DateTime, nullable=True)
+    tested_by = db.Column(db.String(128), nullable=True)
+    approval_status = db.Column(db.String(32), nullable=False, default="bekliyor")
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by = db.Column(db.String(128), nullable=True)
+
+    # SLA / delay tracking
+    sla_due_at = db.Column(db.DateTime, nullable=True)
+    delay_reason = db.Column(db.Text, nullable=True)
+
     item = db.relationship("InventoryItem", foreign_keys=[item_id])
 
     def to_dict(self) -> dict:
@@ -74,4 +86,12 @@ class InventoryRepair(db.Model):
             "created_by": self.created_by,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "testing_status": self.testing_status,
+            "tested_at": self.tested_at,
+            "tested_by": self.tested_by,
+            "approval_status": self.approval_status,
+            "approved_at": self.approved_at,
+            "approved_by": self.approved_by,
+            "sla_due_at": self.sla_due_at,
+            "delay_reason": self.delay_reason,
         }
