@@ -60,7 +60,7 @@ def current_actor_name() -> str:
 
 
 def is_safe_redirect_target(target: str | None) -> bool:
-    if not target:
+    if not isinstance(target, str) or not target:
         return False
     parsed = urlparse(target)
-    return parsed.scheme == "" and parsed.netloc == "" and target.startswith("/")
+    return parsed.scheme == "" and parsed.netloc == "" and target.startswith("/") and not target.startswith("/\\")
