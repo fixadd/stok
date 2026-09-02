@@ -3,7 +3,10 @@ FROM python:3.11-slim
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    FLASK_APP=app \
+    FLASK_RUN_HOST=0.0.0.0 \
+    FLASK_RUN_PORT=5001
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client \
@@ -17,10 +20,7 @@ RUN pip install --no-cache-dir \
 
 COPY app ./app
 
-ENV FLASK_APP=app \
-    FLASK_RUN_HOST=0.0.0.0 \
-    FLASK_RUN_PORT=5001
-
 EXPOSE 5001
 
-CMD ["flask", "run"]
+# Production WSGI server. The Flask development server is no longer used.
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
