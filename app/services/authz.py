@@ -40,14 +40,15 @@ def set_active_user(user: User | None) -> None:
 def get_system_role(user: User | None) -> str:
     if user is None:
         return "user"
-    return (user.system_role or "user").strip().lower() if user.system_role else "user"
+    role = (user.system_role or "user").strip().lower()
+    return role if role in SYSTEM_ROLE_LEVELS else "user"
 
 
 def has_system_role(user: User | None, required: str) -> bool:
-    required_role = (required or "user").strip().lower()
-    current_level = SYSTEM_ROLE_LEVELS.get(get_system_role(user), 0)
-    required_level = SYSTEM_ROLE_LEVELS.get(required_role, 0)
-    return current_level >= required_level
+    required_role = (required or "").strip().lower()
+    if required_role not in SYSTEM_ROLE_LEVELS:
+        return False
+    return SYSTEM_ROLE_LEVELS[get_system_role(user)] >= SYSTEM_ROLE_LEVELS[required_role]
 
 
 def current_actor_name() -> str:
