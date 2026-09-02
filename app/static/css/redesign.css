@@ -1,0 +1,246 @@
+/* Modern visual layer for the Baylan IT panel.
+   Kept separate from style.css so the legacy UI can be rolled back safely. */
+:root {
+  --modern-primary: #2563eb;
+  --modern-primary-dark: #1d4ed8;
+  --modern-accent: #06b6d4;
+  --modern-ink: #0f172a;
+  --modern-muted: #64748b;
+  --modern-bg: #f1f5f9;
+  --modern-surface: rgba(255,255,255,.92);
+  --modern-border: rgba(148,163,184,.22);
+  --modern-shadow: 0 12px 35px rgba(15,23,42,.07);
+}
+
+body.bg-soft {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(37,99,235,.08), transparent 28rem),
+    radial-gradient(circle at 20% 100%, rgba(6,182,212,.06), transparent 25rem),
+    var(--modern-bg);
+}
+
+.page-wrapper { min-height: 100vh; }
+
+.sidebar {
+  width: 248px;
+  min-width: 248px;
+  max-width: 248px;
+  padding: 18px 12px !important;
+  background: rgba(255,255,255,.94);
+  border-right: 1px solid var(--modern-border);
+  box-shadow: 8px 0 30px rgba(15,23,42,.025);
+}
+
+.sidebar-inner::before {
+  content: "BAYLAN  •  IT PANEL";
+  display: block;
+  margin: 2px 10px 22px;
+  color: var(--modern-ink);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.section-title {
+  margin: 16px 10px 7px;
+  color: #94a3b8;
+  font-size: .62rem;
+  letter-spacing: .12em;
+}
+
+.sidebar-nav { gap: 4px; }
+
+.sidebar-link {
+  position: relative;
+  min-height: 42px;
+  padding: 8px 10px;
+  gap: 11px;
+  border-radius: 12px;
+  color: #475569;
+  font-size: .84rem;
+  transition: transform .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.sidebar-link:hover {
+  color: var(--modern-primary-dark);
+  background: #eff6ff;
+  border-color: transparent;
+  transform: translateX(2px);
+}
+
+.sidebar-link.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--modern-primary), #3b82f6);
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(37,99,235,.2);
+}
+
+.sidebar-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: .94rem;
+  transition: background .16s ease, color .16s ease;
+}
+
+.sidebar-link:hover .sidebar-icon { background: #dbeafe; color: var(--modern-primary); }
+.sidebar-link.active .sidebar-icon { background: rgba(255,255,255,.17); color: #fff; }
+
+.sidebar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.main-content { padding: 26px 30px !important; }
+
+.account-bar {
+  min-height: 58px;
+  margin-bottom: 18px;
+  padding: 8px 10px 8px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  background: rgba(255,255,255,.78);
+  border: 1px solid var(--modern-border);
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(15,23,42,.035);
+  backdrop-filter: blur(12px);
+}
+
+.account-info { margin-right: auto; }
+.account-name { font-weight: 750; color: var(--modern-ink); }
+.account-role { color: var(--modern-muted); font-size: .74rem; margin-top: 1px; }
+.account-logout { border-radius: 10px; border-color: #e2e8f0; }
+
+.page-breadcrumb {
+  margin: 0 0 18px;
+  padding: 9px 13px;
+  width: fit-content;
+  max-width: 100%;
+  background: rgba(255,255,255,.7);
+  border: 1px solid var(--modern-border);
+  border-radius: 10px;
+}
+
+.content-card, .card {
+  border-color: var(--modern-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--modern-shadow) !important;
+}
+
+.content-card { background: var(--modern-surface); }
+
+.btn { border-radius: 10px; font-weight: 650; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--modern-primary), #3b82f6);
+  border-color: var(--modern-primary);
+  box-shadow: 0 6px 16px rgba(37,99,235,.15);
+}
+.btn-primary:hover { background: linear-gradient(135deg, var(--modern-primary-dark), var(--modern-primary)); }
+
+.form-control, .form-select {
+  min-height: 42px;
+  border-radius: 10px;
+  border-color: #dbe2ea;
+  box-shadow: none;
+}
+.form-control:focus, .form-select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+
+.table > :not(caption) > * > * { padding: .78rem .7rem; }
+.table thead th { color: #64748b; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.table tbody tr { transition: background .12s ease; }
+.table tbody tr:hover { background: #f8fafc; }
+
+.badge { font-weight: 650; }
+
+/* Login */
+.auth-body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(59,130,246,.20), transparent 30rem),
+    radial-gradient(circle at 90% 90%, rgba(6,182,212,.16), transparent 28rem),
+    #eef4ff;
+}
+
+.auth-card {
+  width: min(1040px, 100%);
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: 1.02fr .98fr;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,.75);
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(15,23,42,.16);
+}
+
+.auth-illustration {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 58px;
+  color: #fff;
+  overflow: hidden;
+  background: linear-gradient(145deg, #0f3d91 0%, #2563eb 50%, #0891b2 100%);
+}
+
+.auth-illustration::before, .auth-illustration::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  pointer-events: none;
+}
+.auth-illustration::before { width: 360px; height: 360px; right: -140px; top: -120px; }
+.auth-illustration::after { width: 280px; height: 280px; left: -150px; bottom: -130px; }
+.auth-illustration > * { position: relative; z-index: 1; }
+.auth-illustration .badge { color: #1d4ed8 !important; border-radius: 999px; padding: 8px 12px; }
+.auth-illustration h1 { max-width: 420px; margin: 12px 0 14px; font-size: clamp(2.6rem, 5vw, 4.6rem); line-height: .98; letter-spacing: -.045em; }
+.auth-illustration p { max-width: 470px; color: rgba(255,255,255,.82); font-size: 1rem; line-height: 1.7; }
+.auth-illustration .bi-shield-lock { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.13); }
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 58px clamp(32px, 6vw, 72px);
+}
+.auth-form h2 { color: var(--modern-ink); font-size: 1.65rem; letter-spacing: -.02em; }
+.auth-form .form-label { color: #334155; font-weight: 650; font-size: .82rem; }
+.auth-form .form-control { min-height: 50px; padding: 12px 14px; background: #f8fafc; }
+.auth-form .form-control:focus { background: #fff; }
+.auth-form .btn-primary { min-height: 50px; font-size: .9rem; }
+.auth-form .form-text { font-size: .75rem; }
+.auth-form code { color: #475569; background: #f1f5f9; padding: 2px 5px; border-radius: 5px; }
+
+@media (max-width: 900px) {
+  .auth-card { grid-template-columns: 1fr; min-height: auto; }
+  .auth-illustration { min-height: 330px; padding: 40px; }
+  .auth-illustration h1 { font-size: 3rem; }
+  .auth-form { padding: 42px 32px 48px; }
+  .sidebar { width: 76px; min-width: 76px; max-width: 76px; }
+  .sidebar-inner::before { content: "B"; text-align: center; margin: 5px 0 18px; }
+  .section-title, .sidebar-label { display: none; }
+  .sidebar-link { justify-content: center; padding: 7px; }
+  .sidebar-icon { width: 36px; height: 36px; }
+  .main-content { padding: 18px !important; }
+}
+
+@media (max-width: 576px) {
+  .auth-body { padding: 12px; }
+  .auth-card { border-radius: 20px; }
+  .auth-illustration { min-height: 280px; padding: 30px 26px; }
+  .auth-illustration h1 { font-size: 2.45rem; }
+  .auth-form { padding: 34px 24px 38px; }
+  .account-bar { border-radius: 12px; }
+}
