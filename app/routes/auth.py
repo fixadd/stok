@@ -32,7 +32,7 @@ def register_auth_routes(app, deps):
 
         if request.method == "POST":
             username = (request.form.get("username") or "").strip()
-            password = (request.form.get("password") or "").strip()
+            password = request.form.get("password") or ""
             next_param = request.form.get("next") or next_param
 
             user = (
@@ -94,8 +94,8 @@ def register_auth_routes(app, deps):
         error: str | None = None
 
         if request.method == "POST":
-            new_password = (request.form.get("new_password") or "").strip()
-            confirm_password = (request.form.get("confirm_password") or "").strip()
+            new_password = request.form.get("new_password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
             form_target = request.form.get("next")
             if form_target and is_safe_redirect_target(form_target):
                 session["post_password_change_redirect"] = form_target
