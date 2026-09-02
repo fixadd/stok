@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import func
 
-from ..models import RequestGroup, RequestOrder
+from ..models import RequestGroup, RequestLine, RequestOrder
 from .common import apply_limit
 
 
@@ -48,4 +48,35 @@ def list_orders(*, group_id: int | None = None, limit: int = 500) -> list[Reques
     if group_id is not None:
         query = query.filter(RequestOrder.group_id == group_id)
     query = query.order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
+    return apply_limit(query, limit=limit).all()
+
+
+def list_orders_by_requester(requested_by: str | None, *, limit: int = 500) -> list[RequestOrder]:
+    value = (requested_by or "").strip()
+    if not value:
+        return []
+    query = (
+        RequestOrder.query
+        .filter(func.lower(RequestOrder.requested_by) == value.lower())
+        .order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
+    )
+    return apply_limit(query, limit=limit).all()
+
+
+def list_orders_by_department(department: str | None, *, limit: int = 500) -> list[RequestOrder]:
+    value = (department or "").strip()
+    if not value:
+        return []
+    query = (
+        RequestOrder.query
+        .filter(func.lower(RequestOrder.department) == value.lower())
+        .order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
+    )
+    return apply_limit(query, limit=limit).all()
+
+
+def list_order_lines(order_id: int | None, *, limit: int = 500) -> list[RequestLine]:
+    if order_id is None:
+        return []
+    query = RequestLine.query.filter(RequestLine.order_id == order_id).order_by(RequestLine.id)
     return apply_limit(query, limit=limit).all()
