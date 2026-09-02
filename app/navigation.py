@@ -39,11 +39,11 @@ NAV_ITEMS: dict[str, dict[str, Any]] = {
         "section": "inventory",
     },
     "maintenance_tracking": {
-        "title": "Bakım",
+        "title": "Bilgisayar Bakım Takibi",
         "endpoint": "maintenance_tracking",
         "icon": "bi-tools",
         "min_role": "user",
-        "parent": "stock_tracking",
+        "parent": "inventory_tracking",
         "section": "inventory",
     },
     "talep_takip": {
