@@ -12,6 +12,20 @@ def get_assignment(assignment_id: int | None) -> InventoryAssignment | None:
     return InventoryAssignment.query.filter(InventoryAssignment.id == assignment_id).first()
 
 
+def get_current_item_assignment(item_id: int | None) -> InventoryAssignment | None:
+    if item_id is None:
+        return None
+    return (
+        InventoryAssignment.query
+        .filter(
+            InventoryAssignment.item_id == item_id,
+            InventoryAssignment.returned_at.is_(None),
+        )
+        .order_by(InventoryAssignment.assigned_at.desc(), InventoryAssignment.id.desc())
+        .first()
+    )
+
+
 def list_item_assignments(item_id: int | None, *, limit: int = 100) -> list[InventoryAssignment]:
     if item_id is None:
         return []
@@ -28,6 +42,20 @@ def list_active_assignments(*, limit: int = 500) -> list[InventoryAssignment]:
         InventoryAssignment.query
         .filter(InventoryAssignment.returned_at.is_(None))
         .order_by(func.lower(InventoryAssignment.assigned_to), InventoryAssignment.id.desc())
+    )
+    return apply_limit(query, limit=limit).all()
+
+
+def list_active_user_assignments(user_id: int | None, *, limit: int = 100) -> list[InventoryAssignment]:
+    if user_id is None:
+        return []
+    query = (
+        InventoryAssignment.query
+        .filter(
+            InventoryAssignment.assigned_user_id == user_id,
+            InventoryAssignment.returned_at.is_(None),
+        )
+        .order_by(InventoryAssignment.assigned_at.desc(), InventoryAssignment.id.desc())
     )
     return apply_limit(query, limit=limit).all()
 
