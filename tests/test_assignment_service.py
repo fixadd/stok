@@ -1,4 +1,5 @@
 from app.services.assignment_service import (
+    get_assignment,
     list_active_assignments,
     list_item_assignments,
     list_user_assignments,
@@ -6,6 +7,10 @@ from app.services.assignment_service import (
 
 
 def test_assignment_service_delegates(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.assignment_service.assignment_queries.get_assignment",
+        lambda assignment_id: assignment_id,
+    )
     monkeypatch.setattr(
         "app.services.assignment_service.assignment_queries.list_item_assignments",
         lambda item_id, limit=100: [item_id, limit],
@@ -18,6 +23,8 @@ def test_assignment_service_delegates(monkeypatch):
         "app.services.assignment_service.assignment_queries.list_user_assignments",
         lambda user_id, limit=500: [user_id, limit],
     )
+
+    assert get_assignment(9) == {"success": True, "assignment": 9}
     assert list_item_assignments(7, limit=10) == {"success": True, "assignments": [7, 10]}
     assert list_active_assignments(limit=20) == {"success": True, "assignments": [20]}
     assert list_user_assignments(3, limit=30) == {"success": True, "assignments": [3, 30]}
