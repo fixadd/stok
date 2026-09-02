@@ -1,6 +1,6 @@
 from flask import flash, redirect, render_template, request, url_for
 
-from ..queries.user_queries import get_user, list_active_users
+from ..services import user_query_service
 from ..services.validation import validate_password
 
 
@@ -9,7 +9,11 @@ def register_profile_routes(app, deps):
     def profile():
         profile_user = deps["get_active_user"]()
         can_switch_users = deps["has_system_role"](profile_user, "superadmin")
-        users = list_active_users(limit=500) if can_switch_users else ([profile_user] if profile_user else [])
+        users = (
+            user_query_service.list_active_users(limit=500)["users"]
+            if can_switch_users
+            else ([profile_user] if profile_user else [])
+        )
 
         return render_template(
             "profile.html",
@@ -27,7 +31,8 @@ def register_profile_routes(app, deps):
             return redirect(url_for("profile"))
 
         user_id = deps["parse_int_or_none"](request.form.get("user_id"))
-        user = get_user(user_id) if user_id is not None else None
+        result = user_query_service.get_user(user_id) if user_id is not None else {"user": None}
+        user = result["user"]
         if user is None:
             flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
             return redirect(url_for("profile"))
