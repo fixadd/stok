@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ..models import InventoryItem
 from ..repair_model import InventoryRepair
+from .common import apply_limit
 
 
 def get_item(item_id: int) -> InventoryItem | None:
@@ -15,14 +16,15 @@ def get_record(item_id: int, repair_id: int) -> InventoryRepair | None:
     ).first()
 
 
-def list_records(item_id: int | None = None) -> list[InventoryRepair]:
+def list_records(item_id: int | None = None, *, limit: int = 500) -> list[InventoryRepair]:
     query = InventoryRepair.query
     if item_id is not None:
         query = query.filter(InventoryRepair.item_id == item_id)
-    return query.order_by(
+    query = query.order_by(
         InventoryRepair.fault_date.desc(),
         InventoryRepair.id.desc(),
-    ).all()
+    )
+    return apply_limit(query, limit=limit).all()
 
 
 def get_latest_record(item_id: int) -> InventoryRepair | None:
@@ -37,5 +39,6 @@ def get_latest_record(item_id: int) -> InventoryRepair | None:
     )
 
 
-def list_items() -> list[InventoryItem]:
-    return InventoryItem.query.order_by(InventoryItem.inventory_no).all()
+def list_items(*, limit: int = 500) -> list[InventoryItem]:
+    query = InventoryItem.query.order_by(InventoryItem.inventory_no)
+    return apply_limit(query, limit=limit).all()
