@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Flask
 
@@ -34,10 +35,12 @@ class AppConfig:
         same_site = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax").strip()
         if same_site not in {"Lax", "Strict", "None"}:
             raise RuntimeError("SESSION_COOKIE_SAMESITE Lax, Strict veya None olmalıdır.")
-        if same_site == "None" and not os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true":
+        if same_site == "None" and os.environ.get("SESSION_COOKIE_SECURE", "false").lower() != "true":
             raise RuntimeError("SameSite=None için SESSION_COOKIE_SECURE=true gereklidir.")
 
-        secure_cookie = os.environ.get("SESSION_COOKIE_SECURE", "true" if is_production else "false").lower() == "true"
+        secure_cookie = os.environ.get(
+            "SESSION_COOKIE_SECURE", "true" if is_production else "false"
+        ).lower() == "true"
 
         app.config.from_mapping(
             SECRET_KEY=secret_key,
@@ -50,4 +53,12 @@ class AppConfig:
         app.config["APP_ENV"] = environment
         app.config["DATA_DIR"] = data_dir
         app.config["INFO_UPLOAD_DIR"] = info_upload_dir
+
+        database_path = os.environ.get("DATABASE_PATH")
+        if database_path:
+            app.config["DATABASE_PATH"] = Path(database_path).expanduser().resolve()
+        elif database_url.startswith("sqlite:///"):
+            parsed = urlparse(database_url)
+            app.config["DATABASE_PATH"] = Path(parsed.path).expanduser().resolve()
+
         app.permanent_session_lifetime = timedelta(minutes=session_minutes)
