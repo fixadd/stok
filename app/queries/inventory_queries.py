@@ -36,6 +36,28 @@ def get_by_inventory_no(
     )
 
 
+def list_by_responsible_user(user_id: int | None, *, limit: int = 500) -> list[InventoryItem]:
+    if user_id is None:
+        return []
+    query = (
+        base_inventory_query()
+        .filter(InventoryItem.responsible_user_id == user_id)
+        .order_by(InventoryItem.inventory_no)
+    )
+    return apply_limit(query, limit=limit).all()
+
+
+def list_by_factory(factory_id: int | None, *, limit: int = 500) -> list[InventoryItem]:
+    if factory_id is None:
+        return []
+    query = (
+        base_inventory_query()
+        .filter(InventoryItem.factory_id == factory_id)
+        .order_by(InventoryItem.inventory_no)
+    )
+    return apply_limit(query, limit=limit).all()
+
+
 def list_inventory_items(*, limit: int = 500) -> list[InventoryItem]:
     query = base_inventory_query().order_by(InventoryItem.inventory_no)
     return apply_limit(query, limit=limit).all()
