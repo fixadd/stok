@@ -1,5 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 
+from ..services.validation import validate_password
+
 
 def register_profile_routes(app, deps):
     @app.route("/profil")
@@ -88,7 +90,7 @@ def register_profile_routes(app, deps):
             flash("Yeni şifre ve doğrulama şifresi eşleşmiyor.", "danger")
             return redirect(url_for("profile"))
 
-        _, password_error = deps["validate_password"](
+        _, password_error = validate_password(
             new_password,
             username=user.username or "",
         )
