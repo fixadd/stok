@@ -36,6 +36,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from openpyxl import load_workbook
 from .navigation import build_breadcrumbs, build_sidebar_sections
+from .config import AppConfig
+from .errors import register_error_handlers
 from .routes.admin import register_admin_routes
 from .routes.auth import register_auth_routes
 from .routes.inventory import register_inventory_routes
@@ -575,25 +577,25 @@ def create_app() -> Flask:
 
     app = Flask(__name__)
 
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL yapılandırılmamış.")
-
-    app.config.from_mapping(
-        SECRET_KEY="stok-admin-secret",
-        SQLALCHEMY_DATABASE_URI=database_url,
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    )
-    app.config["DATA_DIR"] = data_dir
-    app.config["INFO_UPLOAD_DIR"] = info_upload_dir
-    app.permanent_session_lifetime = timedelta(hours=8)
+    AppConfig.configure(app, data_dir=data_dir, info_upload_dir=info_upload_dir)
 
     db.init_app(app)
+    register_error_handlers(app)
     app.register_blueprint(personnel_lifecycle_bp)
 
     with app.app_context():
         db.create_all()
         seed_initial_data()
+
+    @app.after_request
+    def apply_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        if request.is_secure:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
 
     @app.before_request
     def enforce_login():
