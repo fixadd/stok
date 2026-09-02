@@ -1,56 +1,88 @@
-# Stok Yönetim Paneli
+# Baylan IT Varlık ve Stok Yönetim Sistemi
 
-Bootstrap 5 tasarımına sahip, Docker ile 5001 portunda ayağa kaldırılabilen basit bir stok yönetim arayüzü.
+Flask + SQLAlchemy + PostgreSQL tabanlı, Docker Compose ile çalıştırılabilen IT varlık, stok, lisans, bakım, talep, personel yaşam döngüsü ve bilgi yönetim panelidir.
 
-## Varsayılan Yönetici Hesabı
+## Ana modüller
 
-Uygulama ilk kez başlatıldığında sisteme giriş yapabilmek için varsayılan olarak şu yönetici hesabı oluşturulur:
+- Dashboard / Ana Sayfa
+- Envanter Takip
+- Lisans Takip
+- Stok Takip
+- Bakım
+- Hurdalar
+- Talep Takip
+- Personel Lifecycle
+- Bilgiler / bilgi bankası
+- Profil ve kullanıcı yetkilendirme
+- Yönetici kayıtları / Activity Log
 
-| Kullanıcı Adı | Şifre |
-| ------------- | ----- |
-| `admin`       | `admin` |
+## Teknoloji
 
-İlk girişte bu hesap için yeni ve güçlü bir şifre belirlemeniz istenir. Şifre değişikliğini tamamladıktan sonra panelin tüm özelliklerine erişebilirsiniz.
+- Python 3.11
+- Flask
+- Flask-SQLAlchemy / SQLAlchemy
+- PostgreSQL 17
+- Psycopg
+- Docker / Docker Compose
+- Bootstrap tabanlı web arayüzü
 
-## Kurulum
+## Docker ile kurulum
 
-Projeyi yerel ortamınızda çalıştırmak için Docker kullanabilirsiniz:
-
-```bash
-docker build -t stok-uygulama .
-docker run --rm -p 5001:5001 stok-uygulama
-```
-
-Ardından tarayıcınızdan `http://localhost:5001` adresine gidin.
-
-Docker Compose tercih ediyorsanız aşağıdaki komutu kullanabilirsiniz:
-
-```bash
-docker compose up --build
-```
-
-Compose ortamı ilk kez ayağa kaldırıldığında proje kök dizininde `data/` klasörü oluşturulur ve uygulama bu klasörün içine `stok.db` dosyası ile yüklenen görsellere ait alt klasörleri kaydeder. Docker konteyneri çalışırken bu klasör `/app/data` olarak bağlanır; böylece konteyner yeniden başlatıldığında veya güncellendiğinde veriler korunur. `data/` klasörünü başka bir ortama taşıyarak veya versiyon kontrolü dışında bir yedekle saklayarak veritabanını koruyabilirsiniz.
-
-
-## Veritabanı Konumu
-
-Varsayılan çalışmada uygulama veritabanını proje kökündeki `./data/stok.db` dosyasında tutar. `DATA_DIR` değişkeni verilirse aynı varsayılan isimle bu klasörün altında `stok.db` oluşturulur.
-
-Harici bir yedek disk veya özel bir dosya yolu kullanmak için `DATABASE_PATH` ortam değişkenini doğrudan veritabanı dosyasına işaret edecek şekilde verebilirsiniz:
+1. Ortam dosyasını oluşturun:
 
 ```bash
-DATABASE_PATH=/mnt/backup/stok/stok.db docker compose up --build
+cp .env.example .env
 ```
 
-Bu kullanımda uygulama `/mnt/backup/stok/` klasörünü otomatik oluşturur; yüklenen dosyalar ve diğer varsayılan veri klasörleri için `DATA_DIR` kullanılmaya devam eder.
+2. `.env` içindeki `POSTGRES_PASSWORD` değerini güçlü ve benzersiz bir parola ile değiştirin.
+
+3. Uygulamayı başlatın:
+
+```bash
+docker compose up -d --build
+```
+
+4. Durumu kontrol edin:
+
+```bash
+docker compose ps
+docker compose logs -f web
+```
+
+5. Paneli açın:
+
+```text
+http://localhost:5001
+```
+
+## Veritabanı
+
+Uygulama PostgreSQL kullanır. PostgreSQL verileri `postgres_data` adlı Docker volume içinde tutulur. Bu nedenle `docker compose down` sonrasında volume silinmediği sürece veritabanı korunur.
+
+Veritabanını silmek için özellikle volume'u da kaldırmanız gerekir:
+
+```bash
+docker compose down -v
+```
+
+> Bu komut PostgreSQL verilerini siler. Üretim ortamında çalıştırmadan önce mutlaka yedek alın.
 
 ## Geliştirme
 
-Yerel geliştirme için Flask uygulamasını doğrudan çalıştırabilirsiniz:
+Docker dışında çalıştırmak için Python 3.11 ve gerekli bağımlılıkları kurup `DATABASE_URL` ortam değişkenini PostgreSQL bağlantı adresine ayarlayın:
 
 ```bash
 pip install -r requirements.txt
-python -m flask --app app run --host 0.0.0.0 --port 5001 --debug
+flask --app app run --host 0.0.0.0 --port 5001 --debug
 ```
 
-Bu komut arayüzü 5001 portu üzerinden erişilebilir şekilde başlatır.
+## Güvenlik notları
+
+- Gerçek parolaları Git'e göndermeyin.
+- `.env` dosyası `.gitignore` tarafından hariç tutulur.
+- `.env.example` yalnızca örnek yapılandırmadır; gerçek parola içermez.
+- Varsayılan/örnek yönetici parolasını üretim ortamında kullanmayın.
+
+## Veri yedekleme
+
+PostgreSQL verileri `postgres_data` volume'unda tutulduğu için uygulama container'ını yeniden oluşturmak veriyi tek başına silmez. Üretim ortamında ayrıca düzenli PostgreSQL yedeği alınması önerilir.
