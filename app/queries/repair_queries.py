@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy import func
+
 from ..models import InventoryItem
 from ..repair_model import InventoryRepair
 from .common import apply_limit
@@ -14,6 +16,18 @@ def get_record(item_id: int, repair_id: int) -> InventoryRepair | None:
         id=repair_id,
         item_id=item_id,
     ).first()
+
+
+def get_by_service_ticket(ticket_no: str | None) -> InventoryRepair | None:
+    value = (ticket_no or "").strip()
+    if not value:
+        return None
+    return (
+        InventoryRepair.query
+        .filter(func.lower(InventoryRepair.service_ticket_no) == value.lower())
+        .order_by(InventoryRepair.id.desc())
+        .first()
+    )
 
 
 def list_records(item_id: int | None = None, *, limit: int = 500) -> list[InventoryRepair]:
