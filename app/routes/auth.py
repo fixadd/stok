@@ -3,6 +3,8 @@ from __future__ import annotations
 from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from ..queries.user_queries import get_by_username
+from ..services.validation import validate_password
 from .index import register_index_routes
 
 
@@ -11,9 +13,6 @@ def register_auth_routes(app, deps):
 
     get_active_user = deps["get_active_user"]
     is_safe_redirect_target = deps["is_safe_redirect_target"]
-    active_users_query = deps["active_users_query"]
-    User = deps["User"]
-    func = deps["func"]
     set_active_user = deps["set_active_user"]
     record_activity = deps["record_activity"]
     current_actor_name = deps["current_actor_name"]
@@ -34,14 +33,7 @@ def register_auth_routes(app, deps):
             username = (request.form.get("username") or "").strip()
             password = request.form.get("password") or ""
             next_param = request.form.get("next") or next_param
-
-            user = (
-                active_users_query()
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-                if username
-                else None
-            )
+            user = get_by_username(username)
 
             if user and user.password_hash and check_password_hash(user.password_hash, password):
                 session.clear()
@@ -92,7 +84,6 @@ def register_auth_routes(app, deps):
                 target = session.get("post_password_change_redirect")
 
         error: str | None = None
-
         if request.method == "POST":
             new_password = request.form.get("new_password") or ""
             confirm_password = request.form.get("confirm_password") or ""
@@ -105,25 +96,25 @@ def register_auth_routes(app, deps):
                 error = "Lütfen yeni şifrenizi iki alana da yazın."
             elif new_password != confirm_password:
                 error = "Yeni şifre ve doğrulama alanı eşleşmiyor."
-            elif len(new_password) < 8:
-                error = "Şifre en az 8 karakter olmalıdır."
-            elif new_password.lower() == user.username.lower():
-                error = "Şifreniz kullanıcı adınızla aynı olamaz."
             else:
-                user.password_hash = generate_password_hash(new_password)
-                user.must_change_password = False
-                record_activity(
-                    area="auth",
-                    action="İlk giriş şifresi güncellendi",
-                    actor=current_actor_name(),
-                    metadata={"user_id": user.id, "username": user.username},
-                )
-                db.session.commit()
-                flash("Yeni şifreniz kaydedildi.", "success")
-                session.pop("post_password_change_redirect", None)
-                if target and is_safe_redirect_target(target):
-                    return redirect(target)
-                return redirect(url_for("index"))
+                _, password_error = validate_password(new_password, username=user.username or "")
+                if password_error:
+                    error = password_error
+                else:
+                    user.password_hash = generate_password_hash(new_password)
+                    user.must_change_password = False
+                    record_activity(
+                        area="auth",
+                        action="İlk giriş şifresi güncellendi",
+                        actor=current_actor_name(),
+                        metadata={"user_id": user.id, "username": user.username},
+                    )
+                    db.session.commit()
+                    flash("Yeni şifreniz kaydedildi.", "success")
+                    session.pop("post_password_change_redirect", None)
+                    if target and is_safe_redirect_target(target):
+                        return redirect(target)
+                    return redirect(url_for("index"))
 
         return render_template(
             "force_password_change.html",
