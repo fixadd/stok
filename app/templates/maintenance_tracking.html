@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Bilgisayar Bakım Takibi · Stok Yönetimi{% endblock %}
+{% block title %}Tamir / Bakım Takibi · Stok Yönetimi{% endblock %}
 
 {% block main %}
 <div class="d-flex flex-column gap-4">
@@ -9,163 +9,148 @@
         <div class="d-flex align-items-center gap-3 mb-2">
           <div class="maintenance-hero-icon"><i class="bi bi-tools"></i></div>
           <div>
-            <h1 class="h3 mb-1">Bilgisayar Bakım Takibi</h1>
-            <p class="text-muted mb-0">Yalnızca bilgisayar envanterlerinin bakım geçmişini, sonraki bakım tarihini ve durumunu yönetin.</p>
+            <h1 class="h3 mb-1">Tamir / Bakım Takibi</h1>
+            <p class="text-muted mb-0">Envanter cihazlarının periyodik bakımını ve arıza nedeniyle tamir / servis süreçlerini tek yerden yönetin.</p>
           </div>
         </div>
-        <span class="badge rounded-pill bg-light text-dark">Otomatik bakım periyodu: {{ maintenance_interval_days }} gün</span>
+        <span class="badge rounded-pill bg-light text-dark">Bakım periyodu: {{ maintenance_interval_days }} gün · Tamir tüm envanter cihazlarında kullanılabilir</span>
       </div>
-      <button class="btn btn-primary" type="button" data-open-new-maintenance>
-        <i class="bi bi-plus-lg me-1"></i>Yeni Bakım Kaydı
-      </button>
+      <div class="btn-group">
+        <button class="btn btn-outline-primary" type="button" data-open-new-maintenance><i class="bi bi-wrench-adjustable me-1"></i>Bakım Ekle</button>
+        <button class="btn btn-primary" type="button" data-open-new-repair><i class="bi bi-tools me-1"></i>Tamir Kaydı</button>
+      </div>
     </div>
   </div>
 
   <div class="row g-3">
-    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Toplam Bilgisayar</div><div class="fs-3 fw-bold">{{ maintenance_total_count }}</div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Bakımı Güncel</div><div class="fs-3 fw-bold text-success">{{ maintenance_current_count }}</div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Bakımı Yaklaşan</div><div class="fs-3 fw-bold text-warning">{{ maintenance_warning_count }}</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Bakım Takibindeki Bilgisayar</div><div class="fs-3 fw-bold">{{ maintenance_total_count }}</div></div></div></div>
     <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Bakımı Geciken</div><div class="fs-3 fw-bold text-danger">{{ maintenance_overdue_count }}</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Serviste</div><div class="fs-3 fw-bold text-warning">{{ repair_service_count }}</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm border-0"><div class="card-body"><div class="text-muted small">Tamirden Dönen</div><div class="fs-3 fw-bold text-success">{{ repair_returned_count }}</div></div></div></div>
   </div>
 
   <div class="content-card shadow-sm">
-    <div class="row g-3 align-items-end">
-      <div class="col-lg-8">
-        <label class="form-label small text-muted" for="maintenanceSearch">Bilgisayar bakımında ara</label>
-        <div class="input-group">
-          <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input class="form-control" id="maintenanceSearch" type="search" placeholder="Envanter no, bilgisayar, sorumlu, marka/model, durum...">
+    <ul class="nav nav-pills gap-2" id="repairMaintenanceTabs" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#maintenancePane" type="button"><i class="bi bi-wrench-adjustable me-1"></i>Bakım <span class="badge bg-light text-dark ms-1">{{ maintenance_total_count }}</span></button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#repairPane" type="button"><i class="bi bi-tools me-1"></i>Tamir / Servis <span class="badge bg-light text-dark ms-1">{{ repair_total_count }}</span></button></li>
+    </ul>
+  </div>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="maintenancePane">
+      <div class="content-card shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-8"><label class="form-label small text-muted" for="maintenanceSearch">Bakım kayıtlarında ara</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" id="maintenanceSearch" type="search" placeholder="Envanter no, bilgisayar, sorumlu, marka/model, durum..."></div></div>
+          <div class="col-lg-4 text-lg-end"><span class="text-muted small">Bakım kaydı olmayan bilgisayar: <strong>{{ maintenance_none_count }}</strong></span></div>
         </div>
       </div>
-      <div class="col-lg-4 text-lg-end">
-        <span class="text-muted small">Bakım kaydı olmayan bilgisayar: <strong>{{ maintenance_none_count }}</strong></span>
-      </div>
+      <div class="content-card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Envanter No</th><th>Bilgisayar</th><th>Sorumlu</th><th>Marka / Model</th><th>Son Bakım</th><th>Sonraki Bakım</th><th>Durum</th><th class="text-end">İşlemler</th></tr></thead><tbody>
+        {% for item in maintenance_items %}<tr data-maintenance-row data-search="{{ item.search_index }}"><td class="fw-semibold">{{ item.inventory_no }}</td><td>{{ item.computer_name or '-' }}<div class="small text-muted">{{ item.hardware_type }}</div></td><td>{{ item.responsible }}</td><td>{{ item.brand_model }}</td><td>{{ item.last_maintenance_at }}</td><td>{{ item.next_maintenance_at }}</td><td><span class="badge rounded-pill {{ item.maintenance_status_class }}">{{ item.maintenance_status }}</span></td><td class="text-end"><div class="btn-group btn-group-sm"><button class="btn btn-outline-primary" type="button" data-detail-item="{{ item.id }}">Geçmiş</button><button class="btn btn-primary" type="button" data-add-item="{{ item.id }}">Bakım Ekle</button></div></td></tr>
+        {% else %}<tr><td colspan="8" class="text-center text-muted py-5">Bakım takibine uygun bilgisayar envanteri bulunmuyor.</td></tr>{% endfor %}
+      </tbody></table></div></div>
     </div>
-  </div>
 
-  <div class="content-card shadow-sm">
-    <div class="table-responsive">
-      <table class="table align-middle mb-0" id="maintenanceTable">
-        <thead><tr><th>Envanter No</th><th>Bilgisayar</th><th>Sorumlu</th><th>Marka / Model</th><th>Son Bakım</th><th>Sonraki Bakım</th><th>Durum</th><th class="text-end">İşlemler</th></tr></thead>
-        <tbody id="maintenanceRows">
-          {% for item in maintenance_items %}
-          <tr data-maintenance-row data-search="{{ item.search_index }}">
-            <td class="fw-semibold">{{ item.inventory_no }}</td>
-            <td>{{ item.computer_name or '-' }}<div class="small text-muted">{{ item.hardware_type }}</div></td>
-            <td>{{ item.responsible }}</td>
-            <td>{{ item.brand_model }}</td>
-            <td>{{ item.last_maintenance_at }}</td>
-            <td>{{ item.next_maintenance_at }}</td>
-            <td><span class="badge rounded-pill {{ item.maintenance_status_class }}">{{ item.maintenance_status }}</span></td>
-            <td class="text-end"><div class="btn-group btn-group-sm"><button class="btn btn-outline-primary" type="button" data-detail-item="{{ item.id }}"><i class="bi bi-clock-history me-1"></i>Geçmiş</button><button class="btn btn-primary" type="button" data-add-item="{{ item.id }}"><i class="bi bi-plus-lg me-1"></i>Bakım Ekle</button></div></td>
-          </tr>
-          {% else %}<tr><td colspan="8" class="text-center text-muted py-5">Bakım takibine uygun bilgisayar envanteri bulunmuyor.</td></tr>{% endfor %}
-        </tbody>
-      </table>
+    <div class="tab-pane fade" id="repairPane">
+      <div class="content-card shadow-sm mb-4"><div class="row g-3 align-items-end"><div class="col-lg-8"><label class="form-label small text-muted" for="repairSearch">Tamir / servis kayıtlarında ara</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" id="repairSearch" type="search" placeholder="Envanter, arıza, servis firması, servis no, durum..."></div></div><div class="col-lg-4 text-lg-end"><span class="text-muted small">Bekleyen: <strong>{{ repair_waiting_count }}</strong> · Sorunlu: <strong>{{ repair_problem_count }}</strong></span></div></div></div>
+      <div class="content-card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Envanter</th><th>Cihaz</th><th>Arıza</th><th>Servis Firması</th><th>Gönderim</th><th>Tahmini Dönüş</th><th>Durum</th><th class="text-end">İşlemler</th></tr></thead><tbody>
+        {% for record in repair_records %}<tr data-repair-row data-search="{{ (record.inventory_no ~ ' ' ~ record.computer_name ~ ' ' ~ record.hardware_type ~ ' ' ~ record.brand_model ~ ' ' ~ record.problem_description ~ ' ' ~ record.service_company ~ ' ' ~ record.service_ticket_no ~ ' ' ~ record.status_label)|lower }}"><td class="fw-semibold">{{ record.inventory_no }}</td><td>{{ record.computer_name or record.brand_model }}<div class="small text-muted">{{ record.hardware_type }}</div></td><td><div class="fw-semibold">{{ record.fault_type or 'Arıza' }}</div><div class="small text-muted text-truncate" style="max-width:280px">{{ record.problem_description }}</div></td><td>{{ record.service_company or '-' }}<div class="small text-muted">{{ record.service_ticket_no or '' }}</div></td><td>{{ record.sent_at_display }}</td><td>{{ record.expected_return_at_display }}</td><td><span class="badge rounded-pill bg-secondary">{{ record.status_label }}</span></td><td class="text-end"><div class="btn-group btn-group-sm"><button class="btn btn-outline-primary" data-edit-repair="{{ record.id }}" type="button">Düzenle</button><button class="btn btn-outline-danger" data-delete-repair="{{ record.id }}" type="button">Sil</button></div></td></tr>
+        {% else %}<tr><td colspan="8" class="text-center text-muted py-5">Henüz tamir / servis kaydı bulunmuyor.</td></tr>{% endfor %}
+      </tbody></table></div></div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="maintenanceDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content shadow-lg">
-    <div class="modal-header border-0"><div><h5 class="modal-title" id="maintenanceDetailTitle">Bakım Geçmişi</h5><p class="text-muted mb-0" id="maintenanceDetailMeta"></p></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body"><div id="maintenanceHistory"></div></div>
-    <div class="modal-footer border-0"><button class="btn btn-primary" type="button" id="maintenanceDetailAdd"><i class="bi bi-plus-lg me-1"></i>Yeni Bakım</button></div>
-  </div></div>
-</div>
+<div class="modal fade" id="maintenanceDetailModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content shadow-lg"><div class="modal-header border-0"><div><h5 class="modal-title" id="maintenanceDetailTitle">Bakım Geçmişi</h5><p class="text-muted mb-0" id="maintenanceDetailMeta"></p></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><div id="maintenanceHistory"></div></div><div class="modal-footer border-0"><button class="btn btn-primary" type="button" id="maintenanceDetailAdd">Yeni Bakım</button></div></div></div></div>
 
-<div class="modal fade" id="maintenanceFormModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered"><form class="modal-content shadow-lg" id="maintenanceForm">
-    <div class="modal-header border-0"><div><h5 class="modal-title" id="maintenanceFormTitle">Yeni Bakım Kaydı</h5><p class="text-muted mb-0" id="maintenanceFormMeta"></p></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="item_id"><input type="hidden" name="maintenance_id">
-      <div class="row g-3"><div class="col-md-6"><label class="form-label">Bakım Tarihi</label><input class="form-control" name="performed_at" type="datetime-local" required></div><div class="col-md-6"><label class="form-label">Bakımı Yapan</label><input class="form-control" name="performed_by" maxlength="128" placeholder="Teknisyen / ekip"></div><div class="col-12"><label class="form-label">Yapılan İşlem / Açıklama</label><textarea class="form-control" name="note" rows="4" maxlength="2000" placeholder="Temizlik, format, parça değişimi, kontrol vb."></textarea></div></div>
-      <div class="alert d-none mt-3 mb-0" id="maintenanceFeedback"></div>
-    </div>
-    <div class="modal-footer border-0"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button><button class="btn btn-primary" type="submit">Kaydet</button></div>
-  </form></div>
-</div>
+<div class="modal fade" id="maintenanceFormModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><form class="modal-content shadow-lg" id="maintenanceForm"><div class="modal-header border-0"><div><h5 class="modal-title" id="maintenanceFormTitle">Yeni Bakım Kaydı</h5><p class="text-muted mb-0" id="maintenanceFormMeta"></p></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="item_id"><input type="hidden" name="maintenance_id"><div class="row g-3"><div class="col-md-6"><label class="form-label">Bakım Tarihi</label><input class="form-control" name="performed_at" type="datetime-local" required></div><div class="col-md-6"><label class="form-label">Bakımı Yapan</label><input class="form-control" name="performed_by" maxlength="128" placeholder="Teknisyen / ekip"></div><div class="col-12"><label class="form-label">Yapılan İşlem / Açıklama</label><textarea class="form-control" name="note" rows="4" maxlength="2000"></textarea></div></div><div class="alert d-none mt-3 mb-0" id="maintenanceFeedback"></div></div><div class="modal-footer border-0"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button><button class="btn btn-primary" type="submit">Kaydet</button></div></form></div></div>
+
+<div class="modal fade" id="repairFormModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><form class="modal-content shadow-lg" id="repairForm"><div class="modal-header border-0"><div><h5 class="modal-title" id="repairFormTitle">Yeni Tamir / Servis Kaydı</h5><p class="text-muted mb-0" id="repairFormMeta">Arıza kaydı ve dış servis sürecini takip edin.</p></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" name="repair_id"><div class="row g-3"><div class="col-md-6"><label class="form-label">Envanter</label><select class="form-select" name="item_id" required><option value="">Envanter seçin</option>{% for item in maintenance_items %}<option value="{{ item.id }}">{{ item.inventory_no }} · {{ item.computer_name or item.brand_model }}</option>{% endfor %}{% for record in repair_records %}<option value="{{ record.item_id }}">{{ record.inventory_no }} · {{ record.computer_name or record.brand_model }}</option>{% endfor %}</select></div><div class="col-md-3"><label class="form-label">Arıza Tarihi</label><input class="form-control" name="fault_date" type="datetime-local" required></div><div class="col-md-3"><label class="form-label">Arıza Türü</label><input class="form-control" name="fault_type" maxlength="128" placeholder="Donanım / Yazılım / Diğer"></div><div class="col-12"><label class="form-label">Arıza / Sorun Açıklaması</label><textarea class="form-control" name="problem_description" rows="3" maxlength="5000" required></textarea></div><div class="col-md-3"><label class="form-label">Durum</label><select class="form-select" name="status">{% for key,label in repair_statuses.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-3 d-flex align-items-end"><div class="form-check form-switch pb-2"><input class="form-check-input" type="checkbox" name="sent_to_service" value="true" id="sentToService"><label class="form-check-label" for="sentToService">Dış servise gönderildi</label></div></div><div class="col-md-6"><label class="form-label">Servis Firması</label><input class="form-control" name="service_company" maxlength="256"></div><div class="col-md-4"><label class="form-label">Servis Yetkilisi / İletişim</label><input class="form-control" name="service_contact" maxlength="128"></div><div class="col-md-4"><label class="form-label">Servis Kayıt No</label><input class="form-control" name="service_ticket_no" maxlength="128"></div><div class="col-md-4"><label class="form-label">Garanti</label><select class="form-select" name="warranty_status">{% for key,label in warranty_statuses.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label">Gönderim Tarihi</label><input class="form-control" name="sent_at" type="datetime-local"></div><div class="col-md-4"><label class="form-label">Tahmini Dönüş</label><input class="form-control" name="expected_return_at" type="datetime-local"></div><div class="col-md-4"><label class="form-label">Gerçek Dönüş</label><input class="form-control" name="returned_at" type="datetime-local"></div><div class="col-md-6"><label class="form-label">Yapılan Tamir</label><textarea class="form-control" name="repair_description" rows="3" maxlength="5000"></textarea></div><div class="col-md-3"><label class="form-label">Servis Ücreti</label><input class="form-control" name="service_cost" type="number" min="0" step="0.01"></div><div class="col-md-3"><label class="form-label">Not</label><textarea class="form-control" name="note" rows="3" maxlength="2000"></textarea></div></div><div class="alert d-none mt-3 mb-0" id="repairFeedback"></div></div><div class="modal-footer border-0"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button><button class="btn btn-primary" type="submit">Kaydet</button></div></form></div></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (() => {
-  const items = {{ maintenance_items|tojson }};
-  const byId = new Map(items.map(item => [String(item.id), item]));
+  const maintenanceItems = {{ maintenance_items|tojson }};
+  const repairs = {{ repair_records|tojson }};
+  const byMaintenanceId = new Map(maintenanceItems.map(item => [String(item.id), item]));
+  const byRepairId = new Map(repairs.map(item => [String(item.id), item]));
   const detailModal = new bootstrap.Modal(document.getElementById('maintenanceDetailModal'));
-  const formModal = new bootstrap.Modal(document.getElementById('maintenanceFormModal'));
-  const form = document.getElementById('maintenanceForm');
-  const feedback = document.getElementById('maintenanceFeedback');
-  let selectedItemId = null;
-
-  const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const maintenanceModal = new bootstrap.Modal(document.getElementById('maintenanceFormModal'));
+  const repairModal = new bootstrap.Modal(document.getElementById('repairFormModal'));
+  const maintenanceForm = document.getElementById('maintenanceForm');
+  const repairForm = document.getElementById('repairForm');
   const inputDate = value => value ? value.slice(0, 16) : '';
+  const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
-  function openForm(itemId, record = null) {
-    selectedItemId = String(itemId);
-    const item = byId.get(selectedItemId);
-    form.reset();
-    form.elements.item_id.value = selectedItemId;
-    form.elements.maintenance_id.value = record ? record.id : '';
-    form.elements.performed_at.value = record ? inputDate(record.performed_at) : inputDate(new Date().toISOString());
-    form.elements.performed_by.value = record?.performed_by || '';
-    form.elements.note.value = record?.note || '';
+  function openMaintenance(itemId, record = null) {
+    maintenanceForm.reset();
+    maintenanceForm.elements.item_id.value = itemId;
+    maintenanceForm.elements.maintenance_id.value = record?.id || '';
+    maintenanceForm.elements.performed_at.value = record ? inputDate(record.performed_at) : inputDate(new Date().toISOString());
+    maintenanceForm.elements.performed_by.value = record?.performed_by || '';
+    maintenanceForm.elements.note.value = record?.note || '';
     document.getElementById('maintenanceFormTitle').textContent = record ? 'Bakım Kaydını Düzenle' : 'Yeni Bakım Kaydı';
+    const item = byMaintenanceId.get(String(itemId));
     document.getElementById('maintenanceFormMeta').textContent = item ? `${item.inventory_no} · ${item.computer_name || item.brand_model}` : '';
-    feedback.className = 'alert d-none mt-3 mb-0';
-    feedback.textContent = '';
-    formModal.show();
+    document.getElementById('maintenanceFeedback').className = 'alert d-none mt-3 mb-0';
+    maintenanceModal.show();
+  }
+
+  function openRepair(record = null, itemId = '') {
+    repairForm.reset();
+    repairForm.elements.repair_id.value = record?.id || '';
+    repairForm.elements.item_id.value = String(record?.item_id || itemId || '');
+    for (const name of ['fault_date','sent_at','expected_return_at','returned_at']) repairForm.elements[name].value = inputDate(record?.[name]) || (name === 'fault_date' && !record ? inputDate(new Date().toISOString()) : '');
+    for (const name of ['fault_type','problem_description','service_company','service_contact','service_ticket_no','repair_description','service_cost','note']) repairForm.elements[name].value = record?.[name] ?? '';
+    repairForm.elements.status.value = record?.status || 'bekliyor';
+    repairForm.elements.warranty_status.value = record?.warranty_status || 'belirsiz';
+    repairForm.elements.sent_to_service.checked = Boolean(record?.sent_to_service);
+    document.getElementById('repairFormTitle').textContent = record ? 'Tamir / Servis Kaydını Düzenle' : 'Yeni Tamir / Servis Kaydı';
+    document.getElementById('repairFeedback').className = 'alert d-none mt-3 mb-0';
+    repairModal.show();
   }
 
   function renderHistory(item) {
-    selectedItemId = String(item.id);
     document.getElementById('maintenanceDetailTitle').textContent = `${item.inventory_no} · Bakım Geçmişi`;
     document.getElementById('maintenanceDetailMeta').textContent = `${item.computer_name || item.brand_model} · ${item.responsible}`;
-    const history = document.getElementById('maintenanceHistory');
-    if (!item.maintenances?.length) { history.innerHTML = '<div class="text-center text-muted py-5">Bu bilgisayara ait bakım kaydı bulunmuyor.</div>'; return; }
-    history.innerHTML = item.maintenances.map(record => `<div class="border rounded-3 p-3 mb-3"><div class="d-flex flex-wrap justify-content-between gap-2"><div><strong>${esc(record.performed_at_display)}</strong><div class="small text-muted">Bakımı yapan: ${esc(record.performed_by)}</div></div><span class="badge rounded-pill ${esc(record.status_class)}">${esc(record.status_label)}</span></div><div class="row g-3 mt-1"><div class="col-md-6"><div class="small text-muted">Sonraki bakım</div><strong>${esc(record.next_maintenance_at_display)}</strong></div><div class="col-md-6"><div class="small text-muted">Not / yapılan işlem</div><span>${esc(record.note || '-')}</span></div></div><div class="d-flex gap-2 mt-3"><button class="btn btn-sm btn-outline-primary" type="button" data-edit-record="${record.id}">Düzenle</button><button class="btn btn-sm btn-outline-danger" type="button" data-delete-record="${record.id}">Sil</button></div></div>`).join('');
+    const target = document.getElementById('maintenanceHistory');
+    target.innerHTML = item.maintenances?.length ? item.maintenances.map(record => `<div class="border rounded-3 p-3 mb-3"><div class="d-flex justify-content-between gap-2"><div><strong>${esc(record.performed_at_display)}</strong><div class="small text-muted">Bakımı yapan: ${esc(record.performed_by)}</div></div><span class="badge rounded-pill ${esc(record.status_class)}">${esc(record.status_label)}</span></div><div class="mt-2">${esc(record.note || '-')}</div><div class="small text-muted mt-2">Sonraki bakım: ${esc(record.next_maintenance_at_display)}</div><div class="d-flex gap-2 mt-3"><button class="btn btn-sm btn-outline-primary" data-edit-maintenance="${record.id}">Düzenle</button><button class="btn btn-sm btn-outline-danger" data-delete-maintenance="${record.id}">Sil</button></div></div>`).join('') : '<div class="text-center text-muted py-5">Bu bilgisayara ait bakım kaydı bulunmuyor.</div>';
+    detailModal.show();
+    detailModal._selectedItemId = item.id;
   }
 
-  document.querySelectorAll('[data-detail-item]').forEach(button => button.addEventListener('click', () => { const item = byId.get(button.dataset.detailItem); if (item) { renderHistory(item); detailModal.show(); } }));
-  document.querySelectorAll('[data-add-item]').forEach(button => button.addEventListener('click', () => openForm(button.dataset.addItem)));
-  document.querySelector('[data-open-new-maintenance]')?.addEventListener('click', () => { if (items[0]) openForm(items[0].id); });
-  document.getElementById('maintenanceDetailAdd').addEventListener('click', () => { detailModal.hide(); if (selectedItemId) openForm(selectedItemId); });
+  document.querySelectorAll('[data-detail-item]').forEach(b => b.onclick = () => renderHistory(byMaintenanceId.get(String(b.dataset.detailItem))));
+  document.querySelectorAll('[data-add-item]').forEach(b => b.onclick = () => openMaintenance(b.dataset.addItem));
+  document.querySelector('[data-open-new-maintenance]').onclick = () => maintenanceItems[0] && openMaintenance(maintenanceItems[0].id);
+  document.querySelector('[data-open-new-repair]').onclick = () => openRepair();
+  document.getElementById('maintenanceDetailAdd').onclick = () => { const id = detailModal._selectedItemId; detailModal.hide(); if (id) openMaintenance(id); };
 
-  document.getElementById('maintenanceHistory').addEventListener('click', async event => {
-    const edit = event.target.closest('[data-edit-record]');
-    const remove = event.target.closest('[data-delete-record]');
-    const item = byId.get(String(selectedItemId));
-    if (!item) return;
-    const recordId = edit?.dataset.editRecord || remove?.dataset.deleteRecord;
-    const record = item.maintenances?.find(r => String(r.id) === String(recordId));
-    if (!record) return;
-    if (edit) { detailModal.hide(); openForm(item.id, record); return; }
-    if (remove && confirm('Bu bakım kaydı silinsin mi?')) {
-      const response = await fetch(`/api/inventory/${item.id}/maintenance/${record.id}`, {method: 'DELETE'});
-      const payload = await response.json();
-      if (!response.ok) return alert(payload.error || 'Bakım kaydı silinemedi.');
-      window.location.reload();
-    }
-  });
+  document.getElementById('maintenanceHistory').onclick = async e => {
+    const item = byMaintenanceId.get(String(detailModal._selectedItemId)); if (!item) return;
+    const edit = e.target.closest('[data-edit-maintenance]'); const del = e.target.closest('[data-delete-maintenance]');
+    const id = edit?.dataset.editMaintenance || del?.dataset.deleteMaintenance; const record = item.maintenances?.find(r => String(r.id) === String(id)); if (!record) return;
+    if (edit) { detailModal.hide(); openMaintenance(item.id, record); return; }
+    if (del && confirm('Bu bakım kaydı silinsin mi?')) { const r = await fetch(`/api/inventory/${item.id}/maintenance/${record.id}`, {method:'DELETE'}); const p = await r.json(); if (!r.ok) return alert(p.error || 'Silinemedi.'); location.reload(); }
+  };
 
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
+  document.querySelectorAll('[data-edit-repair]').forEach(b => b.onclick = () => openRepair(byRepairId.get(String(b.dataset.editRepair))));
+  document.querySelectorAll('[data-delete-repair]').forEach(b => b.onclick = async () => { if (!confirm('Bu tamir kaydı silinsin mi?')) return; const id=b.dataset.deleteRepair; const record=byRepairId.get(String(id)); const r=await fetch(`/api/inventory/${record.item_id}/repair/${id}`,{method:'DELETE'}); const p=await r.json(); if(!r.ok) return alert(p.error || 'Silinemedi.'); location.reload(); });
+
+  async function submitJson(form, url, method, feedbackId) {
     const data = Object.fromEntries(new FormData(form).entries());
-    const itemId = data.item_id;
-    const maintenanceId = data.maintenance_id;
-    delete data.item_id; delete data.maintenance_id;
-    const method = maintenanceId ? 'PUT' : 'POST';
-    const url = maintenanceId ? `/api/inventory/${itemId}/maintenance/${maintenanceId}` : `/api/inventory/${itemId}/maintenance`;
-    const response = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
-    const payload = await response.json();
-    if (!response.ok) { feedback.className = 'alert alert-danger mt-3 mb-0'; feedback.textContent = payload.error || 'Bakım kaydı kaydedilemedi.'; return; }
-    window.location.reload();
-  });
+    if (form === repairForm) data.sent_to_service = form.elements.sent_to_service.checked;
+    const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    const p = await r.json(); const feedback=document.getElementById(feedbackId);
+    if (!r.ok) { feedback.className='alert alert-danger mt-3 mb-0'; feedback.textContent=p.error || 'Kayıt kaydedilemedi.'; return false; }
+    location.reload(); return true;
+  }
 
-  document.getElementById('maintenanceSearch').addEventListener('input', event => {
-    const query = event.target.value.trim().toLowerCase();
-    document.querySelectorAll('[data-maintenance-row]').forEach(row => row.classList.toggle('d-none', Boolean(query && !row.dataset.search.includes(query))));
-  });
+  maintenanceForm.onsubmit = e => { e.preventDefault(); const id=maintenanceForm.elements.item_id.value, mid=maintenanceForm.elements.maintenance_id.value; return submitJson(maintenanceForm, mid ? `/api/inventory/${id}/maintenance/${mid}` : `/api/inventory/${id}/maintenance`, mid ? 'PUT':'POST', 'maintenanceFeedback'); };
+  repairForm.onsubmit = e => { e.preventDefault(); const id=repairForm.elements.item_id.value, rid=repairForm.elements.repair_id.value; return submitJson(repairForm, rid ? `/api/inventory/${id}/repair/${rid}` : `/api/inventory/${id}/repair`, rid ? 'PUT':'POST', 'repairFeedback'); };
+
+  document.getElementById('maintenanceSearch').oninput = e => { const q=e.target.value.toLowerCase().trim(); document.querySelectorAll('[data-maintenance-row]').forEach(r => r.classList.toggle('d-none', Boolean(q && !r.dataset.search.toLowerCase().includes(q)))); };
+  document.getElementById('repairSearch').oninput = e => { const q=e.target.value.toLowerCase().trim(); document.querySelectorAll('[data-repair-row]').forEach(r => r.classList.toggle('d-none', Boolean(q && !r.dataset.search.toLowerCase().includes(q)))); };
+  document.getElementById('sentToService').onchange = e => { if (e.target.checked && repairForm.elements.status.value === 'bekliyor') repairForm.elements.status.value='serviste'; };
 })();
 </script>
 {% endblock %}
