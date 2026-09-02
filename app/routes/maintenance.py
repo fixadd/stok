@@ -1,11 +1,12 @@
 from flask import jsonify, render_template, request
 
 from ..services import maintenance_service
+from ..services.authz import current_actor_name, get_active_user, has_system_role
 
 
 def register_maintenance_routes(app, deps):
     service_deps = {
-        "current_actor_name": deps["current_actor_name"],
+        "current_actor_name": current_actor_name,
     }
 
     @app.route("/bakim")
@@ -19,7 +20,7 @@ def register_maintenance_routes(app, deps):
 
     @app.post("/api/inventory/<int:item_id>/maintenance")
     def create_inventory_maintenance(item_id: int):
-        if not deps["has_system_role"](deps["get_active_user"](), "admin"):
+        if not has_system_role(get_active_user(), "admin"):
             return jsonify({"error": "Bakım kaydı eklemek için admin yetkisi gerekir."}), 403
         payload, status_code = maintenance_service.create(
             service_deps,
@@ -35,7 +36,7 @@ def register_maintenance_routes(app, deps):
 
     @app.put("/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>")
     def update_inventory_maintenance(item_id: int, maintenance_id: int):
-        if not deps["has_system_role"](deps["get_active_user"](), "admin"):
+        if not has_system_role(get_active_user(), "admin"):
             return jsonify({"error": "Bakım kaydını düzenlemek için admin yetkisi gerekir."}), 403
         payload, status_code = maintenance_service.update(
             service_deps,
@@ -47,7 +48,7 @@ def register_maintenance_routes(app, deps):
 
     @app.delete("/api/inventory/<int:item_id>/maintenance/<int:maintenance_id>")
     def delete_inventory_maintenance(item_id: int, maintenance_id: int):
-        if not deps["has_system_role"](deps["get_active_user"](), "admin"):
+        if not has_system_role(get_active_user(), "admin"):
             return jsonify({"error": "Bakım kaydını silmek için admin yetkisi gerekir."}), 403
         payload, status_code = maintenance_service.delete(
             service_deps,
