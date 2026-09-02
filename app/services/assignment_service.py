@@ -6,6 +6,10 @@ from ..queries import assignment_queries
 from .responses import ok
 
 
+def get_assignment(assignment_id: int) -> dict[str, Any]:
+    return ok(assignment=assignment_queries.get_assignment(assignment_id))
+
+
 def list_item_assignments(item_id: int, *, limit: int = 100) -> dict[str, Any]:
     return ok(assignments=assignment_queries.list_item_assignments(item_id, limit=limit))
 
