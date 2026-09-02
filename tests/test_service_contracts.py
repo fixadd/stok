@@ -11,6 +11,7 @@ def test_service_modules_import_cleanly():
         "app.services.maintenance_query_service",
         "app.services.request_query_service",
         "app.services.stock_query_service",
+        "app.services.user_query_service",
     ]
     for name in modules:
         assert importlib.import_module(name) is not None
