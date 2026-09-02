@@ -60,3 +60,22 @@ def test_list_records_without_item_lists_all(monkeypatch):
 
     monkeypatch.setattr(repair_queries.InventoryRepair, "query", Query())
     assert repair_queries.list_records() == expected
+
+
+def test_get_latest_record_filters_and_returns_first(monkeypatch):
+    expected = object()
+
+    class Query:
+        def filter(self, expression):
+            assert expression is not None
+            return self
+
+        def order_by(self, *expressions):
+            assert len(expressions) == 2
+            return self
+
+        def first(self):
+            return expected
+
+    monkeypatch.setattr(repair_queries.InventoryRepair, "query", Query())
+    assert repair_queries.get_latest_record(11) is expected
