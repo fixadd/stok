@@ -28,13 +28,12 @@ services:
       FLASK_RUN_PORT: 5001
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stok}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-stok}
     volumes:
-      - ./app:/app/app:ro
       - ./data:/app/data
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1:5001/login', timeout=5); raise SystemExit(0 if response.status < 500 else 1)"]
       interval: 15s
       timeout: 10s
       retries: 5
