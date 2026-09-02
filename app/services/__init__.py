@@ -9,6 +9,7 @@ from . import (
     maintenance_query_service,
     request_query_service,
     stock_query_service,
+    user_query_service,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "maintenance_query_service",
     "request_query_service",
     "stock_query_service",
+    "user_query_service",
 ]
