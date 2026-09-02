@@ -22,8 +22,8 @@ def list_scrap_items(*, limit: int = 500) -> dict[str, Any]:
     return ok(items=inventory_queries.list_scrap_items(limit=limit))
 
 
-def list_by_responsible(responsible: str, *, limit: int = 500) -> dict[str, Any]:
-    return ok(items=inventory_queries.list_by_responsible(responsible, limit=limit))
+def list_by_responsible_user(user_id: int, *, limit: int = 500) -> dict[str, Any]:
+    return ok(items=inventory_queries.list_by_responsible_user(user_id, limit=limit))
 
 
 def list_by_factory(factory_id: int, *, limit: int = 500) -> dict[str, Any]:
