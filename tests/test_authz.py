@@ -20,10 +20,16 @@ def test_has_system_role_allows_equal_or_higher_role():
     assert has_system_role(user, "superadmin") is False
 
 
+def test_has_system_role_rejects_unknown_required_role():
+    assert has_system_role(SimpleNamespace(system_role="superadmin"), "owner") is False
+    assert has_system_role(SimpleNamespace(system_role="admin"), "") is False
+
+
 def test_get_system_role_defaults_to_user():
     assert get_system_role(None) == "user"
     assert get_system_role(SimpleNamespace(system_role=None)) == "user"
     assert get_system_role(SimpleNamespace(system_role=" ADMIN ")) == "admin"
+    assert get_system_role(SimpleNamespace(system_role="unknown")) == "user"
 
 
 def test_safe_redirect_accepts_only_local_paths():
