@@ -13,6 +13,7 @@ from app.models import (
     User,
     db,
 )
+from app.services.maintenance_service import MAINTENANCE_INTERVAL_DAYS
 
 
 class SmokeRouteTests(unittest.TestCase):
@@ -44,9 +45,7 @@ class SmokeRouteTests(unittest.TestCase):
 
     def test_database_path_environment_overrides_data_dir(self):
         with tempfile.TemporaryDirectory() as data_dir, tempfile.TemporaryDirectory() as root_dir:
-            custom_database_path = os.path.join(
-                root_dir, "external", "backup", "stok.db"
-            )
+            custom_database_path = os.path.join(root_dir, "external", "backup", "stok.db")
             previous_data_dir = os.environ.get("DATA_DIR")
             previous_database_path = os.environ.get("DATABASE_PATH")
             os.environ["DATA_DIR"] = data_dir
@@ -74,14 +73,7 @@ class SmokeRouteTests(unittest.TestCase):
 
     def test_home_inventory_stock_requests_admin_access(self):
         self.login_as(self.admin_id)
-        for path in [
-            "/",
-            "/envanter-takip",
-            "/bakim",
-            "/stok-takip",
-            "/talep-takip",
-            "/admin-panel",
-        ]:
+        for path in ["/", "/envanter-takip", "/bakim", "/stok-takip", "/talep-takip", "/admin-panel"]:
             with self.subTest(path=path):
                 resp = self.client.get(path)
                 self.assertEqual(resp.status_code, 200)
@@ -98,21 +90,15 @@ class SmokeRouteTests(unittest.TestCase):
         now = datetime.utcnow()
         self.assertEqual(calculate_maintenance_status(None)["status"], "none")
         self.assertEqual(
-            calculate_maintenance_status(
-                now - timedelta(days=MAINTENANCE_INTERVAL_DAYS + 1)
-            )["status"],
+            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS + 1))["status"],
             "overdue",
         )
         self.assertEqual(
-            calculate_maintenance_status(
-                now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 14)
-            )["status"],
+            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 14))["status"],
             "warning",
         )
         self.assertEqual(
-            calculate_maintenance_status(
-                now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 16)
-            )["status"],
+            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 16))["status"],
             "ok",
         )
 
@@ -120,29 +106,19 @@ class SmokeRouteTests(unittest.TestCase):
         self.login_as(self.admin_id)
         resp = self.client.get("/bakim")
         html = resp.get_data(as_text=True)
-
         self.assertEqual(resp.status_code, 200)
         breadcrumb_start = html.index('<ol class="breadcrumb')
         breadcrumb_end = html.index("</ol>", breadcrumb_start)
         breadcrumb_html = html[breadcrumb_start:breadcrumb_end]
-
         self.assertIn('href="/stok-takip"', breadcrumb_html)
-        self.assertLess(
-            breadcrumb_html.index("Ana Sayfa"), breadcrumb_html.index("Stok Takip")
-        )
-        self.assertLess(
-            breadcrumb_html.index("Stok Takip"), breadcrumb_html.index("Bakım")
-        )
+        self.assertLess(breadcrumb_html.index("Ana Sayfa"), breadcrumb_html.index("Stok Takip"))
+        self.assertLess(breadcrumb_html.index("Stok Takip"), breadcrumb_html.index("Bakım"))
 
     def test_dashboard_includes_maintenance_counts(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
-            computer_type = HardwareType.query.filter(
-                HardwareType.name.ilike("%laptop%")
-            ).first()
-            item = InventoryItem.query.filter_by(
-                hardware_type_id=computer_type.id
-            ).first()
+            computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
+            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
             db.session.add(
                 InventoryMaintenance(
                     item_id=item.id,
@@ -153,17 +129,13 @@ class SmokeRouteTests(unittest.TestCase):
             )
             db.session.commit()
             metrics = load_dashboard_metrics()
-
         self.assertIn("maintenance_due_count", metrics)
         self.assertIn("maintenance_warning_count", metrics)
         self.assertGreaterEqual(metrics["maintenance_due_count"], 1)
         self.assertEqual(
             metrics["critical_alerts"],
-            metrics["faulty_inventory"]
-            + metrics["problem_stock"]
-            + metrics["maintenance_due_count"],
+            metrics["faulty_inventory"] + metrics["problem_stock"] + metrics["maintenance_due_count"],
         )
-
         resp = self.client.get("/")
         html = resp.get_data(as_text=True)
         self.assertIn("Bakım Zamanı Gelenler", html)
@@ -172,14 +144,9 @@ class SmokeRouteTests(unittest.TestCase):
     def test_create_maintenance_record_adds_inventory_event(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
-            computer_type = HardwareType.query.filter(
-                HardwareType.name.ilike("%laptop%")
-            ).first()
-            item = InventoryItem.query.filter_by(
-                hardware_type_id=computer_type.id
-            ).first()
+            computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
+            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
             item_id = item.id
-
         resp = self.client.post(
             f"/api/inventory/{item_id}/maintenance",
             json={
@@ -189,15 +156,10 @@ class SmokeRouteTests(unittest.TestCase):
             },
         )
         self.assertEqual(resp.status_code, 201)
-
         with self.app.app_context():
-            self.assertEqual(
-                InventoryMaintenance.query.filter_by(item_id=item_id).count(), 1
-            )
+            self.assertEqual(InventoryMaintenance.query.filter_by(item_id=item_id).count(), 1)
             self.assertIsNotNone(
                 InventoryEvent.query.filter_by(
-                    item_id=item_id,
-                    event_type="Bakım Yapıldı",
-                    performed_by="BT Ekibi",
+                    item_id=item_id, event_type="Bakım Yapıldı", performed_by="BT Ekibi"
                 ).first()
             )
