@@ -28,6 +28,26 @@ def test_get_record_filters_by_item_and_repair(monkeypatch):
     assert repair_queries.get_record(3, 9) is expected
 
 
+def test_get_by_service_ticket_normalizes_and_returns_latest(monkeypatch):
+    expected = object()
+
+    class Query:
+        def filter(self, expression):
+            assert expression is not None
+            return self
+
+        def order_by(self, *expressions):
+            assert len(expressions) == 1
+            return self
+
+        def first(self):
+            return expected
+
+    monkeypatch.setattr(repair_queries.InventoryRepair, "query", Query())
+    assert repair_queries.get_by_service_ticket("  SRV-42  ") is expected
+    assert repair_queries.get_by_service_ticket("") is None
+
+
 def test_list_records_filters_and_orders(monkeypatch):
     expected = [object()]
 
