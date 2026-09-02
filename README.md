@@ -8,7 +8,7 @@ Flask + SQLAlchemy + PostgreSQL tabanlı, Docker Compose ile çalıştırılabil
 - Envanter Takip
 - Lisans Takip
 - Stok Takip
-- Bakım
+- Tamir / Bakım Takibi
 - Hurdalar
 - Talep Takip
 - Personel Lifecycle
@@ -83,6 +83,28 @@ flask --app app run --host 0.0.0.0 --port 5001 --debug
 - `.env.example` yalnızca örnek yapılandırmadır; gerçek parola içermez.
 - Varsayılan/örnek yönetici parolasını üretim ortamında kullanmayın.
 
-## Veri yedekleme
+## Veri yedekleme ve geri yükleme
 
-PostgreSQL verileri `postgres_data` volume'unda tutulduğu için uygulama container'ını yeniden oluşturmak veriyi tek başına silmez. Üretim ortamında ayrıca düzenli PostgreSQL yedeği alınması önerilir.
+PostgreSQL verileri `postgres_data` volume'unda tutulduğu için uygulama container'ını yeniden oluşturmak veriyi tek başına silmez. Bunun yanında düzenli mantıksal yedek alınması önerilir.
+
+Yedek almak:
+
+```bash
+bash scripts/backup_postgres.sh
+```
+
+Varsayılan saklama süresi 7 gündür. Örneğin 30 günlük saklama için:
+
+```bash
+bash scripts/backup_postgres.sh 30
+```
+
+Geri yüklemek:
+
+```bash
+bash scripts/restore_postgres.sh backups/postgres/stok_YYYYMMDD_HHMMSS.dump
+```
+
+Geri yükleme mevcut veritabanındaki nesneleri temizleyip yedeği geri getirir ve işlem öncesinde açık onay ister.
+
+> Üretim ortamında `docker compose down -v` çalıştırmadan ve geri yükleme yapmadan önce mutlaka doğrulanabilir bir yedek bulunduğundan emin olun.
