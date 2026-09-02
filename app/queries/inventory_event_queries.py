@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy import func
+
 from ..models import InventoryEvent
 from .common import apply_limit
 
@@ -24,5 +26,17 @@ def list_item_events(item_id: int | None, *, limit: int = 100) -> list[Inventory
 def list_events(*, limit: int = 500) -> list[InventoryEvent]:
     query = InventoryEvent.query.order_by(
         InventoryEvent.performed_at.desc(), InventoryEvent.id.desc()
+    )
+    return apply_limit(query, limit=limit).all()
+
+
+def list_events_by_type(event_type: str | None, *, limit: int = 500) -> list[InventoryEvent]:
+    value = (event_type or "").strip()
+    if not value:
+        return []
+    query = (
+        InventoryEvent.query
+        .filter(func.lower(InventoryEvent.event_type) == value.lower())
+        .order_by(InventoryEvent.performed_at.desc(), InventoryEvent.id.desc())
     )
     return apply_limit(query, limit=limit).all()
