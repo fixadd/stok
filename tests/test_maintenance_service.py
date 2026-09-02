@@ -23,8 +23,8 @@ def test_next_maintenance_uses_configured_interval():
 
 
 def test_maintenance_status_boundaries():
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    assert _status(today)["key"] == "ok"
+    today = datetime.utcnow().replace(hour=12, minute=0, second=0, microsecond=0)
+    assert _status(today + timedelta(days=MAINTENANCE_WARNING_DAYS + 1))["key"] == "ok"
     assert _status(today + timedelta(days=MAINTENANCE_WARNING_DAYS))["key"] == "warning"
     assert _status(today - timedelta(days=1))["key"] == "overdue"
 
