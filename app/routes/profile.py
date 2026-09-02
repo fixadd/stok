@@ -1,5 +1,6 @@
 from flask import flash, redirect, render_template, request, url_for
 
+from ..queries.user_queries import get_user, list_active_users
 from ..services.validation import validate_password
 
 
@@ -7,21 +8,8 @@ def register_profile_routes(app, deps):
     @app.route("/profil")
     def profile():
         profile_user = deps["get_active_user"]()
-        can_switch_users = deps["has_system_role"](
-            profile_user, "superadmin"
-        )
-
-        users = (
-            deps["active_users_query"]()
-            .order_by(
-                deps["User"].first_name,
-                deps["User"].last_name,
-            )
-            .limit(500)
-            .all()
-            if can_switch_users
-            else [profile_user] if profile_user else []
-        )
+        can_switch_users = deps["has_system_role"](profile_user, "superadmin")
+        users = list_active_users(limit=500) if can_switch_users else ([profile_user] if profile_user else [])
 
         return render_template(
             "profile.html",
@@ -34,14 +22,12 @@ def register_profile_routes(app, deps):
     @app.post("/profil/kullanici")
     def profile_switch_user():
         active_user = deps["get_active_user"]()
-
         if not deps["has_system_role"](active_user, "superadmin"):
             flash("Bu işlemi gerçekleştirmek için yetkiniz yok.", "danger")
             return redirect(url_for("profile"))
 
         user_id = deps["parse_int_or_none"](request.form.get("user_id"))
-        user = deps["active_user_by_id"](user_id) if user_id is not None else None
-
+        user = get_user(user_id) if user_id is not None else None
         if user is None:
             flash("Lütfen geçerli bir kullanıcı seçin.", "danger")
             return redirect(url_for("profile"))
@@ -83,7 +69,6 @@ def register_profile_routes(app, deps):
 
         new_password = request.form.get("new_password") or ""
         confirm_password = request.form.get("confirm_password") or ""
-
         if not new_password or not confirm_password:
             flash("Lütfen yeni şifre alanlarını doldurun.", "warning")
             return redirect(url_for("profile"))
@@ -91,10 +76,7 @@ def register_profile_routes(app, deps):
             flash("Yeni şifre ve doğrulama şifresi eşleşmiyor.", "danger")
             return redirect(url_for("profile"))
 
-        _, password_error = validate_password(
-            new_password,
-            username=user.username or "",
-        )
+        _, password_error = validate_password(new_password, username=user.username or "")
         if password_error:
             flash(password_error, "warning")
             return redirect(url_for("profile"))
