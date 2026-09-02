@@ -87,11 +87,13 @@ def register_profile_routes(app, deps):
         if new_password != confirm_password:
             flash("Yeni şifre ve doğrulama şifresi eşleşmiyor.", "danger")
             return redirect(url_for("profile"))
-        if len(new_password) < 8:
-            flash("Şifre en az 8 karakter olmalıdır.", "warning")
-            return redirect(url_for("profile"))
-        if new_password.lower() == (user.username or "").lower():
-            flash("Şifreniz kullanıcı adınızla aynı olamaz.", "warning")
+
+        _, password_error = deps["validate_password"](
+            new_password,
+            username=user.username or "",
+        )
+        if password_error:
+            flash(password_error, "warning")
             return redirect(url_for("profile"))
 
         user.password_hash = deps["generate_password_hash"](new_password)
