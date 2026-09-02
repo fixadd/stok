@@ -27,3 +27,8 @@ def test_maintenance_status_boundaries():
     assert _status(today)["key"] == "ok"
     assert _status(today + timedelta(days=MAINTENANCE_WARNING_DAYS))["key"] == "warning"
     assert _status(today - timedelta(days=1))["key"] == "overdue"
+
+
+def test_maintenance_policy_constants_are_stable():
+    assert MAINTENANCE_INTERVAL_DAYS == 90
+    assert MAINTENANCE_WARNING_DAYS == 15
