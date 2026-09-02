@@ -328,6 +328,12 @@ class InventoryItem(db.Model):
         back_populates="item",
         order_by="InventoryMaintenance.performed_at.desc()",
     )
+    assignments = db.relationship(
+        "InventoryAssignment",
+        cascade="all, delete-orphan",
+        back_populates="item",
+        order_by="InventoryAssignment.assigned_at.desc()",
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -378,6 +384,120 @@ class InventoryEvent(db.Model):
             "performed_by": self.performed_by,
             "performed_at": self.performed_at,
             "note": self.note,
+        }
+
+
+class InventoryAssignment(db.Model):
+    __tablename__ = "inventory_assignments"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    item_id = db.Column(
+        db.Integer,
+        db.ForeignKey("inventory_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    assigned_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=True,
+    )
+
+    assigned_to = db.Column(
+        db.String(128),
+        nullable=False,
+    )
+
+    assigned_department = db.Column(
+        db.String(128),
+        nullable=True,
+    )
+
+    assigned_factory_id = db.Column(
+        db.Integer,
+        db.ForeignKey("factories.id"),
+        nullable=True,
+    )
+
+    assigned_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    returned_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    returned_to_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=True,
+    )
+
+    delivered_by = db.Column(
+        db.String(128),
+        nullable=True,
+    )
+
+    note = db.Column(
+        db.Text,
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    item = db.relationship(
+        "InventoryItem",
+        back_populates="assignments",
+    )
+
+    assigned_user = db.relationship(
+        "User",
+        foreign_keys=[assigned_user_id],
+    )
+
+    returned_to_user = db.relationship(
+        "User",
+        foreign_keys=[returned_to_user_id],
+    )
+
+    assigned_factory = db.relationship(
+        "Factory",
+        foreign_keys=[assigned_factory_id],
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "item_id": self.item_id,
+            "assigned_user_id": self.assigned_user_id,
+            "assigned_to": self.assigned_to,
+            "assigned_department": self.assigned_department or "",
+            "assigned_factory_id": self.assigned_factory_id,
+            "assigned_factory": (
+                self.assigned_factory.name
+                if self.assigned_factory
+                else ""
+            ),
+            "assigned_at": self.assigned_at,
+            "returned_at": self.returned_at,
+            "returned_to_user_id": self.returned_to_user_id,
+            "returned_to_user": (
+                f"{self.returned_to_user.first_name} "
+                f"{self.returned_to_user.last_name}"
+                if self.returned_to_user
+                else ""
+            ),
+            "delivered_by": self.delivered_by or "",
+            "note": self.note or "",
+            "created_at": self.created_at,
         }
 
 

@@ -3,8 +3,12 @@ from __future__ import annotations
 from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from .index import register_index_routes
+
 
 def register_auth_routes(app, deps):
+    register_index_routes(app)
+
     get_active_user = deps["get_active_user"]
     is_safe_redirect_target = deps["is_safe_redirect_target"]
     active_users_query = deps["active_users_query"]
