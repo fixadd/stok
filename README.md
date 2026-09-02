@@ -23,6 +23,7 @@ Flask + SQLAlchemy + PostgreSQL tabanlı, Docker Compose ile çalıştırılabil
 - Flask-SQLAlchemy / SQLAlchemy
 - PostgreSQL 17
 - Psycopg
+- Alembic migration altyapısı
 - Docker / Docker Compose
 - Bootstrap tabanlı web arayüzü
 
@@ -55,9 +56,30 @@ docker compose logs -f web
 http://localhost:5001
 ```
 
-## Veritabanı
+## Veritabanı ve migration
 
-Uygulama PostgreSQL kullanır. PostgreSQL verileri `postgres_data` adlı Docker volume içinde tutulur. Bu nedenle `docker compose down` sonrasında volume silinmediği sürece veritabanı korunur.
+PostgreSQL verileri `postgres_data` adlı Docker volume içinde tutulur. `docker compose down` volume'u silmediği için normal container yeniden oluşturma işlemleri veriyi silmez.
+
+Şema değişiklikleri için `migrations/versions` altındaki Alembic migration'ları kullanın. Üretim veritabanında migration çalıştırmadan önce yedek alın:
+
+```bash
+bash scripts/backup_postgres.sh
+```
+
+Docker ortamında migration çalıştırmak için:
+
+```bash
+docker compose exec web python -m alembic upgrade head
+```
+
+Mevcut migration durumunu görmek için:
+
+```bash
+docker compose exec web python -m alembic current
+docker compose exec web python -m alembic heads
+```
+
+> Uygulama halen geçiş döneminde `db.create_all()` çağrısını da içerir. Yeni şema değişikliklerini yalnızca `db.create_all()` ile çözmeye çalışmayın; kalıcı schema değişiklikleri migration olarak eklenmelidir.
 
 Veritabanını silmek için özellikle volume'u da kaldırmanız gerekir:
 
@@ -65,7 +87,21 @@ Veritabanını silmek için özellikle volume'u da kaldırmanız gerekir:
 docker compose down -v
 ```
 
-> Bu komut PostgreSQL verilerini siler. Üretim ortamında çalıştırmadan önce mutlaka yedek alın.
+> **DİKKAT:** Bu komut PostgreSQL verilerini siler. Üretim ortamında çalıştırmayın; yalnızca verinin bilinçli olarak silinmesi gereken durumlarda kullanın.
+
+## Güvenli güncelleme / deploy akışı
+
+Üretim sunucusunda önerilen sıra:
+
+```bash
+git pull --ff-only origin main
+bash scripts/backup_postgres.sh
+docker compose up -d --build
+docker compose exec web python -m alembic upgrade head
+docker compose ps
+```
+
+Önceki sürüme dönmek gerektiğinde önce yedek alın ve migration geri alma kararını doğrulayın. Uygulama container'ını yeniden oluşturmak için `docker compose down` kullanılabilir; **`down -v` kullanılmamalıdır**.
 
 ## Geliştirme
 
@@ -82,6 +118,7 @@ flask --app app run --host 0.0.0.0 --port 5001 --debug
 - `.env` dosyası `.gitignore` tarafından hariç tutulur.
 - `.env.example` yalnızca örnek yapılandırmadır; gerçek parola içermez.
 - Varsayılan/örnek yönetici parolasını üretim ortamında kullanmayın.
+- Üretim ortamında güçlü ve benzersiz PostgreSQL parolası kullanın.
 
 ## Veri yedekleme ve geri yükleme
 
