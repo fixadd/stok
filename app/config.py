@@ -56,7 +56,9 @@ class AppConfig:
 
         database_path = os.environ.get("DATABASE_PATH")
         if database_path:
-            app.config["DATABASE_PATH"] = Path(database_path).expanduser().resolve()
+            resolved_database_path = Path(database_path).expanduser().resolve()
+            resolved_database_path.parent.mkdir(parents=True, exist_ok=True)
+            app.config["DATABASE_PATH"] = resolved_database_path
         elif database_url.startswith("sqlite:///"):
             parsed = urlparse(database_url)
             app.config["DATABASE_PATH"] = Path(parsed.path).expanduser().resolve()
