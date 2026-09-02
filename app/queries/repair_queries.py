@@ -25,5 +25,17 @@ def list_records(item_id: int | None = None) -> list[InventoryRepair]:
     ).all()
 
 
+def get_latest_record(item_id: int) -> InventoryRepair | None:
+    return (
+        InventoryRepair.query
+        .filter(InventoryRepair.item_id == item_id)
+        .order_by(
+            InventoryRepair.fault_date.desc(),
+            InventoryRepair.id.desc(),
+        )
+        .first()
+    )
+
+
 def list_items() -> list[InventoryItem]:
     return InventoryItem.query.order_by(InventoryItem.inventory_no).all()
