@@ -24,6 +24,8 @@ Flask + SQLAlchemy + PostgreSQL tabanlı, Docker Compose ile çalıştırılabil
 - PostgreSQL 17
 - Psycopg
 - Alembic migration altyapısı
+- Merkezi config ve hata yönetimi
+- Güvenlik response header'ları
 - Docker / Docker Compose
 - Bootstrap tabanlı web arayüzü
 
