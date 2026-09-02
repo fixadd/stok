@@ -79,5 +79,9 @@ def register_maintenance_routes(app, deps):
     @app.delete("/api/inventory/<int:item_id>/repair/<int:repair_id>")
     @require_system_role("admin", "Tamir kaydını silmek için admin yetkisi gerekir.")
     def delete_inventory_repair(item_id: int, repair_id: int):
-        payload, status_code = repair_service.delete(item_id, repair_id, current_actor_name())
+        payload, status_code = repair_service.delete(
+            item_id,
+            repair_id,
+            current_actor_name(),
+        )
         return jsonify(payload), status_code
