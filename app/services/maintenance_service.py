@@ -25,6 +25,10 @@ def is_computer_hardware_type(name: str | None) -> bool:
     return any(keyword in normalized for keyword in fuzzy) or "pc" in tokens
 
 
+def _next_maintenance(performed_at: datetime) -> datetime:
+    return performed_at + timedelta(days=MAINTENANCE_INTERVAL_DAYS)
+
+
 def _status(next_at: datetime | None) -> dict[str, Any]:
     if not next_at:
         return {"key": "none", "label": "Bakım Kaydı Yok", "class": "text-bg-secondary", "days_until": None}
@@ -37,15 +41,16 @@ def _status(next_at: datetime | None) -> dict[str, Any]:
 
 
 def _record_payload(record: InventoryMaintenance) -> dict[str, Any]:
-    status = _status(record.next_maintenance_at)
+    next_at = _next_maintenance(record.performed_at)
+    status = _status(next_at)
     return {
         "id": record.id,
         "item_id": record.item_id,
         "performed_at": record.performed_at.isoformat(),
         "performed_at_display": record.performed_at.strftime("%d.%m.%Y %H:%M"),
         "performed_by": record.performed_by,
-        "next_maintenance_at": record.next_maintenance_at.isoformat() if record.next_maintenance_at else None,
-        "next_maintenance_at_display": record.next_maintenance_at.strftime("%d.%m.%Y %H:%M") if record.next_maintenance_at else "-",
+        "next_maintenance_at": next_at.isoformat(),
+        "next_maintenance_at_display": next_at.strftime("%d.%m.%Y %H:%M"),
         "note": record.note or "",
         "status": status["key"],
         "status_label": status["label"],
@@ -58,7 +63,7 @@ def _record_payload(record: InventoryMaintenance) -> dict[str, Any]:
 def _item_payload(item: InventoryItem) -> dict[str, Any]:
     records = sorted(item.maintenances, key=lambda r: (r.performed_at, r.id), reverse=True)
     last = records[0] if records else None
-    next_at = last.next_maintenance_at if last else None
+    next_at = _next_maintenance(last.performed_at) if last else None
     status = _status(next_at)
     return {
         "id": item.id,
@@ -99,15 +104,12 @@ def create(deps: dict[str, Any], item_id: int, data: Any) -> tuple[dict[str, Any
     note = sanitize_input_text(data.get("note"), max_length=2000) or None
     try:
         performed_at = datetime.fromisoformat((data.get("performed_at") or "").strip()) if data.get("performed_at") else datetime.utcnow()
-        next_value = data.get("next_maintenance_at")
-        next_at = datetime.fromisoformat(str(next_value).strip()) if next_value else performed_at + timedelta(days=MAINTENANCE_INTERVAL_DAYS)
     except ValueError:
-        return {"error": "Bakım tarihleri geçerli tarih olmalıdır."}, 400
-    if next_at <= performed_at:
-        return {"error": "Sonraki bakım tarihi, bakım tarihinden sonra olmalıdır."}, 400
-    record = InventoryMaintenance(item=item, performed_at=performed_at, performed_by=actor, next_maintenance_at=next_at, note=note)
+        return {"error": "Bakım tarihi geçerli bir tarih olmalıdır."}, 400
+    record = InventoryMaintenance(item=item, performed_at=performed_at, performed_by=actor, note=note)
     db.session.add(record)
     db.session.flush()
+    next_at = _next_maintenance(performed_at)
     _event(item, "Bakım Yapıldı", actor, note or f"Sonraki bakım: {next_at.strftime('%d.%m.%Y %H:%M')}")
     db.session.commit()
     return {"maintenance": _record_payload(record)}, 201
@@ -134,16 +136,12 @@ def update(deps: dict[str, Any], item_id: int, maintenance_id: int, data: Any) -
     note = sanitize_input_text(data.get("note"), max_length=2000) or None
     try:
         performed_at = datetime.fromisoformat(str(data.get("performed_at") or "").strip())
-        next_value = data.get("next_maintenance_at")
-        next_at = datetime.fromisoformat(str(next_value).strip()) if next_value else performed_at + timedelta(days=MAINTENANCE_INTERVAL_DAYS)
     except ValueError:
-        return {"error": "Bakım tarihleri geçerli tarih olmalıdır."}, 400
-    if next_at <= performed_at:
-        return {"error": "Sonraki bakım tarihi, bakım tarihinden sonra olmalıdır."}, 400
+        return {"error": "Bakım tarihi geçerli bir tarih olmalıdır."}, 400
     record.performed_at = performed_at
     record.performed_by = actor
-    record.next_maintenance_at = next_at
     record.note = note
+    next_at = _next_maintenance(performed_at)
     _event(item, "Bakım Kaydı Güncellendi", deps["current_actor_name"](), f"Bakım: {performed_at.strftime('%d.%m.%Y %H:%M')} · Sonraki: {next_at.strftime('%d.%m.%Y %H:%M')}")
     db.session.commit()
     return {"success": True, "maintenance": _record_payload(record)}, 200
