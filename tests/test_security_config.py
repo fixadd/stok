@@ -15,18 +15,17 @@ def configure(monkeypatch, **values):
     }
     defaults.update(values)
     for key, value in defaults.items():
-        monkeypatch.setenv(key, value)
+        if value is None:
+            monkeypatch.delenv(key, raising=False)
+        else:
+            monkeypatch.setenv(key, value)
     app = Flask(__name__)
     AppConfig.configure(app, data_dir=None, info_upload_dir=None)
     return app
 
 
 def test_production_defaults_secure_cookie(monkeypatch):
-    app = configure(
-        monkeypatch,
-        APP_ENV="production",
-        SESSION_COOKIE_SECURE=None,
-    )
+    app = configure(monkeypatch, APP_ENV="production", SESSION_COOKIE_SECURE=None)
     assert app.config["SESSION_COOKIE_SECURE"] is True
 
 
@@ -46,6 +45,5 @@ def test_invalid_lifetime_is_rejected(monkeypatch):
 
 
 def test_production_requires_secret_key(monkeypatch):
-    monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
-        configure(monkeypatch, APP_ENV="production")
+        configure(monkeypatch, APP_ENV="production", SECRET_KEY=None)
