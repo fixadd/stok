@@ -7,24 +7,29 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
   </head>
   <body class="auth-body">
     <div class="auth-card">
       <section class="auth-illustration">
         <div>
-          <span class="badge bg-light text-primary mb-3">Stok Yönetimi</span>
-          <h1>Kontrol Sizde</h1>
-          <p>Envanter, lisans ve talepleri tek bir panelden yönetin. Güvenli giriş ile tüm kayıtlarınıza erişin.</p>
+          <span class="badge bg-light text-primary mb-3"><i class="bi bi-grid-1x2-fill me-1"></i> BAYLAN IT</span>
+          <h1>İşinizin kontrolü tek panelde.</h1>
+          <p>Envanter, stok, lisans, bakım ve personel süreçlerini sade ve güvenli bir çalışma alanında yönetin.</p>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-4">
-          <i class="bi bi-shield-lock fs-4"></i>
-          <span class="fw-semibold">Yetkisiz erişim engellenir.</span>
+        <div class="d-flex align-items-center gap-3 mt-4">
+          <i class="bi bi-shield-check fs-4"></i>
+          <div>
+            <div class="fw-semibold">Güvenli çalışma alanı</div>
+            <div class="small opacity-75">Rol bazlı erişim ve kayıt takibi</div>
+          </div>
         </div>
       </section>
       <section class="auth-form bg-white">
         <div class="mb-4">
-          <h2 class="h4 fw-bold mb-1">Panele Giriş Yapın</h2>
-          <p class="text-muted mb-0">Devam etmek için kullanıcı adınızı ve şifrenizi girin.</p>
+          <div class="text-primary small fw-bold text-uppercase mb-2" style="letter-spacing:.08em">Hoş geldiniz</div>
+          <h2 class="h4 fw-bold mb-1">Panele giriş yapın</h2>
+          <p class="text-muted mb-0">Hesabınızla devam etmek için bilgilerinizi girin.</p>
         </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -47,18 +52,24 @@
           <input type="hidden" name="next" value="{{ next_target }}">
           <div>
             <label class="form-label" for="loginUsername">Kullanıcı Adı</label>
-            <input class="form-control" id="loginUsername" name="username" placeholder="kullanici.adi" autocomplete="username" required>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="bi bi-person"></i></span>
+              <input class="form-control border-start-0" id="loginUsername" name="username" placeholder="kullanici.adi" autocomplete="username" required>
+            </div>
           </div>
           <div>
             <label class="form-label" for="loginPassword">Şifre</label>
-            <input class="form-control" id="loginPassword" name="password" type="password" placeholder="Şifreniz" autocomplete="current-password" required>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock"></i></span>
+              <input class="form-control border-start-0" id="loginPassword" name="password" type="password" placeholder="Şifreniz" autocomplete="current-password" required>
+            </div>
           </div>
           <div class="form-text d-flex align-items-center gap-2">
             <i class="bi bi-info-circle text-primary"></i>
             <span>Varsayılan yönetici: <code>admin / admin</code></span>
           </div>
           <button class="btn btn-primary w-100" type="submit">
-            <i class="bi bi-box-arrow-in-right me-2"></i>Giriş Yap
+            <i class="bi bi-arrow-right-circle me-2"></i>Giriş Yap
           </button>
         </form>
       </section>
