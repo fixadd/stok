@@ -17,6 +17,7 @@ def register_profile_routes(app, deps):
                 deps["User"].first_name,
                 deps["User"].last_name,
             )
+            .limit(500)
             .all()
             if can_switch_users
             else [profile_user] if profile_user else []
