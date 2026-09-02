@@ -80,6 +80,32 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="bulkTransferModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Toplu Devir</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3"><strong>{{ person.name }}</strong> personelinin aktif envanter ve stok zimmetleri seçilen personele devredilecek.</p>
+        <label for="bulkTransferTarget" class="form-label">Devredilecek personel</label>
+        <select class="form-select" id="bulkTransferTarget">
+          <option value="">Personel seçin</option>
+          {% for user in lifecycle_users %}
+          <option value="{{ user.id }}">{{ user.name }}{% if user.department %} — {{ user.department }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <div class="alert alert-warning mt-3 mb-0 small">Bu işlem envanter sorumlusunu değiştirir ve stok zimmetlerini yeni personele taşır.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
+        <button type="button" class="btn btn-primary" id="confirmBulkTransfer">Devri tamamla</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 
@@ -93,26 +119,81 @@
   const personKey = container.dataset.personKey;
   const buttons = container.querySelectorAll('[data-action]');
   const feedback = document.getElementById('lifecycleActionFeedback');
+  const transferModalElement = document.getElementById('bulkTransferModal');
+  const transferTarget = document.getElementById('bulkTransferTarget');
+  const transferConfirm = document.getElementById('confirmBulkTransfer');
+  const transferModal = transferModalElement && window.bootstrap
+    ? new bootstrap.Modal(transferModalElement)
+    : null;
+
+  const showFeedback = (message, success = true) => {
+    feedback.classList.remove('d-none', 'alert-danger', 'alert-success');
+    feedback.classList.add(success ? 'alert-success' : 'alert-danger');
+    feedback.textContent = message;
+  };
+
+  const sendAction = async (action, extra = {}) => {
+    const response = await fetch(`{{ url_for('personnel_lifecycle.process_action', person_key='__PERSON__') }}`.replace('__PERSON__', personKey), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'İşlem başarısız.');
+    return data;
+  };
 
   buttons.forEach((button) => {
     button.addEventListener('click', async () => {
       const action = button.dataset.action;
-      const response = await fetch(`{{ url_for('personnel_lifecycle.process_action', person_key='__PERSON__') }}`.replace('__PERSON__', personKey), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action }),
-      });
-      const data = await response.json();
-      feedback.classList.remove('d-none', 'alert-danger', 'alert-success');
-      if (!response.ok) {
-        feedback.classList.add('alert-danger');
-        feedback.textContent = data.error || 'İşlem başarısız.';
+      if (action === 'toplu_devir') {
+        if (transferModal) {
+          transferModal.show();
+        } else {
+          showFeedback('Toplu devir penceresi açılamadı. Sayfayı yenileyin.', false);
+        }
         return;
       }
-      feedback.classList.add('alert-success');
-      feedback.textContent = `${data.message} (${data.lifecycle_status})`;
+
+      if (action === 'toplu_iade') {
+        if (!confirm('Bu personelin tüm aktif envanter ve stok zimmetleri iade alınacak. Devam edilsin mi?')) return;
+      }
+
+      button.disabled = true;
+      try {
+        const data = await sendAction(action);
+        showFeedback(`${data.message || 'İşlem tamamlandı.'}`);
+        setTimeout(() => window.location.reload(), 700);
+      } catch (error) {
+        showFeedback(error.message, false);
+      } finally {
+        button.disabled = false;
+      }
     });
   });
+
+  if (transferConfirm) {
+    transferConfirm.addEventListener('click', async () => {
+      const targetUserId = transferTarget.value;
+      if (!targetUserId) {
+        showFeedback('Devir yapılacak personeli seçin.', false);
+        if (transferModal) transferModal.hide();
+        return;
+      }
+
+      transferConfirm.disabled = true;
+      try {
+        const data = await sendAction('toplu_devir', {target_user_id: targetUserId});
+        if (transferModal) transferModal.hide();
+        showFeedback(`${data.message || 'Toplu devir tamamlandı.'}`);
+        setTimeout(() => window.location.reload(), 900);
+      } catch (error) {
+        showFeedback(error.message, false);
+      } finally {
+        transferConfirm.disabled = false;
+      }
+    });
+  }
 })();
 </script>
 {% endif %}
