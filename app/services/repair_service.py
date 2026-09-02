@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from ..models import InventoryEvent, InventoryItem, db
+from ..queries import repair_queries
 from ..repair_model import InventoryRepair
 from ..utils.parsing import sanitize_input_text
 
@@ -46,14 +47,11 @@ def _parse_cost(value: Any) -> tuple[Decimal | None, str | None]:
 
 
 def _item(item_id: int) -> InventoryItem | None:
-    return db.session.get(InventoryItem, item_id)
+    return repair_queries.get_item(item_id)
 
 
 def _records(item_id: int | None = None) -> list[InventoryRepair]:
-    query = InventoryRepair.query
-    if item_id is not None:
-        query = query.filter(InventoryRepair.item_id == item_id)
-    return query.order_by(InventoryRepair.fault_date.desc(), InventoryRepair.id.desc()).all()
+    return repair_queries.list_records(item_id)
 
 
 def _serialize(repair: InventoryRepair) -> dict[str, Any]:
@@ -205,7 +203,7 @@ def update(item_id: int, repair_id: int, data: Any, actor: str) -> tuple[dict[st
     if not item:
         return {"error": "Envanter kaydı bulunamadı."}, 404
 
-    repair = InventoryRepair.query.filter_by(id=repair_id, item_id=item_id).first()
+    repair = repair_queries.get_record(item_id, repair_id)
     if not repair:
         return {"error": "Tamir kaydı bulunamadı."}, 404
 
@@ -237,7 +235,7 @@ def delete(item_id: int, repair_id: int, actor: str) -> tuple[dict[str, Any], in
     if not item:
         return {"error": "Envanter kaydı bulunamadı."}, 404
 
-    repair = InventoryRepair.query.filter_by(id=repair_id, item_id=item_id).first()
+    repair = repair_queries.get_record(item_id, repair_id)
     if not repair:
         return {"error": "Tamir kaydı bulunamadı."}, 404
 
@@ -260,7 +258,7 @@ def delete(item_id: int, repair_id: int, actor: str) -> tuple[dict[str, Any], in
 
 def load_payload() -> dict[str, Any]:
     rows = _records()
-    inventory = InventoryItem.query.order_by(InventoryItem.inventory_no).all()
+    inventory = repair_queries.list_items()
     options = []
     for item in inventory:
         name = item.computer_name or " ".join(
