@@ -1,6 +1,7 @@
 import os
 import tempfile
 from io import BytesIO
+from uuid import uuid4
 import unittest
 
 from app import create_app, db, MAX_INFO_UPLOAD_SIZE
@@ -18,12 +19,12 @@ class InformationUploadTests(unittest.TestCase):
         self.client = self.app.test_client()
 
         with self.app.app_context():
-            category = InfoCategory(name="Test")
+            category = InfoCategory(name=f"Upload Test {uuid4().hex[:8]}")
             user = User(
-                username="tester",
+                username=f"tester_{uuid4().hex[:8]}",
                 first_name="Test",
                 last_name="User",
-                email="test@example.com",
+                email=f"test_{uuid4().hex[:8]}@example.com",
                 password_hash="hash",
                 system_role="admin",
             )
