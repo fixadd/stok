@@ -18,7 +18,23 @@ Bu klasör, uygulamanın `db.create_all()` ve servis içindeki runtime `CREATE T
 
 ## Mevcut sunucuyu migration sistemine alma
 
-Mevcut veritabanı zaten çalışıyorsa önce bir PostgreSQL yedeği alın. Ardından migration geçmişini mevcut şemaya eşitleyin:
+Mevcut veritabanında **önce PostgreSQL yedeği alın**. Ardından proje kök dizininden güvenli yardımcı scripti çalıştırın:
+
+```bash
+bash scripts/migrate_postgres.sh
+```
+
+Script şu işlemleri yapar:
+
+1. PostgreSQL'in hazır olduğunu kontrol eder.
+2. Temel `inventory_items` tablosunun bulunduğunu doğrular.
+3. `alembic_version` yoksa mevcut şemayı `0001_baseline` olarak işaretler.
+4. `alembic upgrade head` çalıştırır.
+5. Son migration durumunu gösterir.
+
+Script **`DROP DATABASE`, `DROP TABLE`, `down -v` veya veri silme işlemi yapmaz.**
+
+Elle çalıştırmak gerekirse mevcut kurulum için:
 
 ```bash
 alembic stamp 0001_baseline
@@ -29,11 +45,10 @@ alembic upgrade head
 
 ## Yeni kurulum
 
-Yeni bir veritabanında geçiş dönemindeki `db.create_all()` temel tabloları oluşturduktan sonra migration zinciri uygulanabilir.
+Yeni bir veritabanında geçiş dönemindeki `db.create_all()` temel tabloları oluşturduktan sonra migration zinciri uygulanabilir. Uygulama container'ı çalışır durumda olmalıdır.
 
 ```bash
-alembic stamp 0001_baseline
-alembic upgrade head
+bash scripts/migrate_postgres.sh
 ```
 
 ## Kontrol
@@ -43,16 +58,22 @@ alembic current
 alembic history
 ```
 
+Docker ortamında:
+
+```bash
+docker compose exec web alembic current
+docker compose exec web alembic history
+```
+
 Production deploy sırasında hedef revision `head` seviyesine getirilmelidir:
 
 ```bash
-alembic upgrade head
+docker compose exec web alembic upgrade head
 ```
 
 ## Sıradaki adımlar
 
-1. `InventoryRepair` SQLAlchemy modelini ekle.
-2. `repair_service.py` içindeki runtime `ensure_table()` çağrılarını kaldır.
-3. Tamir sorgularını `repair_queries.py` katmanına taşı.
-4. Migration'ı CI'da boş veritabanında ve mevcut şema üzerinde test et.
-5. Post-repair test/approval, servis belgeleri, fatura ve yedek cihaz alanlarını sonraki migration'larla ekle.
+1. Tamir/bakım modelini migration zincirine bağla.
+2. Tamir sorgularını `repair_queries.py` katmanına taşı.
+3. Migration'ı CI'da boş veritabanında ve mevcut şema üzerinde test et.
+4. Post-repair test/approval, servis belgeleri, fatura ve yedek cihaz alanlarını sonraki migration'larla ekle.
