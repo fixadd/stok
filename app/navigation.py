@@ -10,7 +10,7 @@ NAV_ITEMS: dict[str, dict[str, Any]] = {
     "inventory_tracking": {"title": "Envanter Takip", "endpoint": "inventory_tracking", "icon": "bi-box-seam", "min_role": "user", "parent": "index", "section": "inventory"},
     "license_tracking": {"title": "Lisans Takip", "endpoint": "license_tracking", "icon": "bi-key", "min_role": "user", "parent": "index", "section": "inventory"},
     "stock_tracking": {"title": "Stok Takip", "endpoint": "stock_tracking", "icon": "bi-bar-chart", "min_role": "user", "parent": "index", "section": "inventory"},
-    "maintenance_tracking": {"title": "Tamir / Bakım Takibi", "endpoint": "maintenance_tracking", "icon": "bi-tools", "min_role": "user", "parent": "inventory_tracking", "section": "inventory"},
+    "maintenance_tracking": {"title": "Tamir / Bakım Takibi", "endpoint": "maintenance_tracking", "icon": "bi-tools", "min_role": "user", "parent": "stock_tracking", "section": "inventory"},
     "talep_takip": {"title": "Talep Takip", "endpoint": "talep_takip", "icon": "bi-file-earmark-text", "min_role": "user", "parent": "index", "section": "operations"},
     "personnel_lifecycle": {"title": "Personel Lifecycle", "endpoint": "personnel_lifecycle.list_page", "icon": "bi-people", "min_role": "user", "parent": "index", "section": "operations"},
     "information": {"title": "Bilgiler", "endpoint": "information_list", "icon": "bi-info-circle", "min_role": "user", "parent": "index", "section": "operations"},
