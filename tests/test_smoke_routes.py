@@ -5,7 +5,6 @@ import tempfile
 import unittest
 
 from app import calculate_maintenance_status, create_app, load_dashboard_metrics
-from app.legacy import seed_initial_data
 from app.models import (
     HardwareType,
     InventoryEvent,
@@ -26,7 +25,6 @@ class SmokeRouteTests(unittest.TestCase):
         self.client = self.app.test_client()
 
         with self.app.app_context():
-            seed_initial_data()
             admin = User.query.filter_by(username="admin").first()
             admin.must_change_password = False
             self.admin_id = admin.id
