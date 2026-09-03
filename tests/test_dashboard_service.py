@@ -1,18 +1,27 @@
 from datetime import datetime, timedelta
 
-from app.models import HardwareType, InventoryItem, InventoryMaintenance, db
+from app.models import Brand, Factory, HardwareModel, HardwareType, InventoryItem, InventoryMaintenance, db
 from app.services.dashboard_service import load_maintenance_metrics
 
 
 def test_dashboard_maintenance_metrics_use_latest_record(app):
     with app.app_context():
+        factory = Factory(name="Dashboard Test Factory")
         hardware_type = HardwareType(name="Laptop")
-        db.session.add(hardware_type)
+        brand = Brand(name="Test Brand")
+        db.session.add_all([factory, hardware_type, brand])
+        db.session.flush()
+        model = HardwareModel(name="Test Model", brand_id=brand.id)
+        db.session.add(model)
         db.session.flush()
         item = InventoryItem(
             inventory_no="DASH-TEST-001",
             status="aktif",
+            factory_id=factory.id,
+            department="IT",
             hardware_type_id=hardware_type.id,
+            brand_id=brand.id,
+            model_id=model.id,
         )
         db.session.add(item)
         db.session.flush()
