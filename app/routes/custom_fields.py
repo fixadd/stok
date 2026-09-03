@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
 
-from ..services.settings_service import load_custom_values, save_custom_values
 from ..models import db
+from ..services.settings_service import load_custom_values, save_custom_values
 
 
 def register_custom_field_routes(app, deps):
     get_active_user = deps["get_active_user"]
     has_system_role = deps["has_system_role"]
     bp = Blueprint("custom_fields", __name__)
+
+    def require_login():
+        user = get_active_user()
+        if user is None:
+            return jsonify({"error": "Oturum açmanız gerekir."}), 401
+        return None
 
     def require_admin():
         user = get_active_user()
@@ -19,13 +25,13 @@ def register_custom_field_routes(app, deps):
 
     @bp.get("/api/custom-fields/<string:entity_type>/<int:entity_id>")
     def get_values(entity_type: str, entity_id: int):
-        if (error := require_admin()):
+        if (error := require_login()):
             return error
         return jsonify(load_custom_values(entity_type, entity_id))
 
     @bp.put("/api/custom-fields/<string:entity_type>/<int:entity_id>")
     def put_values(entity_type: str, entity_id: int):
-        if (error := require_admin()):
+        if (error := require_login()):
             return error
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
