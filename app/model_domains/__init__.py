@@ -9,3 +9,4 @@ from .information import *
 from .catalog import *
 from .activity import *
 from .common import *
+from .settings import *
