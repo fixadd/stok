@@ -17,6 +17,7 @@ NAV_ITEMS: dict[str, dict[str, Any]] = {
     "scrap_inventory": {"title": "Hurdalar", "endpoint": "scrap_inventory_page", "icon": "bi-trash", "min_role": "user", "parent": "stock_tracking", "section": "operations"},
     "profile": {"title": "Profil", "endpoint": "profile", "icon": "bi-person", "min_role": "user", "parent": "index", "section": "settings"},
     "admin_panel": {"title": "Admin Paneli", "endpoint": "admin_panel", "icon": "bi-speedometer2", "min_role": "admin", "parent": "index", "section": "settings"},
+    "settings": {"title": "Sistem Ayarları", "endpoint": "settings.page", "icon": "bi-gear", "min_role": "admin", "parent": "admin_panel", "section": "settings"},
     "activity_logs": {"title": "Kayıtlar", "endpoint": "activity_logs", "icon": "bi-journal-text", "min_role": "admin", "parent": "admin_panel", "section": "settings"},
     "logout": {"title": "Çıkış", "endpoint": "logout", "icon": "bi-box-arrow-right", "min_role": "user", "parent": None, "section": "settings"},
 }
