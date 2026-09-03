@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import urlparse
 
 from flask import Flask
 
@@ -12,10 +11,12 @@ class AppConfig:
     """Central application configuration loaded from environment variables."""
 
     @staticmethod
-    def configure(app: Flask, *, data_dir: Path, info_upload_dir: Path) -> None:
-        database_url = os.environ.get("DATABASE_URL")
+    def configure(app: Flask, *, data_dir: Path | None, info_upload_dir: Path | None) -> None:
+        database_url = os.environ.get("DATABASE_URL", "").strip()
         if not database_url:
             raise RuntimeError("DATABASE_URL yapılandırılmamış.")
+        if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+            raise RuntimeError("Bu uygulama yalnızca PostgreSQL DATABASE_URL destekler.")
 
         environment = os.environ.get("APP_ENV", "development").strip().lower()
         is_production = environment in {"production", "prod"}
@@ -53,14 +54,20 @@ class AppConfig:
         app.config["APP_ENV"] = environment
         app.config["DATA_DIR"] = data_dir
         app.config["INFO_UPLOAD_DIR"] = info_upload_dir
-
-        database_path = os.environ.get("DATABASE_PATH")
-        if database_path:
-            resolved_database_path = Path(database_path).expanduser().resolve()
-            resolved_database_path.parent.mkdir(parents=True, exist_ok=True)
-            app.config["DATABASE_PATH"] = resolved_database_path
-        elif database_url.startswith("sqlite:///"):
-            parsed = urlparse(database_url)
-            app.config["DATABASE_PATH"] = Path(parsed.path).expanduser().resolve()
-
         app.permanent_session_lifetime = timedelta(minutes=session_minutes)
+
+        @app.after_request
+        def add_security_headers(response):
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+            response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+            response.headers.setdefault(
+                "Permissions-Policy",
+                "camera=(), microphone=(), geolocation=()",
+            )
+            if is_production:
+                response.headers.setdefault(
+                    "Strict-Transport-Security",
+                    "max-age=31536000; includeSubDomains",
+                )
+            return response
