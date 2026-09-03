@@ -4,20 +4,20 @@
 
 {% block main %}
 <div class="information-page d-flex flex-column gap-4">
-  <div class="info-hero content-card shadow-sm">
+  <div class="info-hero content-card">
     <div class="d-flex flex-column flex-lg-row gap-4 justify-content-between align-items-lg-end">
       <div class="info-hero-copy">
-        <span class="badge rounded-pill text-bg-primary-soft mb-2">Bilgi Yönetimi</span>
+        <span class="badge mb-2">Bilgi Yönetimi</span>
         <h1 class="h3 fw-bold mb-2">Bilgiler</h1>
         <p class="text-muted mb-3">Bilgi ve dokümantasyonları yönetin.</p>
         <div class="info-count-pill d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill">
-          <i class="bi bi-collection"></i>
+          <i class="ti ti-collection"></i>
           <span><span data-filtered-count>{{ info_count }}</span> bilgi</span>
         </div>
       </div>
       <div class="info-actions d-flex flex-column gap-3">
         <button class="btn btn-primary align-self-lg-end" type="button" data-bs-toggle="modal" data-bs-target="#newInfoModal">
-          <i class="bi bi-plus-circle me-2"></i>
+          <i class="ti ti-plus-circle me-2"></i>
           Yeni Bilgi
         </button>
       </div>
@@ -27,7 +27,7 @@
         <div class="col-lg-7">
           <label class="form-label text-uppercase small fw-semibold" for="infoSearch">Arama</label>
           <div class="input-group info-search-group">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
             <input class="form-control" id="infoSearch" type="search" placeholder="Başlık veya içerik içinde ara...">
           </div>
         </div>
@@ -42,7 +42,7 @@
         </div>
         <div class="col-lg-2 d-flex align-items-end">
           <button class="btn btn-outline-primary w-100" id="infoFilterButton" type="button">
-            <i class="bi bi-funnel me-2"></i>
+            <i class="ti ti-filter me-2"></i>
             Filtrele
           </button>
         </div>
@@ -55,7 +55,7 @@
       <div class="alert-stack">
         {% for category, message in messages %}
           <div class="alert alert-soft alert-{{ category }} d-flex align-items-center gap-2" role="alert">
-            <i class="bi bi-info-circle"></i>
+            <i class="ti ti-info-circle"></i>
             <span>{{ message }}</span>
           </div>
         {% endfor %}
@@ -63,19 +63,19 @@
     {% endif %}
   {% endwith %}
 
-  <div class="content-card shadow-sm">
+  <div class="content-card">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h2 class="h5 fw-semibold mb-0">Tüm Bilgiler</h2>
-      <span class="badge rounded-pill text-bg-light" data-total-count>{{ info_count }} kayıt</span>
+      <span class="badge" data-total-count>{{ info_count }} kayıt</span>
     </div>
     <div class="table-responsive">
       <table class="table align-middle mb-0 info-table">
         <thead>
           <tr>
             <th scope="col">Başlık</th>
-            <th scope="col" class="text-muted">Kategori</th>
-            <th scope="col" class="text-muted">Oluşturulma</th>
-            <th scope="col" class="text-muted text-end">İşlem</th>
+            <th scope="col">Kategori</th>
+            <th scope="col">Oluşturulma</th>
+            <th scope="col" class="text-end">İşlem</th>
           </tr>
         </thead>
         <tbody>
@@ -86,7 +86,7 @@
             <td class="text-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') if entry.created_at else '' }}</td>
             <td class="text-end">
               <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ url_for('information_detail', entry_id=entry.id) }}">
-                <i class="bi bi-eye"></i>
+                <i class="ti ti-eye"></i>
                 Görüntüle
               </a>
             </td>
@@ -147,7 +147,6 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     const rows = Array.from(document.querySelectorAll('[data-info-row]'));
@@ -167,24 +166,16 @@
         const matchesCategory = !category || category === (row.dataset.category || '');
         const visible = matchesSearch && matchesCategory;
         row.classList.toggle('d-none', !visible);
-        if (visible) {
-          visibleCount += 1;
-        }
+        if (visible) visibleCount += 1;
       });
 
-      if (emptyState) {
-        emptyState.classList.toggle('d-none', visibleCount !== 0);
-      }
-
-      if (filteredCountEl) {
-        filteredCountEl.textContent = visibleCount;
-      }
+      emptyState?.classList.toggle('d-none', visibleCount !== 0);
+      if (filteredCountEl) filteredCountEl.textContent = visibleCount;
     }
 
     searchInput?.addEventListener('input', applyFilters);
     categorySelect?.addEventListener('change', applyFilters);
     filterButton?.addEventListener('click', applyFilters);
-
     applyFilters();
   });
 </script>
