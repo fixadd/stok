@@ -8,7 +8,6 @@ from ..queries import catalog_queries, inventory_queries, license_queries, user_
 def load_tracking_payload(
     *,
     serialize_license: Callable[[Any], dict[str, Any]],
-    serialize_item: Callable[[Any], dict[str, Any]],
 ) -> dict[str, Any]:
     licenses = license_queries.list_tracking_licenses()
     license_records = [serialize_license(record) for record in licenses]
