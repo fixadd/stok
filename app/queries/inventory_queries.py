@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
-from ..models import InventoryItem
+from ..models import InventoryAssignment, InventoryItem
 from .common import apply_limit
 
 
@@ -77,3 +78,24 @@ def count_by_status(status: str) -> int:
     if not normalized:
         return 0
     return InventoryItem.query.filter(func.lower(InventoryItem.status) == normalized).count()
+
+
+def list_tracking_items(*, limit: int = 5000) -> list[InventoryItem]:
+    query = (
+        InventoryItem.query
+        .options(
+            joinedload(InventoryItem.factory),
+            joinedload(InventoryItem.hardware_type),
+            joinedload(InventoryItem.brand),
+            joinedload(InventoryItem.model),
+            joinedload(InventoryItem.responsible_user),
+            joinedload(InventoryItem.assignments).joinedload(InventoryAssignment.assigned_user),
+            joinedload(InventoryItem.assignments).joinedload(InventoryAssignment.returned_to_user),
+            joinedload(InventoryItem.assignments).joinedload(InventoryAssignment.assigned_factory),
+            joinedload(InventoryItem.events),
+            joinedload(InventoryItem.licenses),
+            joinedload(InventoryItem.maintenances),
+        )
+        .order_by(InventoryItem.inventory_no)
+    )
+    return apply_limit(query, limit=limit).all()
