@@ -1,8 +1,14 @@
+from datetime import date
+from decimal import Decimal
+
 from app.services.validation import (
+    non_negative_decimal,
     non_negative_int,
+    one_of,
     optional_text,
     positive_int,
     required_text,
+    validate_date,
     validate_email,
     validate_password,
 )
@@ -52,3 +58,18 @@ def test_validate_password_preserves_whitespace():
 def test_validate_password_rejects_username_and_short_values():
     assert validate_password("admin", username="ADMIN")[0] is None
     assert validate_password("1234567")[0] is None
+
+
+def test_one_of_normalizes_allowed_values():
+    assert one_of(" AKTIF ", "Durum", ["aktif", "pasif"]) == ("aktif", None)
+    assert one_of("bilinmeyen", "Durum", ["aktif", "pasif"])[0] is None
+
+
+def test_validate_date_supports_iso_and_local_formats():
+    assert validate_date("2026-09-03", "Tarih") == (date(2026, 9, 3), None)
+    assert validate_date("03.09.2026", "Tarih") == (date(2026, 9, 3), None)
+
+
+def test_non_negative_decimal_normalizes_scale():
+    assert non_negative_decimal("12,5", "Maliyet") == (Decimal("12.50"), None)
+    assert non_negative_decimal("-1", "Maliyet")[0] is None
