@@ -16,8 +16,6 @@ jobs:
         with:
           fetch-depth: 1
       - name: Extract safe inline scripts and clean legacy classes
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -43,26 +41,23 @@ jobs:
               text = path.read_text(encoding='utf-8')
               original = text
               text = text.replace(' shadow-sm', '').replace('shadow-sm ', '')
-              counter = 0
+              counter = [0]
 
               def replace_script(match):
-                  nonlocal counter, changed
                   body = match.group(1)
                   if '{%' in body or '{{' in body:
                       return match.group(0)
                   if not body.strip():
                       return ''
-                  counter += 1
+                  counter[0] += 1
                   stem = path.stem
-                  target = js_dir / f'{stem}-{counter}.js'
+                  target = js_dir / f'{stem}-{counter[0]}.js'
                   if target.exists():
                       existing = target.read_text(encoding='utf-8')
                       if existing != body.strip() + '\\n':
                           raise SystemExit(f'Refusing to overwrite changed JS file: {target}')
                   else:
                       target.write_text(body.strip() + '\\n', encoding='utf-8')
-                      changed = True
-                  changed = True
                   return f'<script src="{{{{ url_for(\'static\', filename=\'js/pages/{target.name}\') }}}}"></script>'
 
               text = re.sub(r'<script(?:\s[^>]*)?>(.*?)</script>', replace_script, text, flags=re.I | re.S)
@@ -85,7 +80,9 @@ jobs:
                   continue
               size = path.stat().st_size
               if size >= 16000:
-                  rows.append((size, sum(1 for _ in path.open(encoding='utf-8', errors='ignore')), path.relative_to(root)))
+                  with path.open(encoding='utf-8', errors='ignore') as handle:
+                      count = sum(1 for _ in handle)
+                  rows.append((size, count, path.relative_to(root)))
           rows.sort(reverse=True)
           lines = ['# Büyük Dosya Denetimi', '', 'Generated from the current `main` tree. Files are prioritized by size and responsibility, not size alone.', '', '| Boyut | Satır | Dosya | Öneri |', '|---:|---:|---|---|']
           for size, count, path in rows:
@@ -108,8 +105,7 @@ jobs:
               subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
               subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
               subprocess.run(['git', 'add', 'app/templates', 'app/static/js/pages', 'app/static/css/redesign.css', 'docs/LARGE_FILE_AUDIT.md'], check=True)
-              result = subprocess.run(['git', 'diff', '--cached', '--quiet'])
-              if result.returncode != 0:
+              if subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0:
                   subprocess.run(['git', 'commit', '-m', 'refactor: extract safe page scripts and finish theme cleanup'], check=True)
                   subprocess.run(['git', 'push'], check=True)
           PY
