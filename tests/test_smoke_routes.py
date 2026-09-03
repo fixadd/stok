@@ -33,6 +33,17 @@ class SmokeRouteTests(unittest.TestCase):
             user = (
                 User.query.filter(User.system_role == "user").order_by(User.id).first()
             )
+            if user is None:
+                user = User(
+                    username="smoke_user",
+                    first_name="Smoke",
+                    last_name="User",
+                    email="smoke_user@example.com",
+                    password_hash="hash",
+                    system_role="user",
+                )
+                db.session.add(user)
+                db.session.flush()
             user.must_change_password = False
             self.user_id = user.id
             db.session.commit()
