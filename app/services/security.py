@@ -144,6 +144,10 @@ def configure_security(app: Any) -> None:
 
     @app.before_request
     def enforce_csrf_and_login_rate_limit():
+        # Context processors only run while rendering templates. Initialize the
+        # session token during request dispatch as well so JSON/API endpoints
+        # and tests can safely access the same token.
+        _csrf_token()
         endpoint = request.endpoint or ""
 
         if endpoint == "login" and request.method == "POST":
