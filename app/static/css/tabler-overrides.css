@@ -1,0 +1,80 @@
+:root {
+  --tblr-primary: #206bc4;
+  --tblr-border-radius: 6px;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.navbar-vertical {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1030;
+}
+
+@media (min-width: 992px) {
+  .navbar-vertical + .navbar,
+  .navbar-vertical ~ .page-wrapper {
+    margin-left: 15rem;
+  }
+}
+
+.page-wrapper {
+  min-height: 100vh;
+}
+
+.page-content {
+  width: 100%;
+}
+
+.dashboard-page,
+.inventory-page,
+.stock-page,
+.maintenance-page,
+.requests-page,
+.license-page,
+.admin-page,
+.profile-page {
+  width: 100%;
+}
+
+/* Keep existing application-specific components visually compatible with Tabler. */
+.dashboard-kpi,
+.dashboard-panel,
+.card,
+.modal-content,
+.table-responsive {
+  border-radius: var(--tblr-border-radius);
+}
+
+.dashboard-kpi:hover,
+.card:hover {
+  box-shadow: 0 0.25rem 0.75rem rgba(30, 41, 59, .08);
+}
+
+.table th {
+  white-space: nowrap;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(32, 107, 196, .15);
+}
+
+.btn .ti,
+.btn i {
+  vertical-align: -0.125em;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-vertical {
+    position: relative;
+  }
+
+  .navbar-vertical + .navbar,
+  .navbar-vertical ~ .page-wrapper {
+    margin-left: 0;
+  }
+}
