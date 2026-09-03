@@ -1,21 +1,53 @@
-"""Dashboard read-model helpers.
-
-Dashboard aggregation belongs in the service layer so the application entrypoint
-and route modules do not need to know how maintenance state is calculated.
-"""
+"""Dashboard read-model helpers."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from .maintenance_service import load_payload as load_maintenance_payload
+from sqlalchemy import func
+
+from ..models import InventoryItem, InventoryMaintenance
+from .maintenance_service import MAINTENANCE_INTERVAL_DAYS, MAINTENANCE_WARNING_DAYS, is_computer_hardware_type
+
+
+def load_maintenance_metrics() -> dict[str, int]:
+    """Calculate maintenance counters from each active computer's latest record."""
+    items = (
+        InventoryItem.query
+        .filter(func.lower(InventoryItem.status).notin_(["hurda", "stokta"]))
+        .all()
+    )
+    today = datetime.utcnow().date()
+    due = warning = overdue = current = none = 0
+
+    for item in items:
+        if not is_computer_hardware_type(item.hardware_type.name if item.hardware_type else None):
+            continue
+        records = sorted(item.maintenances, key=lambda row: (row.performed_at, row.id), reverse=True)
+        if not records:
+            none += 1
+            due += 1
+            continue
+        next_date = (records[0].performed_at + __import__("datetime").timedelta(days=MAINTENANCE_INTERVAL_DAYS)).date()
+        days_until = (next_date - today).days
+        if days_until < 0:
+            overdue += 1
+            due += 1
+        elif days_until <= MAINTENANCE_WARNING_DAYS:
+            warning += 1
+            due += 1
+        else:
+            current += 1
+
+    return {
+        "maintenance_current_count": current,
+        "maintenance_warning_count": warning,
+        "maintenance_overdue_count": overdue,
+        "maintenance_none_count": none,
+        "maintenance_due_count": due,
+    }
 
 
 def load_dashboard_metrics() -> dict[str, Any]:
-    """Return dashboard maintenance metrics from the canonical maintenance service."""
-    payload = load_maintenance_payload({})
-    return {
-        key: value
-        for key, value in payload.items()
-        if key.startswith("maintenance_")
-    }
+    return load_maintenance_metrics()
