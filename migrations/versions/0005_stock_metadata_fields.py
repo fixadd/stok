@@ -6,6 +6,7 @@ Create Date: 2026-09-03
 """
 
 from alembic import op
+from sqlalchemy import text
 
 revision = "0005_stock_metadata_fields"
 down_revision = "0004_operational_indexes"
@@ -69,43 +70,51 @@ FIELDS = {
 
 
 def upgrade() -> None:
-    op.execute(
-        """
-        CREATE TABLE IF NOT EXISTS stock_metadata_fields (
-            id SERIAL PRIMARY KEY,
-            category VARCHAR(32) NOT NULL,
-            field_key VARCHAR(64) NOT NULL,
-            label VARCHAR(128) NOT NULL,
-            placeholder VARCHAR(256),
-            required BOOLEAN NOT NULL DEFAULT FALSE,
-            assignment_only BOOLEAN NOT NULL DEFAULT FALSE,
-            options_key VARCHAR(64),
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            active BOOLEAN NOT NULL DEFAULT TRUE,
-            UNIQUE (category, field_key)
+    connection = op.get_bind()
+    connection.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS stock_metadata_fields (
+                id SERIAL PRIMARY KEY,
+                category VARCHAR(32) NOT NULL,
+                field_key VARCHAR(64) NOT NULL,
+                label VARCHAR(128) NOT NULL,
+                placeholder VARCHAR(256),
+                required BOOLEAN NOT NULL DEFAULT FALSE,
+                assignment_only BOOLEAN NOT NULL DEFAULT FALSE,
+                options_key VARCHAR(64),
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                UNIQUE (category, field_key)
+            )
+            """
         )
-        """
     )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_stock_metadata_fields_category_active "
-        "ON stock_metadata_fields (category, active, sort_order)"
+    connection.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_stock_metadata_fields_category_active "
+            "ON stock_metadata_fields (category, active, sort_order)"
+        )
+    )
+    insert_statement = text(
+        """
+        INSERT INTO stock_metadata_fields
+            (category, field_key, label, placeholder, required, assignment_only, options_key, sort_order)
+        VALUES (:category, :field_key, :label, :placeholder, :required, :assignment_only, :options_key, :sort_order)
+        ON CONFLICT (category, field_key) DO UPDATE SET
+            label = EXCLUDED.label,
+            placeholder = EXCLUDED.placeholder,
+            required = EXCLUDED.required,
+            assignment_only = EXCLUDED.assignment_only,
+            options_key = EXCLUDED.options_key,
+            sort_order = EXCLUDED.sort_order,
+            active = TRUE
+        """
     )
     for category, fields in FIELDS.items():
         for sort_order, (key, label, placeholder, required, assignment_only, options_key) in enumerate(fields):
-            op.execute(
-                """
-                INSERT INTO stock_metadata_fields
-                    (category, field_key, label, placeholder, required, assignment_only, options_key, sort_order)
-                VALUES (:category, :field_key, :label, :placeholder, :required, :assignment_only, :options_key, :sort_order)
-                ON CONFLICT (category, field_key) DO UPDATE SET
-                    label = EXCLUDED.label,
-                    placeholder = EXCLUDED.placeholder,
-                    required = EXCLUDED.required,
-                    assignment_only = EXCLUDED.assignment_only,
-                    options_key = EXCLUDED.options_key,
-                    sort_order = EXCLUDED.sort_order,
-                    active = TRUE
-                """,
+            connection.execute(
+                insert_statement,
                 {
                     "category": category,
                     "field_key": key,
