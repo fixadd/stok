@@ -16,6 +16,7 @@ from .services.activity_service import (
     load_recent_activity as _service_load_recent_activity,
     record_activity as _service_record_activity,
 )
+from .services.dashboard_service import load_dashboard_metrics as _service_load_dashboard_metrics
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
 from .services.maintenance_helpers import (
     calculate_maintenance_status as _service_calculate_maintenance_status,
@@ -37,19 +38,15 @@ from .services.stock_payloads import (
 
 configure_security(app)
 
-# Alembic owns the schema. Metadata is loaded from PostgreSQL after the
-# application has been created, so the existing route functions can consume
-# the same global configuration without duplicating field definitions.
 _db_metadata = configure_stock_metadata()
 _legacy_module = sys.modules.get("app.legacy")
 if _legacy_module is not None:
-    # These helpers are being moved out of the historical monolith. Keeping
-    # their old names avoids a flag-day rewrite of all legacy call sites.
     _legacy_module.build_inventory_stock_metadata = _service_build_inventory_stock_metadata
     _legacy_module.json_error = _service_json_error
     _legacy_module.record_activity = _service_record_activity
     _legacy_module.load_activity_logs = _service_load_activity_logs
     _legacy_module.load_recent_activity = _service_load_recent_activity
+    _legacy_module.load_dashboard_metrics = _service_load_dashboard_metrics
     _legacy_module.record_stock_movement = _service_record_stock_movement
     _legacy_module.record_stock_audit = _service_record_stock_audit
     _legacy_module.record_stock_log = _service_record_stock_log
