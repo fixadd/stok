@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import func
 
-from ..models import InventoryItem, InventoryMaintenance
+from ..models import InventoryItem
 from .maintenance_service import MAINTENANCE_INTERVAL_DAYS, MAINTENANCE_WARNING_DAYS, is_computer_hardware_type
 
 
@@ -18,7 +18,7 @@ def load_maintenance_metrics() -> dict[str, int]:
         .filter(func.lower(InventoryItem.status).notin_(["hurda", "stokta"]))
         .all()
     )
-    today = datetime.utcnow().date()
+    today = date.today()
     due = warning = overdue = current = none = 0
 
     for item in items:
@@ -29,7 +29,7 @@ def load_maintenance_metrics() -> dict[str, int]:
             none += 1
             due += 1
             continue
-        next_date = (records[0].performed_at + __import__("datetime").timedelta(days=MAINTENANCE_INTERVAL_DAYS)).date()
+        next_date = (records[0].performed_at + timedelta(days=MAINTENANCE_INTERVAL_DAYS)).date()
         days_until = (next_date - today).days
         if days_until < 0:
             overdue += 1
