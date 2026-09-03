@@ -5057,7 +5057,7 @@ def load_maintenance_dashboard_counts() -> dict[str, int]:
         if (item.status or "").lower() in {"hurda", "stokta"}:
             continue
 
-        last_maintenance = item.maintenances[0] if item.maintenances else None
+        last_maintenance = max(item.maintenances, key=lambda record: record.performed_at) if item.maintenances else None
         maintenance_status = calculate_maintenance_status(
             last_maintenance.performed_at if last_maintenance else None
         )["status"]
