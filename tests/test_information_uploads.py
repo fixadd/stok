@@ -19,6 +19,11 @@ class InformationUploadTests(unittest.TestCase):
         self.client = self.app.test_client()
 
         with self.app.app_context():
+            # CI uses one PostgreSQL database for the test process. Remove only
+            # upload children so each upload test starts with a clean assertion
+            # surface without destroying unrelated application data.
+            InfoAttachment.query.delete(synchronize_session=False)
+            db.session.commit()
             category = InfoCategory(name=f"Upload Test {uuid4().hex[:8]}")
             user = User(
                 username=f"tester_{uuid4().hex[:8]}",
