@@ -1,0 +1,31 @@
+name: Debug one test
+on:
+  push:
+    branches: [main]
+jobs:
+  debug:
+    if: github.actor == 'fixadd'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: stok_ci
+          POSTGRES_USER: stok
+          POSTGRES_PASSWORD: stok_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U stok -d stok_ci"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - env:
+          DATABASE_URL: postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci
+        run: python -m alembic upgrade head
+      - env:
+          DATABASE_URL: postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci
+        run: python -m pytest -q tests/test_smoke_routes.py::SmokeRouteTests::test_create_maintenance_record_adds_inventory_event
