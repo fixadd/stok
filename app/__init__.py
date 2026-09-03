@@ -2,7 +2,7 @@
 
 The historical monolithic implementation lives in ``legacy.py`` while the
 package entrypoint stays intentionally small. Cross-cutting HTTP security and
-DB-backed stock metadata are attached here so route modules do not need to
+DB-backed configuration are attached here so route modules do not need to
 know about infrastructure.
 """
 
@@ -17,6 +17,7 @@ from .services.activity_service import (
     load_recent_activity as _service_load_recent_activity,
     record_activity as _service_record_activity,
 )
+from .services.configuration_service import build_form_schema as _build_form_schema, setting_choices as _setting_choices
 from .services.dashboard_service import load_dashboard_metrics as _service_load_dashboard_metrics
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
 from .services.maintenance_helpers import (
@@ -32,10 +33,7 @@ from .services.stock_audit_service import (
     record_stock_movement as _service_record_stock_movement,
 )
 from .services.stock_metadata import configure_stock_metadata
-from .services.stock_payloads import (
-    json_error as _service_json_error,
-    prepare_stock_metadata as _service_prepare_stock_metadata,
-)
+from .services.stock_payloads import json_error as _service_json_error, prepare_stock_metadata as _service_prepare_stock_metadata
 
 configure_security(app)
 
@@ -59,19 +57,16 @@ if _legacy_module is not None:
     if _db_metadata:
         STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
-        _legacy_module.prepare_stock_metadata = lambda category, payload, **kwargs: _service_prepare_stock_metadata(
-            category,
-            payload,
-            schema=_db_metadata,
-            **kwargs,
-        )
+        _legacy_module.prepare_stock_metadata = lambda category, payload, **kwargs: _service_prepare_stock_metadata(category, payload, schema=_db_metadata, **kwargs)
 
-register_settings_routes(
-    app,
-    {
-        "get_active_user": get_active_user,
-        "has_system_role": has_system_role,
-    },
-)
+# Keep package-level imports and legacy compatibility names in sync.
+load_dashboard_metrics = _service_load_dashboard_metrics
+load_activity_logs = _service_load_activity_logs
+load_recent_activity = _service_load_recent_activity
+record_activity = _service_record_activity
+build_form_schema = _build_form_schema
+setting_choices = _setting_choices
+
+register_settings_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
 
 __all__ = ["app", "db"]
