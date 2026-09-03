@@ -1,152 +1,19 @@
-# Büyük Dosya Refactor Planı
+# Büyük Dosya Refactor Durumu
 
-Bu belge, mevcut `main` dalındaki büyük dosyaları güvenli şekilde küçültmek için hedef mimariyi tanımlar. Amaç tek seferde büyük dosya yeniden yazmak değil; her modülü çalışır halde tutarak küçük ve geri alınabilir değişikliklerle parçalamaktır.
+Bu belge `main` dalındaki büyük dosyaların güvenli şekilde küçültülmesi için güncel durumu ve kalan işleri gösterir. Refactor adımları küçük ve geri alınabilir tutulur; her kod değişikliği PostgreSQL tabanlı CI ile doğrulanır.
 
-## Öncelik sırası
+## Tamamlananlar
 
-1. `app/legacy.py` — 213 KB: ilk ve en kritik aday.
-2. `app/templates/inventory_tracking.html` — 104 KB.
-3. `app/templates/talep_takip.html` — 84 KB.
-4. `app/templates/stock_tracking.html` — 69 KB.
-5. `app/templates/admin_panel.html` — 64 KB.
-6. `app/templates/license_tracking.html` — 55 KB.
-7. `app/static/css/style.css` — 42 KB; yeni Vercel-benzeri tema ile büyük ölçüde örtüşüyor.
-8. `app/models.py` — 28 KB.
-9. `app/templates/maintenance_tracking.html` — 20 KB.
-10. `app/templates/admin_panel_modals.html` — 18 KB.
-11. `app/personnel_lifecycle.py` — 16 KB.
-12. `app/services/repair_service.py` — 16 KB.
+### 1. Legacy ortak yardımcılar ve demo seed ayrıldı
 
-## 1. `app/legacy.py`
+`app/legacy.py` içindeki aktivite, bakım yardımcıları ve stok audit kayıtları servis katmanına taşındı. Demo/test seed kodu `app/services/demo_seed.py` içine çıkarıldı. `legacy.py` eski import yüzeyini geçici olarak koruyor; production startup seed çalıştırmıyor.
 
-Hedef: production route/business kodunun legacy dosyasından tamamen çıkarılması ve dosyanın sonunda silinmesi.
+### 2. SQLAlchemy modelleri domain bazlı ayrıldı
 
-Önerilen ayrım:
-
-- `app/seed/demo_data.py` — yalnızca test/demo seed fonksiyonları.
-- `app/services/inventory_service.py` — envanter iş kuralları.
-- `app/services/stock_service.py` — stok iş kuralları.
-- `app/services/maintenance_service.py` — bakım/onarım iş kuralları.
-- `app/services/request_service.py` — talep iş kuralları.
-- `app/services/activity_service.py` — aktivite/audit kayıtları.
-- `app/queries/*` — salt okuma sorguları.
-- `app/routes/*` — HTTP request/response katmanı.
-
-Kalan legacy fonksiyonları konu bazında taşındıktan sonra `legacy.py` yalnızca geçici uyumluluk katmanı olarak tutulmalı; yeni kod buraya eklenmemeli.
-
-## 2. `inventory_tracking.html`
-
-Önerilen yapı:
+`models.py` artık uyumluluk katmanı. Asıl modeller `app/model_domains/` altında:
 
 ```text
-app/templates/inventory/
-├── list.html
-├── detail.html
-├── partials/
-│   ├── filters.html
-│   ├── table.html
-│   ├── summary.html
-│   └── empty_state.html
-└── modals/
-    ├── assignment.html
-    ├── maintenance.html
-    └── transfer.html
-```
-
-Sayfadaki inline JavaScript ayrı JS modüllerine taşınmalı.
-
-## 3. `talep_takip.html`
-
-Önerilen yapı:
-
-```text
-app/templates/requests/
-├── list.html
-├── detail.html
-├── partials/
-│   ├── filters.html
-│   ├── table.html
-│   └── status_badge.html
-└── modals/
-    ├── create.html
-    ├── edit.html
-    └── status.html
-```
-
-Talep sorguları `request_queries.py` / `request_query_service.py`, iş kuralları `request_service.py` içinde kalmalı.
-
-## 4. `stock_tracking.html`
-
-Önerilen yapı:
-
-```text
-app/templates/stock/
-├── list.html
-├── detail.html
-├── partials/
-│   ├── filters.html
-│   ├── table.html
-│   └── summary.html
-└── modals/
-    ├── movement.html
-    ├── edit.html
-    └── delete.html
-```
-
-Mevcut `stock.py` route'ları ince tutulacak; veri hazırlama `stock_service.py` ve `stock_query_service.py` üzerinden yapılacak.
-
-## 5. `admin_panel.html`
-
-`admin_panel_modals.html` zaten ayrı olduğu için ikinci aşamada paneli domain bazlı partial'lara ayırmak yeterli:
-
-```text
-app/templates/admin/
-├── dashboard.html
-├── users.html
-├── catalog.html
-├── stock_metadata.html
-└── partials/
-    ├── user_table.html
-    ├── catalog_table.html
-    └── stats.html
-```
-
-## 6. `license_tracking.html`
-
-Önerilen yapı:
-
-```text
-app/templates/license/
-├── list.html
-├── detail.html
-├── partials/
-│   ├── filters.html
-│   ├── table.html
-│   └── counters.html
-└── modals/
-    ├── create.html
-    └── edit.html
-```
-
-## 7. `style.css`
-
-Mevcut 42 KB dosyada eski UI sistemi ile yeni minimal tema üst üste bulunuyor. Önce yeni `redesign.css` ile gerçekten kullanılan stiller doğrulanmalı. Ardından:
-
-- global reset → `base.css`
-- ortak form/button/table → `components.css`
-- dashboard → `pages/dashboard.css`
-- inventory/stock/license → ilgili sayfa CSS'leri
-- yalnızca gerçekten kullanılan legacy kurallar → `legacy.css`
-
-Son aşamada `style.css` tamamen kaldırılmalı. `redesign.css` tek başına nihai tema dosyası olmak yerine bu modüler yapının parçaları haline getirilebilir.
-
-## 8. `models.py`
-
-Model sınıfları domain bazlı ayrılmalı:
-
-```text
-app/models/
-├── __init__.py
+app/model_domains/
 ├── base.py
 ├── users.py
 ├── inventory.py
@@ -155,30 +22,52 @@ app/models/
 ├── requests.py
 ├── licenses.py
 ├── information.py
-└── activity.py
+├── catalog.py
+├── activity.py
+└── common.py
 ```
 
-`db` ve ortak model yardımcıları `base.py` içinde tutulmalı. Alembic `target_metadata` tek bir `db.metadata` üzerinden çalışmaya devam etmeli.
+`app.models` importları korunuyor ve Alembic tek `db.metadata` üzerinden çalışmaya devam ediyor.
 
-## 9. `maintenance_tracking.html`
+### 3. Büyük template modalları partial'lara çıkarıldı
 
-`inventory` ve `maintenance` ilişkisi nedeniyle bakım ekranı şu parçalara ayrılmalı:
+Envanter, talep, stok, admin, lisans ve bakım template'lerindeki modal blokları ilgili `*_partials/` klasörlerine ayrıldı. Jinja context'i include üzerinden korunuyor.
 
-- liste/filtreler
-- bakım özeti
-- bakım kayıt tablosu
-- kayıt/düzenleme modalı
-- detay görünümü
+### 4. Sayfa JavaScript'i ayrıştırılmaya başlandı
 
-## 10. `personnel_lifecycle.py` ve `repair_service.py`
+Güvenli şekilde taşınabilen inline script'ler `app/static/js/pages/` altına çıkarıldı. Jinja'ya doğrudan bağlı scriptler zorla taşınmadı.
 
-Bu dosyalar orta öncelikli. Önce fonksiyon grupları çıkarılmalı, sonra tek sorumluluklu servis/query modüllerine taşınmalı. Sadece dosya boyunu düşürmek için bölme yapılmamalı.
+### 5. UI teması
 
-## Güvenlik ve çalışma kuralı
+Yeni minimal/Vercel-benzeri görünüm `redesign.css` ile aktif. `tabler-overrides.css` yalnızca uyumluluk kurallarını içeriyor. Bilgi ekranı da aynı tasarım diline getirildi.
 
-- PostgreSQL dışına çıkılmayacak.
+## Kalan büyük işler
+
+### `app/legacy.py`
+
+Hâlâ ana monolit. Kalan route/business/payload fonksiyonları konu bazında mevcut servis ve query modüllerine taşınacak. Hedef, yeni kodun legacy'ye girmemesi ve sonunda dosyanın kaldırılmasıdır.
+
+### Büyük template'ler
+
+Modal ayrımı yapıldı; sıradaki güvenli adım liste/filtre/table/summary parçalarını Jinja include'larına ayırmak. Inline JavaScript yalnızca Jinja bağımlılığı olmayan bloklarda taşınacak.
+
+### `app/static/css/style.css`
+
+Eski global UI kuralları ile yeni tema örtüşüyor. Kullanım denetimi yapıldıktan sonra `base.css`, `components.css`, sayfa CSS'leri ve gerekirse `legacy.css` olarak ayrılacak; en son `style.css` kaldırılacak.
+
+### `app/static/js/pages/license_tracking-1.js`
+
+Dosya büyüklüğü nedeniyle fonksiyon sorumluluklarına göre incelenecek; sırf satır sayısını düşürmek için mekanik bölme yapılmayacak.
+
+### `app/personnel_lifecycle.py` / `app/services/repair_service.py`
+
+Orta öncelikli. Fonksiyon grupları netleştirilerek servis/query sorumluluklarına göre bölünecek.
+
+## Korumalı kurallar
+
+- Yalnızca PostgreSQL kullanılacak.
 - Runtime içinde `create_all()` / `drop_all()` olmayacak.
 - Seed/demo kodu production startup yolunda çalışmayacak.
 - Route katmanı SQL ve iş kuralı deposu olmayacak.
-- Büyük dosyalar taşınırken her adım CI ile doğrulanacak.
+- Alembic schema sahibi olmaya devam edecek.
 - `.before-*`, `.bak`, `~` ve üretilmiş audit dosyaları repository'ye alınmayacak.
