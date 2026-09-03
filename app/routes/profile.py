@@ -1,6 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 
 from ..services import user_query_service
+from ..services.permissions import require_system_role
 from ..services.validation import validate_password
 
 
@@ -24,6 +25,7 @@ def register_profile_routes(app, deps):
         )
 
     @app.post("/profil/kullanici")
+    @require_system_role("superadmin", "Kullanıcı profili değiştirmek için süper admin yetkisi gerekir.")
     def profile_switch_user():
         active_user = deps["get_active_user"]()
         if not deps["has_system_role"](active_user, "superadmin"):
