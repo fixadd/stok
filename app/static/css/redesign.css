@@ -168,3 +168,12 @@ a:hover { color: inherit; }
 @media (max-width:1100px) { .dashboard-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .dashboard-content { grid-template-columns:1fr; } }
 @media (max-width:991.98px) { .navbar-vertical { width:100%; border-right:0 !important; border-bottom:1px solid var(--app-border) !important; } .navbar-vertical .container-fluid { padding:0 16px; } .navbar-brand { height:56px; } .navbar-nav { padding:8px 0 12px !important; } .page-header { padding-top:12px !important; } .navbar-expand-md.d-none.d-lg-flex { display:none !important; } }
 @media (max-width:576px) { .container-xl { padding-left:14px; padding-right:14px; } .page-body { padding-top:12px !important; } .card-body { padding:14px !important; } .dashboard-kpis { grid-template-columns:1fr; } .dashboard-title { font-size:22px; } .detail-grid { grid-template-columns:1fr; } .detail-item-note { grid-column:auto; } .auth-body { padding:12px; } .auth-card { border-radius:10px; } .auth-form { padding:30px 24px; } }
+
+
+/* Error pages */
+.error-page { min-height:60vh; display:grid; place-items:center; padding:32px 0; }
+.error-card { width:min(620px,100%); padding:40px; text-align:center; background:#fff; border:1px solid var(--app-border); border-radius:10px; box-shadow:var(--app-shadow); }
+.error-code { margin:0; color:#171717; font-size:72px; line-height:1; font-weight:700; letter-spacing:-.06em; }
+.error-card h1 { margin:16px 0 8px; color:#171717; font-size:20px; font-weight:650; }
+.error-card p { margin:0 auto 22px; max-width:480px; color:#737373; font-size:13px; }
+@media (max-width:640px) { .error-card { padding:28px 20px; } .error-code { font-size:56px; } }

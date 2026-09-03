@@ -4,7 +4,7 @@
 
 {% block main %}
 <div class="d-flex flex-column gap-4">
-  <div class="content-card shadow-sm">
+  <div class="content-card">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
       <div>
         <h1 class="h3 fw-bold mb-1">Admin Paneli</h1>
@@ -31,7 +31,7 @@
     </div>
   </div>
 
-  <section id="users-section" class="content-card shadow-sm admin-section active">
+  <section id="users-section" class="content-card admin-section active">
     <div class="mb-4">
       <h2 class="h4 fw-semibold mb-1">Kullanıcılar</h2>
       <p class="text-muted mb-0">Sisteme kayıtlı tüm kullanıcıları görüntüleyin ve yeni kullanıcılar ekleyin.</p>
@@ -184,7 +184,7 @@
     </div>
   </section>
 
-  <section id="product-section" class="content-card shadow-sm admin-section">
+  <section id="product-section" class="content-card admin-section">
     <div class="mb-4">
       <h2 class="h4 fw-semibold mb-1">Ürün Kataloğu</h2>
       <p class="text-muted mb-0">Yeni ürünler ekleyin, kullanım alanlarını yapılandırın ve marka-model ilişkilerini yönetin.</p>
@@ -268,7 +268,7 @@
 
     <div class="alert alert-soft mt-4 mb-0 d-none" id="productFeedback"></div>
 
-    <div class="card border-0 shadow-sm mt-4">
+    <div class="card border-0 mt-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h3 class="h6 fw-semibold mb-0">Kaydedilmiş Ürün Taslakları</h3>
@@ -279,7 +279,7 @@
     </div>
   </section>
 
-  <section id="integration-section" class="content-card shadow-sm admin-section">
+  <section id="integration-section" class="content-card admin-section">
     <div class="row g-4">
       <div class="col-lg-7">
         <h2 class="h4 fw-semibold mb-1">Bağlantılar</h2>
@@ -321,7 +321,7 @@
         <div class="alert alert-soft mt-4 mb-0 d-none" id="ldapStatus"></div>
       </div>
       <div class="col-lg-5">
-        <div class="quick-profile card border-0 shadow-sm h-100">
+        <div class="quick-profile card border-0 h-100">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <div>
@@ -340,7 +340,7 @@
       </div>
     </div>
   </section>
-  <section id="data-section" class="content-card shadow-sm admin-section">
+  <section id="data-section" class="content-card admin-section">
     <div class="mb-4">
       <h2 class="h4 fw-semibold mb-1">Veriler</h2>
       <p class="text-muted mb-0">
@@ -352,7 +352,7 @@
     <div class="row g-4 align-items-stretch admin-data-grid">
 
       <div class="col-xl-4 col-lg-6">
-        <div class="data-action-card card border-0 shadow-sm h-100">
+        <div class="data-action-card card border-0 h-100">
           <div class="card-body d-flex flex-column">
             <div class="icon-bubble bg-primary-subtle text-primary mb-3">
               <i class="bi bi-database-down"></i>
@@ -380,7 +380,7 @@
 
       <div class="col-xl-4 col-lg-6">
         <form
-          class="data-action-card card border-0 shadow-sm h-100"
+          class="data-action-card card border-0 h-100"
           method="post"
           action="{{ url_for('import_database_backup') }}"
           enctype="multipart/form-data"

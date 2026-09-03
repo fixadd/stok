@@ -11,7 +11,7 @@
 
 {% block main %}
 <div class="d-flex flex-column gap-4">
-  <div class="content-card shadow-sm">
+  <div class="content-card">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
       <div>
         <h1 class="h3 fw-bold mb-1">Envanter Takip</h1>
@@ -33,7 +33,7 @@
             <i class="bi bi-file-earmark-spreadsheet"></i>
             Excel
           </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <ul class="dropdown-menu dropdown-menu-end">
             <li>
               <a class="dropdown-item d-flex align-items-center gap-2" href="#">
                 <i class="bi bi-box-arrow-up"></i>
@@ -52,7 +52,7 @@
     </div>
   </div>
 
-  <div class="content-card shadow-sm">
+  <div class="content-card">
     <div class="inventory-search mb-4">
       <label class="form-label" for="inventorySearch">Envanterde ara</label>
       <div class="input-group search-input">
@@ -115,7 +115,7 @@
                   <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     İşlemler
                   </button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <ul class="dropdown-menu dropdown-menu-end">
                     <li>
                       <button class="dropdown-item inventory-action" type="button" data-action="mark-faulty" data-item-id="{{ item.id }}">
                         <i class="bi bi-bandaid"></i>
@@ -1342,7 +1342,7 @@ inventoryInitializeFilters();
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
               Seçiniz…
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <ul class="dropdown-menu dropdown-menu-end">
               <li><button class="dropdown-item inventory-action" type="button" data-action="mark-faulty" data-item-id="${detail.id}">Arızalı İşaretle</button></li>
               <li><button class="dropdown-item inventory-action" type="button" data-action="assign" data-item-id="${detail.id}">Atama Yap</button></li>
               <li><button class="dropdown-item inventory-action" type="button" data-action="edit" data-item-id="${detail.id}">Düzenle</button></li>
@@ -1681,7 +1681,7 @@ inventoryInitializeFilters();
     sorted.forEach((record) => {
       const card = document.createElement("div");
       card.className =
-        "card border-0 shadow-sm mb-3 maintenance-history-card";
+        "card border-0 mb-3 maintenance-history-card";
 
       const body = document.createElement("div");
       body.className = "card-body";

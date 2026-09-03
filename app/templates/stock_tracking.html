@@ -4,7 +4,7 @@
 
 {% block main %}
 <div class="d-flex flex-column gap-4">
-  <section class="content-card shadow-sm">
+  <section class="content-card">
     <div class="stock-header">
       <div>
         <h1 class="h3 fw-bold mb-1">Stok Yönetimi</h1>
@@ -44,7 +44,7 @@
     </div>
   </section>
 
-  <section class="content-card shadow-sm">
+  <section class="content-card">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
       <ul class="nav nav-tabs stock-tabs" id="stockViewTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -161,7 +161,7 @@
                       <button class="btn btn-outline-secondary btn-sm action-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         İşlemler
                       </button>
-                      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                      <ul class="dropdown-menu dropdown-menu-end">
                         <li>
                           <button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="{{ item.id }}" {% if not item.allow_operations %}disabled{% endif %}>
                             <i class="bi bi-person-plus"></i>
@@ -929,7 +929,7 @@
           </button>
           <div class="dropdown" data-bs-display="static">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">İşlemler</button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <ul class="dropdown-menu dropdown-menu-end">
               <li><button class="dropdown-item stock-action" type="button" data-action="assign" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Atama Yap</button></li>
               <li><button class="dropdown-item stock-action" type="button" data-action="faulty" data-stock-id="${item.id}" ${item.allow_operations ? '' : 'disabled'}>Arızalı İşaretle</button></li>
             </ul>
@@ -1586,154 +1586,4 @@
 {% endblock %}
 
 
-<script>
-(() => {
-  function stockEscapeHtml(value) {
-    return String(value ?? "")
-      .replace(/[&<>'"]/g, (char) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;"
-      }[char]));
-  }
-
-  function stockNormalize(value) {
-    return String(value ?? "")
-      .trim()
-      .toLocaleLowerCase("tr-TR");
-  }
-
-  function stockRows() {
-    return Array.from(
-      document.querySelectorAll("#stockTable tbody tr.stock-row")
-    );
-  }
-
-  function applyStockFilters() {
-    const searchInput =
-      document.getElementById("stockSearchInput");
-
-    const searchTerm =
-      stockNormalize(searchInput?.value);
-
-    const selectedCategory =
-      document.querySelector(
-        "#stockCategoryFilters input[name='stockCategory']:checked"
-      )?.value || "all";
-
-    const rows = stockRows();
-
-    let visible = 0;
-
-    rows.forEach((row) => {
-      const searchText =
-        stockNormalize(
-          row.dataset.search || row.textContent
-        );
-
-      const category =
-        row.dataset.category || "";
-
-      const searchMatch =
-        !searchTerm ||
-        searchText.includes(searchTerm);
-
-      const categoryMatch =
-        selectedCategory === "all" ||
-        category === selectedCategory;
-
-      const shouldShow =
-        searchMatch && categoryMatch;
-
-      row.classList.toggle(
-        "d-none",
-        !shouldShow
-      );
-
-      if (shouldShow) {
-        visible += 1;
-      }
-    });
-
-    const emptyState =
-      document.getElementById("stockEmptyState");
-
-    if (emptyState) {
-      emptyState.classList.toggle(
-        "d-none",
-        visible !== 0
-      );
-    }
-  }
-
-  window.applyStockFilters = applyStockFilters;
-
-  document
-    .getElementById("stockSearchClear")
-    ?.addEventListener("click", () => {
-      const input =
-        document.getElementById("stockSearchInput");
-
-      if (!input) {
-        return;
-      }
-
-      input.value = "";
-      input.focus();
-
-      applyStockFilters();
-    });
-
-  document
-    .getElementById("stockSearchInput")
-    ?.addEventListener(
-      "input",
-      applyStockFilters
-    );
-
-  document
-    .querySelectorAll(
-      "#stockCategoryFilters input[name='stockCategory']"
-    )
-    .forEach((input) => {
-      input.addEventListener(
-        "change",
-        applyStockFilters
-      );
-    });
-
-  stockRows().forEach((row) => {
-    row.setAttribute("tabindex", "0");
-    row.setAttribute("role", "button");
-
-    row.addEventListener("keydown", (event) => {
-      if (
-        event.key !== "Enter" &&
-        event.key !== " "
-      ) {
-        return;
-      }
-
-      if (
-        event.target.closest("button") ||
-        event.target.closest("a")
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-
-      const trigger =
-        row.querySelector(
-          ".stock-detail-trigger"
-        );
-
-      trigger?.click();
-    });
-  });
-
-  applyStockFilters();
-})();
-</script>
+<script src="{{ url_for('static', filename='js/pages/stock_tracking-1.js') }}"></script>
