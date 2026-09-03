@@ -5,6 +5,7 @@ Revises: 0006_login_attempts
 """
 
 from alembic import op
+from sqlalchemy import text
 
 revision = "0007_configurable_settings"
 down_revision = "0006_login_attempts"
@@ -13,9 +14,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # The baseline migration imports the current model metadata and may already
-    # create these tables on a brand-new database. IF NOT EXISTS keeps this
-    # follow-up migration safe for both fresh and already-initialized databases.
     op.execute("""
         CREATE TABLE IF NOT EXISTS setting_lists (
             id SERIAL PRIMARY KEY, key VARCHAR(128) NOT NULL UNIQUE, label VARCHAR(160) NOT NULL,
@@ -74,6 +72,7 @@ def upgrade() -> None:
         );
     """)
 
+    conn = op.get_bind()
     seed = {
         "inventory_status": ("Envanter Durumu", "inventory", [("Aktif", "aktif"), ("Beklemede", "beklemede"), ("Arızalı", "arizali"), ("Hurda", "hurda"), ("Stokta", "stokta")]),
         "license_status": ("Lisans Durumu", "license", [("Aktif", "aktif"), ("Pasif", "pasif"), ("Beklemede", "beklemede")]),
@@ -85,9 +84,9 @@ def upgrade() -> None:
         "employment_status": ("İstihdam Durumu", "users", [("Aktif", "aktif"), ("Pasif", "pasif")]),
     }
     for key, (label, scope, options) in seed.items():
-        op.execute("INSERT INTO setting_lists (key,label,scope) VALUES (%(key)s,%(label)s,%(scope)s) ON CONFLICT (key) DO NOTHING", {"key": key, "label": label, "scope": scope})
+        conn.execute(text("INSERT INTO setting_lists (key,label,scope) VALUES (:key,:label,:scope) ON CONFLICT (key) DO NOTHING"), {"key": key, "label": label, "scope": scope})
         for order, (option_label, value) in enumerate(options):
-            op.execute("INSERT INTO setting_options (setting_list_id,label,value,sort_order) SELECT id,%(label)s,%(value)s,%(sort_order)s FROM setting_lists WHERE key=%(key)s ON CONFLICT (setting_list_id,value) DO NOTHING", {"key": key, "label": option_label, "value": value, "sort_order": order})
+            conn.execute(text("INSERT INTO setting_options (setting_list_id,label,value,sort_order) SELECT id,:label,:value,:sort_order FROM setting_lists WHERE key=:key ON CONFLICT (setting_list_id,value) DO NOTHING"), {"key": key, "label": option_label, "value": value, "sort_order": order})
 
 
 def downgrade() -> None:
