@@ -30,9 +30,15 @@ def load_tracking_payload(
         for brand in brands
     }
     hardware_catalog = {
-        "types": [hardware_type.name for hardware_type in catalog_queries.list_hardware_types()],
+        "types": [
+            hardware_type.name
+            for hardware_type in catalog_queries.list_hardware_types()
+        ],
         "brands": [brand.name for brand in brands],
-        "models": [model.name for model in _list_models()],
+        "models": [
+            model.name
+            for model in catalog_queries.list_models()
+        ],
         "models_by_brand": models_by_brand,
     }
 
@@ -43,9 +49,3 @@ def load_tracking_payload(
         "stock_support_options": support_options,
         "stock_category_labels": category_labels,
     }
-
-
-def _list_models():
-    from ..models import HardwareModel
-
-    return HardwareModel.query.order_by(HardwareModel.name).all()
