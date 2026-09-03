@@ -45,6 +45,21 @@ def test_schema_bootstrap_is_confined_to_migration_layer():
     assert "db.metadata.create_all" in text
 
 
+def test_stock_metadata_is_db_backed():
+    legacy = (APP / "legacy.py").read_text(encoding="utf-8")
+    tree = ast.parse(legacy, filename=str(APP / "legacy.py"))
+    assignments = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "STOCK_METADATA_FIELDS"
+    ]
+    assert len(assignments) == 1
+    assert isinstance(assignments[0].value, ast.Dict)
+    assert not assignments[0].value.keys, "Stock metadata must not be hard-coded in legacy.py"
+
+
 def test_services_do_not_import_legacy():
     for path in sorted((APP / "services").glob("*.py")):
         text = path.read_text(encoding="utf-8")
