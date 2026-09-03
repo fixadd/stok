@@ -12,7 +12,7 @@
     <link href="{{ url_for('static', filename='css/tabler-overrides.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
   </head>
-  <body class="bg-body-tertiary {{ active_theme_class | default('') }}">
+  <body class="bg-body-tertiary {{ active_theme_class | default('') }}" data-is-admin="{{ '1' if is_admin_user else '0' }}">
     <div class="page">
       {% include 'partials/sidebar.html' %}
       {% include 'partials/topbar.html' %}
@@ -49,6 +49,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
     <script src="{{ url_for('static', filename='js/security.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/configurable-selects.js') }}"></script>
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='js/inventory-maintenance-enhancements.js') }}"></script>
     <script src="{{ url_for('static', filename='js/repair-qa-sla.js') }}"></script>
