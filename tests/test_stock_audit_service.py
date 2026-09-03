@@ -23,6 +23,7 @@ def test_stock_audit_clamps_quantities_and_uses_actor(monkeypatch):
         performed_by="  Admin  ",
     )
 
+    assert audit.stock_item_id == 10
     assert audit.old_quantity == 0
     assert audit.new_quantity == 3
     assert audit.performed_by == "Admin"
@@ -55,7 +56,7 @@ def test_stock_movement_keeps_user_id_and_non_negative_quantities(monkeypatch):
         user=FakeUser(),
     )
 
-    assert movement.stock_item is not None
+    assert movement.stock_item_id == 11
     assert movement.user_id == 22
     assert movement.old_quantity == 0
     assert movement.new_quantity == 5
