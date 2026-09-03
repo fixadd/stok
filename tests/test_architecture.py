@@ -86,3 +86,14 @@ def test_docker_compose_uses_persistent_postgres_volume():
     assert "postgres_data:/var/lib/postgresql/data" in compose
     assert "postgres:17" in compose
     assert "DATABASE_URL:" in compose
+
+
+def test_repository_has_no_local_backup_artifacts():
+    ignored_suffixes = (".bak", ".backup", "~")
+    backup_paths = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        if ".before-" in path.name or path.name.endswith(ignored_suffixes):
+            backup_paths.append(path.relative_to(ROOT))
+    assert not backup_paths, f"Backup artifacts remain in repository: {backup_paths}"
