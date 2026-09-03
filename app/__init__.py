@@ -11,6 +11,7 @@ import sys
 from .legacy import *  # noqa: F401,F403
 from .legacy import app, db
 from .bootstrap import configure_security
+from .routes.settings import register_settings_routes
 from .services.activity_service import (
     load_activity_logs as _service_load_activity_logs,
     load_recent_activity as _service_load_recent_activity,
@@ -64,5 +65,13 @@ if _legacy_module is not None:
             schema=_db_metadata,
             **kwargs,
         )
+
+register_settings_routes(
+    app,
+    {
+        "get_active_user": get_active_user,
+        "has_system_role": has_system_role,
+    },
+)
 
 __all__ = ["app", "db"]
