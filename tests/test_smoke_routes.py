@@ -159,7 +159,7 @@ class SmokeRouteTests(unittest.TestCase):
             },
             headers=self.csrf_headers(),
         )
-        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.status_code, 201, resp.get_data(as_text=True))
         with self.app.app_context():
             self.assertEqual(InventoryMaintenance.query.filter_by(item_id=item_id).count(), 1)
             self.assertIsNotNone(InventoryEvent.query.filter_by(item_id=item_id, event_type="Bakım Yapıldı", performed_by="BT Ekibi").first())
