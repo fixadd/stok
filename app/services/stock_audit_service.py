@@ -14,9 +14,8 @@ def record_stock_movement(
     new_quantity: int,
     user: User | None,
 ) -> StockMovement:
-    """Persist a stock quantity/status movement in the current transaction."""
     movement = StockMovement(
-        stock_item=stock_item,
+        stock_item_id=stock_item.id,
         user_id=user.id if user else None,
         operation_type=operation_type,
         old_quantity=max(0, int(old_quantity)),
@@ -33,9 +32,8 @@ def record_stock_audit(
     new_quantity: int,
     performed_by: str,
 ) -> StockAuditLog:
-    """Persist an immutable quantity audit entry."""
     audit = StockAuditLog(
-        stock_item=stock_item,
+        stock_item_id=stock_item.id,
         old_quantity=max(0, int(old_quantity)),
         new_quantity=max(0, int(new_quantity)),
         performed_by=(performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR,
@@ -54,10 +52,9 @@ def record_stock_log(
     note: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> StockLog:
-    """Persist a stock log and the matching user-visible activity record."""
     actor = (performed_by or DEFAULT_EVENT_ACTOR).strip() or DEFAULT_EVENT_ACTOR
     log = StockLog(
-        stock_item=stock_item,
+        stock_item_id=stock_item.id,
         action=action,
         action_type=action_type,
         performed_by=actor,
@@ -66,7 +63,6 @@ def record_stock_log(
     )
     log.metadata_payload = metadata or None
     db.session.add(log)
-
     activity_metadata = {
         "stock_item_id": stock_item.id,
         "stock_item_title": stock_item.title,
@@ -74,7 +70,6 @@ def record_stock_log(
     }
     if metadata:
         activity_metadata.update(metadata)
-
     record_activity(
         area="stok",
         action=action,
