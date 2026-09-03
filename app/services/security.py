@@ -8,22 +8,26 @@ from collections import defaultdict, deque
 from functools import wraps
 from typing import Any, Callable
 
-from flask import jsonify, request, session
+from flask import current_app, jsonify, request, session
+from sqlalchemy import text
 
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _CSRF_EXEMPT_ENDPOINTS = {"login", "logout", "static"}
+_LOGIN_WINDOW_SECONDS = 300
+_LOGIN_LIMIT = 8
 
 
 class LoginRateLimiter:
-    """Small process-local login throttle.
+    """Persistent PostgreSQL login throttle with a process-local fallback.
 
-    The application runs behind Gunicorn, so this is deliberately a safety
-    net rather than an accounting system. It limits bursts per client IP and
-    username and resets naturally when the worker restarts.
+    Failed attempts are stored in the ``login_attempts`` table created by
+    Alembic migration 0006. The in-memory limiter remains a short-lived safety
+    net when the database is unavailable, so authentication is never made
+    dependent on a secondary security service.
     """
 
-    def __init__(self, limit: int = 8, window_seconds: int = 300) -> None:
+    def __init__(self, limit: int = _LOGIN_LIMIT, window_seconds: int = _LOGIN_WINDOW_SECONDS) -> None:
         self.limit = limit
         self.window_seconds = window_seconds
         self._attempts: dict[str, deque[float]] = defaultdict(deque)
@@ -41,17 +45,75 @@ class LoginRateLimiter:
 
     def hit(self, key: str) -> None:
         now = time.monotonic()
-        bucket = self._prune(key, now)
-        bucket.append(now)
+        self._prune(key, now).append(now)
 
 
-
-def _client_key() -> str:
+def _request_identity() -> tuple[str, str]:
     forwarded = request.headers.get("X-Forwarded-For", "")
     ip = forwarded.split(",", 1)[0].strip() if forwarded else request.remote_addr or "unknown"
     username = (request.form.get("username") or "").strip().casefold()
-    digest = hashlib.sha256(username.encode("utf-8")).hexdigest()[:16]
-    return f"{ip}:{digest}"
+    return ip, username
+
+
+def _hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _client_key() -> str:
+    ip, username = _request_identity()
+    return f"{ip}:{_hash(username)[:16]}"
+
+
+def _db_session():
+    extension = current_app.extensions.get("sqlalchemy")
+    return extension.session if extension is not None else None
+
+
+def _db_allowed() -> bool | None:
+    """Return DB throttle result, or None when DB tracking is unavailable."""
+    ip, username = _request_identity()
+    subject_hash = _hash(username)
+    ip_hash = _hash(ip)
+    session_obj = _db_session()
+    if session_obj is None:
+        return None
+    try:
+        row = session_obj.execute(
+            text(
+                """
+                SELECT COUNT(*) AS failures
+                FROM login_attempts
+                WHERE success = FALSE
+                  AND attempted_at >= CURRENT_TIMESTAMP - INTERVAL '5 minutes'
+                  AND (subject_hash = :subject_hash OR ip_hash = :ip_hash)
+                """
+            ),
+            {"subject_hash": subject_hash, "ip_hash": ip_hash},
+        ).scalar_one()
+        return int(row) < _LOGIN_LIMIT
+    except Exception:
+        session_obj.rollback()
+        return None
+
+
+def record_login_attempt(success: bool) -> None:
+    """Persist a login result without ever exposing the username or IP."""
+    ip, username = _request_identity()
+    session_obj = _db_session()
+    if session_obj is not None:
+        try:
+            session_obj.execute(
+                text(
+                    """
+                    INSERT INTO login_attempts (subject_hash, ip_hash, success)
+                    VALUES (:subject_hash, :ip_hash, :success)
+                    """
+                ),
+                {"subject_hash": _hash(username), "ip_hash": _hash(ip), "success": success},
+            )
+            session_obj.commit()
+        except Exception:
+            session_obj.rollback()
 
 
 def _csrf_token() -> str:
@@ -70,7 +132,7 @@ def _valid_csrf(provided: str | None) -> bool:
 
 
 def configure_security(app: Any) -> None:
-    """Attach CSRF protection, login throttling and security context helpers."""
+    """Attach CSRF protection, persistent login throttling and security headers."""
 
     limiter = LoginRateLimiter()
     app.extensions["login_rate_limiter"] = limiter
@@ -84,15 +146,13 @@ def configure_security(app: Any) -> None:
         endpoint = request.endpoint or ""
 
         if endpoint == "login" and request.method == "POST":
-            key = _client_key()
-            if not limiter.allowed(key):
+            db_allowed = _db_allowed()
+            allowed = db_allowed if db_allowed is not None else limiter.allowed(_client_key())
+            if not allowed:
                 response = jsonify({"error": "Çok fazla başarısız giriş denemesi. Lütfen 5 dakika sonra tekrar deneyin."})
                 response.status_code = 429
-                response.headers["Retry-After"] = "300"
+                response.headers["Retry-After"] = str(_LOGIN_WINDOW_SECONDS)
                 return response
-            # Count the attempt before authentication. This protects against
-            # password spraying even when the username does not exist.
-            limiter.hit(key)
 
         if request.method not in _MUTATING_METHODS:
             return None
@@ -101,9 +161,7 @@ def configure_security(app: Any) -> None:
         if request.path.startswith("/static/"):
             return None
 
-        provided = request.headers.get("X-CSRF-Token")
-        if not provided:
-            provided = request.form.get("csrf_token")
+        provided = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
         if not provided and request.is_json:
             payload = request.get_json(silent=True) or {}
             if isinstance(payload, dict):
@@ -114,6 +172,16 @@ def configure_security(app: Any) -> None:
         return None
 
     @app.after_request
+    def record_login_result(response: Any) -> Any:
+        if request.endpoint == "login" and request.method == "POST":
+            success = response.status_code in {301, 302, 303, 307, 308}
+            if success:
+                record_login_attempt(True)
+            else:
+                limiter.hit(_client_key())
+                record_login_attempt(False)
+        return add_security_headers(response)
+
     def add_security_headers(response: Any) -> Any:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
