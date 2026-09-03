@@ -11,6 +11,7 @@ import sys
 from .legacy import *  # noqa: F401,F403
 from .legacy import app, db
 from .bootstrap import configure_security
+from .routes.custom_fields import register_custom_field_routes
 from .routes.settings import register_settings_routes
 from .routes.settings_quick import register_settings_quick_routes
 from .services.activity_service import (
@@ -69,5 +70,6 @@ setting_choices = _setting_choices
 
 register_settings_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
 register_settings_quick_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
+register_custom_field_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
 
 __all__ = ["app", "db"]
