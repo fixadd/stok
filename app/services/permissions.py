@@ -26,6 +26,21 @@ def require_system_role(required: str, message: str | None = None) -> Callable[[
     return decorator
 
 
+def admin_required(view: Callable[..., Any]) -> Callable[..., Any]:
+    """Require at least the admin role."""
+    return require_system_role("admin")(view)
+
+
+def superadmin_required(view: Callable[..., Any]) -> Callable[..., Any]:
+    """Require the superadmin role."""
+    return require_system_role("superadmin")(view)
+
+
+def inventory_manager_required(view: Callable[..., Any]) -> Callable[..., Any]:
+    """Require the admin role for inventory-management mutations."""
+    return require_system_role("admin")(view)
+
+
 def can_manage(user: Any) -> bool:
     """Return whether a user may perform normal admin-level mutations."""
     return has_system_role(user, "admin")
