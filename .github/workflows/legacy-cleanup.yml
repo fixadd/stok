@@ -18,36 +18,55 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path("app/legacy.py")
-          text = path.read_text(encoding="utf-8")
+          lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
 
-          startup_pattern = re.compile(
-              r'(?m)^    with app\.app_context\(\):\s*\n'
-              r'^        db\.create_all\(\)\s*\n'
-              r'^        seed_initial_data\(\)\s*\n'
-          )
-          text, startup_count = startup_pattern.subn(
-              '    # Database schema is managed exclusively by Alembic migrations.\n'
-              '    # Initial/demo data is intentionally not seeded during application startup.\n',
-              text,
-              count=1,
-          )
-          if startup_count != 1:
-              raise SystemExit(f"startup schema/seed block not found: {startup_count}")
+          startup_index = None
+          for i in range(2, len(lines)):
+              if (
+                  "db.create_all()" in lines[i]
+                  and "seed_initial_data()" in lines[i + 1]
+                  and "with app.app_context()" in lines[i - 1]
+              ):
+                  startup_index = i - 1
+                  break
+          if startup_index is None:
+              raise SystemExit("startup schema/seed block not found")
 
-          start_marker = '    @app.post("/admin-panel/data/reset")\n    def reset_database_view():'
-          start = text.find(start_marker)
-          if start == -1:
+          newline = "\n"
+          if lines[startup_index].endswith("\r\n"):
+              newline = "\r\n"
+          lines[startup_index:startup_index + 3] = [
+              f"    # Database schema is managed exclusively by Alembic migrations.{newline}",
+              f"    # Initial/demo data is intentionally not seeded during application startup.{newline}",
+          ]
+          text = "".join(lines)
+
+          start_marker = '    @app.post("/admin-panel/data/reset")'
+          start = next((i for i, line in enumerate(lines) if line.startswith(start_marker)), None)
+          if start is None:
               raise SystemExit("reset route not found")
-          next_route = text.find("\n    @app.", start + len(start_marker))
-          if next_route == -1:
+          end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("    @app.")), None)
+          if end is None:
               raise SystemExit("next route after reset not found")
 
-          reset_replacement = '''    @app.post("/admin-panel/data/reset")\n    def reset_database_view():\n        user = get_active_user()\n        if not has_system_role(user, "superadmin"):\n            flash("Veritabanı işlemleri için süper admin yetkisi gerekir.", "danger")\n            return redirect(url_for("admin_panel", section="data-section"))\n\n        flash(\n            "Veritabanı şeması uygulama üzerinden sıfırlanamaz. Alembic migration ve PostgreSQL backup/restore işlemlerini kullanın.",\n            "warning",\n        )\n        return redirect(url_for("admin_panel", section="data-section"))\n'''
-          text = text[:start] + reset_replacement + text[next_route:]
-          path.write_text(text, encoding="utf-8")
+          reset_lines = [
+              f'    @app.post("/admin-panel/data/reset"){newline}',
+              f"    def reset_database_view():{newline}",
+              f"        user = get_active_user(){newline}",
+              f'        if not has_system_role(user, "superadmin"):{newline}',
+              f'            flash("Veritabanı işlemleri için süper admin yetkisi gerekir.", "danger"){newline}',
+              f'            return redirect(url_for("admin_panel", section="data-section")){newline}',
+              newline,
+              f"        flash({newline}",
+              f'            "Veritabanı şeması uygulama üzerinden sıfırlanamaz. Alembic migration ve PostgreSQL backup/restore işlemlerini kullanın.",{newline}',
+              f'            "warning",{newline}',
+              f"        ){newline}",
+              f'        return redirect(url_for("admin_panel", section="data-section")){newline}',
+          ]
+          lines[start:end] = reset_lines
+          path.write_text("".join(lines), encoding="utf-8")
           PY
 
           git diff --check
