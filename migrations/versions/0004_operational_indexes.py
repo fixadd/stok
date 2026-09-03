@@ -29,7 +29,7 @@ INDEXES = (
     ("ix_stock_logs_stock_item_id_created_at", "stock_logs", "stock_item_id, created_at"),
     ("ix_stock_movements_stock_item_id_created_at", "stock_movements", "stock_item_id, created_at"),
     ("ix_stock_assignments_stock_item_id_created_at", "stock_assignments", "stock_item_id, created_at"),
-    ("ix_stock_audit_logs_stock_item_id_created_at", "stock_audit_logs", "stock_item_id, created_at"),
+    ("ix_stock_audit_logs_stock_item_id_created_at", "stok_hareketleri", "stock_item_id, created_at"),
     ("ix_request_orders_group_id_opened_at", "request_orders", "group_id, opened_at"),
     ("ix_request_lines_order_id", "request_lines", "order_id"),
     ("ix_request_line_snapshots_order_id", "request_line_snapshots", "order_id"),
