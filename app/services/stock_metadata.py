@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from flask import has_app_context
 from sqlalchemy import text
 
 from ..models import db
@@ -12,8 +13,12 @@ def load_stock_metadata_fields() -> dict[str, list[dict[str, Any]]]:
 
     The schema is owned by Alembic migration 0005. An empty result is returned
     when the migration has not been applied yet, avoiding a hidden hard-coded
-    schema fallback.
+    schema fallback. Alembic may import application models without an active
+    Flask application context, so the metadata lookup is skipped in that case.
     """
+    if not has_app_context():
+        return {}
+
     try:
         rows = db.session.execute(
             text(
