@@ -3,6 +3,7 @@
 from . import (
     assignment_service,
     catalog_service,
+    dashboard_service,
     event_service,
     inventory_query_service,
     license_service,
@@ -15,6 +16,7 @@ from . import (
 __all__ = [
     "assignment_service",
     "catalog_service",
+    "dashboard_service",
     "event_service",
     "inventory_query_service",
     "license_service",
