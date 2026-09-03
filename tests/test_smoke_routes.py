@@ -148,7 +148,12 @@ class SmokeRouteTests(unittest.TestCase):
     def test_create_maintenance_record_adds_inventory_event(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
-            item = self.create_test_inventory("MAINT-SMOKE-001")
+            computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
+            self.assertIsNotNone(computer_type)
+            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
+            self.assertIsNotNone(item)
+            InventoryMaintenance.query.filter_by(item_id=item.id).delete()
+            db.session.commit()
             item_id = item.id
         resp = self.client.post(
             f"/api/inventory/{item_id}/maintenance",
