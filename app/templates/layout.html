@@ -1,71 +1,123 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" data-bs-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
 
     <title>{% block title %}Stok Yönetim Paneli{% endblock %}</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Tabler 1.4.0 / Bootstrap 5.3.7 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/tabler-overrides.css') }}" rel="stylesheet">
   </head>
 
-  <body class="bg-soft {{ active_theme_class | default('') }}">
-    <div class="page-wrapper">
-      <aside class="sidebar">
-        <div class="sidebar-inner">
-          {% for section in sidebar_sections %}
-          <section class="sidebar-section">
-            <div class="section-title">{{ section.title }}</div>
-            <nav class="sidebar-nav">
+  <body class="bg-body-tertiary {{ active_theme_class | default('') }}">
+    <div class="page">
+      <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="light">
+        <div class="container-fluid">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Menüyü aç/kapat">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+            <a href="{{ url_for('index') }}" class="text-decoration-none">Stok Yönetim</a>
+          </h1>
+          <div class="collapse navbar-collapse" id="sidebar-menu">
+            <div class="navbar-nav pt-lg-3 w-100">
+              {% for section in sidebar_sections %}
+              <div class="nav-item nav-item-section text-secondary text-uppercase small fw-semibold mt-3 mb-1 px-2">{{ section.title }}</div>
               {% for item in section.nav_items %}
-              <a class="sidebar-link {{ 'active' if item.key == active_page else '' }}" href="{{ url_for(item.endpoint) }}">
-                <span class="sidebar-icon"><i class="bi {{ item.icon }}"></i></span>
-                <span class="sidebar-label">{{ item.title }}</span>
+              <a class="nav-link {{ 'active' if item.key == active_page else '' }}" href="{{ url_for(item.endpoint) }}">
+                <span class="nav-link-icon"><i class="ti {{ item.icon | replace('bi ', '') | replace('bi-', 'ti-') }}"></i></span>
+                <span class="nav-link-title">{{ item.title }}</span>
               </a>
               {% endfor %}
-            </nav>
-          </section>
-          {% endfor %}
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </aside>
 
-      <main class="main-content">
-        {% if active_user %}
-        <header class="account-bar">
-          <div class="account-info">
-            <div class="account-name">{{ active_user.first_name }} {{ active_user.last_name }}</div>
-            <div class="account-role">{{ system_role_labels.get(active_system_role, 'Kullanıcı') }}</div>
+      <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
+        <div class="container-xl">
+          <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
+            {% if active_user %}
+            <div class="nav-item dropdown">
+              <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Kullanıcı menüsü">
+                <span class="avatar avatar-sm">{{ (active_user.first_name or 'K')[:1] }}{{ (active_user.last_name or '')[:1] }}</span>
+                <div class="d-none d-xl-block ps-2">
+                  <div>{{ active_user.first_name }} {{ active_user.last_name }}</div>
+                  <div class="mt-1 small text-secondary">{{ system_role_labels.get(active_system_role, 'Kullanıcı') }}</div>
+                </div>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                <a class="dropdown-item" href="{{ url_for('profile') }}"><i class="ti ti-user me-2"></i>Profil</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="{{ url_for('logout') }}"><i class="ti ti-logout me-2"></i>Çıkış Yap</a>
+              </div>
+            </div>
+            {% endif %}
           </div>
-          <a class="btn btn-outline-secondary btn-sm account-logout" href="{{ url_for('logout') }}">
-            <i class="bi bi-box-arrow-right"></i><span>Çıkış Yap</span>
-          </a>
-        </header>
-        {% endif %}
+        </div>
+      </header>
 
-        {% set resolved_breadcrumbs = build_breadcrumbs(active_page, request.endpoint) %}
-        {% if resolved_breadcrumbs %}
-        <nav aria-label="breadcrumb" class="page-breadcrumb">
-          <ol class="breadcrumb mb-0">
-            {% for crumb in resolved_breadcrumbs %}
-              {% if loop.last %}
-              <li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
-              {% else %}
-              <li class="breadcrumb-item"><a href="{{ url_for(crumb.endpoint) }}">{{ crumb.title }}</a></li>
-              {% endif %}
-            {% endfor %}
-          </ol>
-        </nav>
-        {% endif %}
+      <div class="page-wrapper">
+        <div class="page-header d-print-none">
+          <div class="container-xl">
+            {% set resolved_breadcrumbs = build_breadcrumbs(active_page, request.endpoint) %}
+            {% if resolved_breadcrumbs %}
+            <div class="row align-items-center">
+              <div class="col">
+                <ol class="breadcrumb breadcrumb-arrows mb-0" aria-label="breadcrumb">
+                  {% for crumb in resolved_breadcrumbs %}
+                  {% if loop.last %}
+                  <li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
+                  {% else %}
+                  <li class="breadcrumb-item"><a href="{{ url_for(crumb.endpoint) }}">{{ crumb.title }}</a></li>
+                  {% endif %}
+                  {% endfor %}
+                </ol>
+              </div>
+            </div>
+            {% endif %}
+            {% block breadcrumb %}{% endblock %}
+          </div>
+        </div>
 
-        {% block breadcrumb %}{% endblock %}
-        <div class="page-content">{% block main %}{% endblock %}</div>
-      </main>
+        <div class="page-body">
+          <div class="container-xl">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-3">
+              {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible" role="alert">
+                <div>{{ message }}</div>
+                <a class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></a>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            <div class="page-content">{% block main %}{% endblock %}</div>
+          </div>
+        </div>
+
+        <footer class="footer footer-transparent d-print-none">
+          <div class="container-xl">
+            <div class="row text-center align-items-center flex-row-reverse">
+              <div class="col-12 col-lg-auto mt-3 mt-lg-0">
+                Stok Yönetim Sistemi
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
     <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='js/inventory-maintenance-enhancements.js') }}"></script>
