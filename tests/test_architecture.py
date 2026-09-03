@@ -30,7 +30,7 @@ def _calls_in(path: Path, names: set[str]) -> list[tuple[str, int]]:
 
 def test_runtime_routes_do_not_create_or_drop_schema():
     forbidden = {"create_all", "drop_all"}
-    runtime_files = sorted((APP / "routes").glob("*.py")) + sorted(
+    runtime_files = [APP / "legacy.py"] + sorted((APP / "routes").glob("*.py")) + sorted(
         (APP / "services").glob("*.py")
     )
     hits = []
@@ -53,9 +53,9 @@ def test_services_do_not_import_legacy():
 
 
 def test_runtime_does_not_depend_on_sqlite():
-    runtime_files = [APP / "config.py"] + sorted((APP / "routes").glob("*.py")) + sorted(
-        (APP / "services").glob("*.py")
-    )
+    runtime_files = [APP / "config.py", APP / "legacy.py"] + sorted(
+        (APP / "routes").glob("*.py")
+    ) + sorted((APP / "services").glob("*.py"))
     forbidden = ("sqlite:///", "sqlite+", "sqlite3")
     hits = []
     for path in runtime_files:
