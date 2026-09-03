@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from flask import Flask
 
@@ -38,6 +36,11 @@ def test_security_headers_are_added(monkeypatch):
     assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
     assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
     assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+
+
+def test_non_postgresql_database_is_rejected(monkeypatch):
+    with pytest.raises(RuntimeError, match="PostgreSQL"):
+        configure(monkeypatch, DATABASE_URL="sqlite:///not-allowed.db")
 
 
 def test_production_requires_secret_key(monkeypatch):
