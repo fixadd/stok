@@ -35,7 +35,8 @@ body {
 .requests-page,
 .license-page,
 .admin-page,
-.profile-page {
+.profile-page,
+.information-page {
   width: 100%;
 }
 
@@ -46,6 +47,65 @@ body {
 .btn .ti,
 .btn i {
   vertical-align: -0.125em;
+}
+
+.error-page {
+  min-height:50vh;
+  display:grid;
+  place-items:center;
+  padding:40px 16px;
+}
+
+.error-card {
+  width:min(640px,100%);
+  padding:40px;
+  text-align:center;
+  background:#fff;
+  border:1px solid #eaeaea;
+  border-radius:8px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+
+.error-code {
+  color:#171717;
+  font-size:48px;
+  line-height:1;
+  font-weight:650;
+  letter-spacing:-.05em;
+}
+
+.error-card h1 {
+  margin:14px 0 8px;
+  color:#171717;
+  font-size:20px;
+}
+
+.error-card p {
+  margin:0 0 22px;
+  color:#666;
+  font-size:13px;
+}
+
+.info-count-pill {
+  color:#555;
+  background:#fafafa;
+  border:1px solid #eaeaea;
+  font-size:11px;
+}
+
+.info-filters {
+  padding-top:16px;
+  border-top:1px solid #eaeaea;
+}
+
+.alert-soft {
+  background:#fafafa !important;
+  color:#555 !important;
+  border:1px solid #eaeaea !important;
+}
+
+.info-search-group .input-group-text {
+  color:#777;
 }
 
 @media (max-width: 991.98px) {
