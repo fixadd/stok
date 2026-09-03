@@ -19,8 +19,10 @@ RUN pip install --no-cache-dir \
     -r requirements.txt
 
 COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./alembic.ini
 
 EXPOSE 5001
 
-# Production WSGI server. The Flask development server is no longer used.
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
+# Apply PostgreSQL schema migrations before starting the production WSGI server.
+CMD ["sh", "-c", "python -m alembic upgrade head && exec gunicorn --bind 0.0.0.0:5001 --workers 2 --threads 4 --timeout 120 app:app"]
