@@ -14,3 +14,9 @@ def application_context():
 
     with app.app_context():
         yield app
+
+
+@pytest.fixture
+def app(application_context):
+    """Provide the conventional Flask app fixture name to focused tests."""
+    return application_context
