@@ -5,8 +5,6 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import or_
-
 from ..models import CustomField, CustomFieldOption, CustomFieldValue, FieldGroup, SettingList, SettingOption, db
 
 FIELD_TYPES = {
@@ -131,17 +129,13 @@ def _clear_value_columns(row: CustomFieldValue) -> None:
 
 
 def save_custom_values(entity_type: str, entity_id: int, payload: dict[str, Any]) -> list[CustomFieldValue]:
+    """Persist only fields supplied by the caller; omitted fields remain unchanged."""
     fields = get_custom_fields(entity_type, form_only=True)
     saved = []
     for field in fields:
         if field.field_key not in payload:
-            raw = field.default_value
-            if raw in (None, ""):
-                if field.required:
-                    raise ValueError(f"{field.label} alanı zorunludur.")
-                continue
-        else:
-            raw = payload.get(field.field_key)
+            continue
+        raw = payload.get(field.field_key)
         value = validate_custom_value(field, raw)
         row = CustomFieldValue.query.filter_by(field_id=field.id, entity_type=entity_type, entity_id=entity_id).first()
         if value is None:
@@ -167,11 +161,7 @@ def save_custom_values(entity_type: str, entity_id: int, payload: dict[str, Any]
 
 
 def load_custom_values(entity_type: str, entity_id: int) -> dict[str, Any]:
-    rows = CustomFieldValue.query.join(CustomField).filter(
-        CustomFieldValue.entity_type == entity_type,
-        CustomFieldValue.entity_id == entity_id,
-        CustomField.active.is_(True),
-    ).all()
+    rows = CustomFieldValue.query.join(CustomField).filter(CustomFieldValue.entity_type == entity_type, CustomFieldValue.entity_id == entity_id, CustomField.active.is_(True)).all()
     result = {}
     for row in rows:
         if row.value_json is not None:
