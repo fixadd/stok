@@ -11,9 +11,12 @@ from typing import Any, Callable
 from flask import current_app, jsonify, request, session
 from sqlalchemy import text
 
+from .authz import get_active_user, has_system_role
+
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _CSRF_EXEMPT_ENDPOINTS = {"login", "static"}
+_ADMIN_MUTATION_PREFIXES = ("personnel_lifecycle.process_action",)
 _LOGIN_WINDOW_SECONDS = 300
 _LOGIN_LIMIT = 8
 
@@ -125,6 +128,10 @@ def _valid_csrf(provided: str | None) -> bool:
     return hmac.compare_digest(str(expected), str(provided))
 
 
+def _requires_admin_mutation(endpoint: str) -> bool:
+    return any(endpoint == prefix for prefix in _ADMIN_MUTATION_PREFIXES)
+
+
 def configure_security(app: Any) -> None:
     """Attach CSRF protection, persistent login throttling and security headers."""
 
@@ -152,6 +159,9 @@ def configure_security(app: Any) -> None:
             return None
         if endpoint in _CSRF_EXEMPT_ENDPOINTS or request.path.startswith("/static/"):
             return None
+
+        if _requires_admin_mutation(endpoint) and not has_system_role(get_active_user(), "admin"):
+            return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
 
         provided = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
         if not provided and request.is_json:
