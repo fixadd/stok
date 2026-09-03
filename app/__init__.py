@@ -10,6 +10,7 @@ import sys
 
 from .legacy import *  # noqa: F401,F403
 from .legacy import app, db
+from .legacy import create_app as _legacy_create_app
 from .bootstrap import configure_security
 from .routes.custom_fields import register_custom_field_routes
 from .routes.platform_config import register_platform_config_routes
@@ -69,9 +70,30 @@ record_activity = _service_record_activity
 build_form_schema = _build_form_schema
 setting_choices = _setting_choices
 
-register_settings_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
-register_settings_quick_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
-register_custom_field_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
-register_platform_config_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
+_EXTENSION_REGISTRARS = (
+    register_settings_routes,
+    register_settings_quick_routes,
+    register_custom_field_routes,
+    register_platform_config_routes,
+)
 
-__all__ = ["app", "db"]
+
+def _register_extensions(application):
+    deps = {"get_active_user": get_active_user, "has_system_role": has_system_role}
+    configure_security(application)
+    for registrar in _EXTENSION_REGISTRARS:
+        registrar(application, deps)
+    return application
+
+
+# The singleton is used by the production entrypoint; the wrapper keeps
+# create_app()-based tests/tools feature-complete as well.
+_register_extensions(app)
+
+
+def create_app(*args, **kwargs):
+    application = _legacy_create_app(*args, **kwargs)
+    return _register_extensions(application)
+
+
+__all__ = ["app", "db", "create_app"]
