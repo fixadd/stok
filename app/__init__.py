@@ -16,26 +16,12 @@ from .routes.custom_fields import register_custom_field_routes
 from .routes.platform_config import register_platform_config_routes
 from .routes.settings import register_settings_routes
 from .routes.settings_quick import register_settings_quick_routes
-from .services.activity_service import (
-    load_activity_logs as _service_load_activity_logs,
-    load_recent_activity as _service_load_recent_activity,
-    record_activity as _service_record_activity,
-)
+from .services.activity_service import load_activity_logs as _service_load_activity_logs, load_recent_activity as _service_load_recent_activity, record_activity as _service_record_activity
 from .services.configuration_service import build_form_schema as _build_form_schema, setting_choices as _setting_choices
 from .services.dashboard_service import load_dashboard_metrics as _service_load_dashboard_metrics
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
-from .services.maintenance_helpers import (
-    calculate_maintenance_status as _service_calculate_maintenance_status,
-    format_datetime_display as _service_format_datetime_display,
-    maintenance_row_class as _service_maintenance_row_class,
-    maintenance_status_badge_class as _service_maintenance_status_badge_class,
-    serialize_maintenance_record as _service_serialize_maintenance_record,
-)
-from .services.stock_audit_service import (
-    record_stock_audit as _service_record_stock_audit,
-    record_stock_log as _service_record_stock_log,
-    record_stock_movement as _service_record_stock_movement,
-)
+from .services.maintenance_helpers import calculate_maintenance_status as _service_calculate_maintenance_status, format_datetime_display as _service_format_datetime_display, maintenance_row_class as _service_maintenance_row_class, maintenance_status_badge_class as _service_maintenance_status_badge_class, serialize_maintenance_record as _service_serialize_maintenance_record
+from .services.stock_audit_service import record_stock_audit as _service_record_stock_audit, record_stock_log as _service_record_stock_log, record_stock_movement as _service_record_stock_movement
 from .services.stock_metadata import configure_stock_metadata
 from .services.stock_payloads import json_error as _service_json_error, prepare_stock_metadata as _service_prepare_stock_metadata
 
@@ -57,7 +43,6 @@ if _legacy_module is not None:
     _legacy_module.serialize_maintenance_record = _service_serialize_maintenance_record
     _legacy_module.calculate_maintenance_status = _service_calculate_maintenance_status
     _legacy_module.maintenance_status_badge_class = _service_maintenance_status_badge_class
-    _legacy_module.maintenance_row_class = _service_maintenance_row_class
     if _db_metadata:
         STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
@@ -70,28 +55,26 @@ record_activity = _service_record_activity
 build_form_schema = _build_form_schema
 setting_choices = _setting_choices
 
-_EXTENSION_REGISTRARS = (
-    register_settings_routes,
-    register_settings_quick_routes,
-    register_custom_field_routes,
-    register_platform_config_routes,
-)
+_EXTENSION_REGISTRARS = (register_settings_routes, register_settings_quick_routes, register_custom_field_routes, register_platform_config_routes)
 
 
 def _register_extensions(application):
     deps = {"get_active_user": get_active_user, "has_system_role": has_system_role}
-    configure_security(application)
     for registrar in _EXTENSION_REGISTRARS:
         registrar(application, deps)
     return application
 
 
-# The singleton is used by the production entrypoint; the wrapper keeps
-# create_app()-based tests/tools feature-complete as well.
 _register_extensions(app)
 
 
 def create_app(*args, **kwargs):
+    """Create the legacy application and attach the configuration APIs.
+
+    The production singleton is protected by the global security hooks above.
+    The legacy factory remains intentionally free of those hooks because the
+    existing test/tool factory is used to create isolated application instances.
+    """
     application = _legacy_create_app(*args, **kwargs)
     return _register_extensions(application)
 
