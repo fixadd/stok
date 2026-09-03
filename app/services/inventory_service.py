@@ -22,13 +22,6 @@ def load_tracking_payload(*, serialize_item: Callable[[Any], dict[str, Any]]) ->
     users = [{"id": user.id, "name": f"{user.first_name} {user.last_name}", "department": user.department} for user in user_queries.list_active_users()]
     departments.update(user["department"] for user in users if user.get("department"))
 
-    status_choices = setting_choices("inventory_status") or [
-        {"value": "aktif", "label": "Aktif"},
-        {"value": "beklemede", "label": "Beklemede"},
-        {"value": "arizali", "label": "Arızalı"},
-        {"value": "hurda", "label": "Hurda"},
-        {"value": "stokta", "label": "Stokta"},
-    ]
     return {
         "inventory_items": visible_items,
         "inventory_faulty_count": faulty_count,
@@ -37,6 +30,6 @@ def load_tracking_payload(*, serialize_item: Callable[[Any], dict[str, Any]]) ->
         "brand_models": brand_models,
         "users": users,
         "departments": sorted(departments),
-        "status_choices": status_choices,
+        "status_choices": setting_choices("inventory_status"),
         "custom_fields": build_form_schema("inventory"),
     }
