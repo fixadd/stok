@@ -34,6 +34,7 @@ def get_brand(brand_id: int | None):
 def get_model(model_id: int | None):
     return None if model_id is None else HardwareModel.query.filter(HardwareModel.id == model_id).first()
 
+
 def get_info_category(category_id: int | None):
     return None if category_id is None else InfoCategory.query.filter(InfoCategory.id == category_id).first()
 
@@ -57,6 +58,7 @@ def find_usage_area(name: str | None): return _get_by_name(UsageArea, name)
 def list_factories(*, limit: int = 100): return list_named(Factory, limit=limit)
 def list_hardware_types(*, limit: int = 100): return list_named(HardwareType, limit=limit)
 def list_brands(*, limit: int = 100): return list_named(Brand, limit=limit)
+def list_models(*, limit: int = 5000): return list_named(HardwareModel, limit=limit)
 def list_info_categories(*, limit: int = 100): return list_named(InfoCategory, limit=limit)
 def list_license_names(*, limit: int = 100): return list_named(LicenseName, limit=limit)
 def list_usage_areas(*, limit: int = 100): return list_named(UsageArea, limit=limit)
