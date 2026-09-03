@@ -1,0 +1,50 @@
+name: Seed Recovery
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - name: Recover seed module
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import ast, re, subprocess
+
+          old = subprocess.check_output(['git','show','cf7fd1f87a5869af855a35c6d02dc486568f33b4:app/legacy.py'], text=True)
+          lines = old.splitlines(keepends=True)
+          tree = ast.parse(old)
+          names = {
+              'seed_initial_data', 'seed_simple_users', 'seed_product_metadata',
+              'seed_information_entries', 'seed_inventory_data', 'seed_ldap_profiles',
+              'seed_request_data', 'seed_stock_reference_data', 'seed_stock_data',
+          }
+          sources = []
+          for node in tree.body:
+              if isinstance(node, ast.FunctionDef) and node.name in names:
+                  sources.append(''.join(lines[node.lineno-1:node.end_lineno]))
+          if len(sources) != len(names):
+              raise SystemExit(f'Expected {len(names)} seed functions, found {len(sources)}')
+
+          header = '''from __future__ import annotations\n\nfrom datetime import datetime, timedelta\n\nfrom sqlalchemy import func\nfrom sqlalchemy.orm import joinedload\nfrom werkzeug.security import generate_password_hash\n\nfrom ..models import (\n    Brand, Factory, HardwareModel, HardwareType, InfoCategory, InfoEntry,\n    InventoryEvent, InventoryItem, InventoryLicense, LdapProfile, LicenseName,\n    RequestGroup, RequestLine, RequestOrder, StockCategory, StockItem, StockUnit,\n    UsageArea, User, db, find_existing_by_name,\n)\nfrom .activity_service import record_activity\nfrom .stock_audit_service import record_stock_log\n\nSTOCK_CATEGORY_LABELS = {\n    'envanter': 'Envanter',\n    'cevre_birimi': 'Çevre Birimi',\n    'yazici': 'IP Yazıcı',\n    'lisans': 'Lisans',\n    'talep': 'Talep',\n    'manuel': 'Manuel',\n}\n\ndef _resolve_stock_category(name: str):\n    existing = find_existing_by_name(StockCategory, name)\n    if existing:\n        return existing\n    category = StockCategory(name=name)\n    db.session.add(category)\n    db.session.flush()\n    return category\n\ndef _resolve_stock_unit(name: str):\n    existing = find_existing_by_name(StockUnit, name)\n    if existing:\n        return existing\n    unit = StockUnit(name=name)\n    db.session.add(unit)\n    db.session.flush()\n    return unit\n\n'''
+          body = '\n\n'.join(sources)
+          body = re.sub(r'(?<![A-Za-z0-9_])resolve_stock_category\(', '_resolve_stock_category(', body)
+          body = re.sub(r'(?<![A-Za-z0-9_])resolve_stock_unit\(', '_resolve_stock_unit(', body)
+          Path('app/services/demo_seed.py').write_text(header + body + '\n', encoding='utf-8')
+          Path('.github/workflows/seed-recovery.yml').unlink()
+          subprocess.run(['git','config','user.name','github-actions[bot]'], check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git','add','-A'], check=True)
+          subprocess.run(['git','commit','-m','fix: recover extracted demo seed module'], check=True)
+          subprocess.run(['git','push'], check=True)
+          PY
