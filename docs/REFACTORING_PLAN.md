@@ -53,6 +53,10 @@ Koşullu alan kuralları, bağımlı lookup'lar, rapor tanımları, bildirim kur
 
 Yeni migration'lar PostgreSQL 17 üzerinde temiz veritabanında doğrulandı. Seed kayıtları Python/ORM varsayılanlarına bağımlı olmayacak şekilde gerekli `active`, timestamp ve JSON değerlerini açıkça veriyor. Testler güncel migration head'i ve yeni yapılandırma tablolarını kontrol ediyor.
 
+### 9. Entegrasyon kontrolü
+
+App factory ile singleton uygulamanın extension route'ları aynı davranışa getirildi. Testler PostgreSQL şemasıyla çalışıyor; smoke test verileri mevcut demo kayıtlarına bağımlı olmayacak şekilde izole edildi. Geçici CI teşhis workflow'ları kaldırıldı.
+
 ## Kalan büyük işler
 
 ### `app/legacy.py`
