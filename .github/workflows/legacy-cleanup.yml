@@ -18,15 +18,24 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("app/legacy.py")
           text = path.read_text(encoding="utf-8")
 
-          startup = '''    with app.app_context():\n        db.create_all()\n        seed_initial_data()\n'''
-          replacement = '''    # Database schema is managed exclusively by Alembic migrations.\n    # Initial/demo data is intentionally not seeded during application startup.\n'''
-          if startup not in text:
-              raise SystemExit("startup schema/seed block not found")
-          text = text.replace(startup, replacement, 1)
+          startup_pattern = re.compile(
+              r'(?m)^    with app\.app_context\(\):\s*\n'
+              r'^        db\.create_all\(\)\s*\n'
+              r'^        seed_initial_data\(\)\s*\n'
+          )
+          text, startup_count = startup_pattern.subn(
+              '    # Database schema is managed exclusively by Alembic migrations.\n'
+              '    # Initial/demo data is intentionally not seeded during application startup.\n',
+              text,
+              count=1,
+          )
+          if startup_count != 1:
+              raise SystemExit(f"startup schema/seed block not found: {startup_count}")
 
           start_marker = '    @app.post("/admin-panel/data/reset")\n    def reset_database_view():'
           start = text.find(start_marker)
@@ -42,7 +51,6 @@ jobs:
           PY
 
           git diff --check
-          git diff -- app/legacy.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/legacy.py .github/workflows/legacy-cleanup.yml
