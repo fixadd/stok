@@ -12,6 +12,7 @@ from .legacy import *  # noqa: F401,F403
 from .legacy import app, db
 from .bootstrap import configure_security
 from .routes.settings import register_settings_routes
+from .routes.settings_quick import register_settings_quick_routes
 from .services.activity_service import (
     load_activity_logs as _service_load_activity_logs,
     load_recent_activity as _service_load_recent_activity,
@@ -59,7 +60,6 @@ if _legacy_module is not None:
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.prepare_stock_metadata = lambda category, payload, **kwargs: _service_prepare_stock_metadata(category, payload, schema=_db_metadata, **kwargs)
 
-# Keep package-level imports and legacy compatibility names in sync.
 load_dashboard_metrics = _service_load_dashboard_metrics
 load_activity_logs = _service_load_activity_logs
 load_recent_activity = _service_load_recent_activity
@@ -68,5 +68,6 @@ build_form_schema = _build_form_schema
 setting_choices = _setting_choices
 
 register_settings_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
+register_settings_quick_routes(app, {"get_active_user": get_active_user, "has_system_role": has_system_role})
 
 __all__ = ["app", "db"]
