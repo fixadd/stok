@@ -7,6 +7,9 @@ import unittest
 from app import calculate_maintenance_status, create_app, load_dashboard_metrics
 from app.legacy import seed_initial_data
 from app.models import (
+    Brand,
+    Factory,
+    HardwareModel,
     HardwareType,
     InventoryEvent,
     InventoryItem,
@@ -55,6 +58,24 @@ class SmokeRouteTests(unittest.TestCase):
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
             session["active_user_id"] = user_id
+            session["csrf_token"] = "smoke-csrf-token"
+
+    def csrf_headers(self):
+        return {"X-CSRF-Token": "smoke-csrf-token"}
+
+    def create_test_inventory(self, inventory_no):
+        factory = Factory(name=f"{inventory_no} Factory")
+        hardware_type = HardwareType(name=f"{inventory_no} Type")
+        brand = Brand(name=f"{inventory_no} Brand")
+        db.session.add_all([factory, hardware_type, brand])
+        db.session.flush()
+        model = HardwareModel(name=f"{inventory_no} Model", brand_id=brand.id)
+        db.session.add(model)
+        db.session.flush()
+        item = InventoryItem(inventory_no=inventory_no, status="aktif", factory_id=factory.id, department="IT", hardware_type_id=hardware_type.id, brand_id=brand.id, model_id=model.id)
+        db.session.add(item)
+        db.session.flush()
+        return item
 
     def test_database_url_environment_overrides_default(self):
         previous_database_url = os.environ.get("DATABASE_URL")
@@ -120,19 +141,8 @@ class SmokeRouteTests(unittest.TestCase):
     def test_dashboard_includes_maintenance_counts(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
-            computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
-            self.assertIsNotNone(computer_type)
-            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
-            self.assertIsNotNone(item)
-            item.status = "aktif"
-            db.session.add(
-                InventoryMaintenance(
-                    item_id=item.id,
-                    performed_at=datetime.utcnow() - timedelta(days=100),
-                    performed_by="Test Dashboard",
-                    note="Dashboard sınırı için test bakımı",
-                )
-            )
+            item = self.create_test_inventory("DASH-SMOKE-001")
+            db.session.add(InventoryMaintenance(item_id=item.id, performed_at=datetime.utcnow() - timedelta(days=100), performed_by="Test Dashboard", note="Dashboard sınırı için test bakımı"))
             db.session.commit()
             metrics = load_dashboard_metrics()
         self.assertIn("maintenance_due_count", metrics)
@@ -144,14 +154,13 @@ class SmokeRouteTests(unittest.TestCase):
         )
         resp = self.client.get("/")
         html = resp.get_data(as_text=True)
-        self.assertIn("Bakım Zamanı Gelenler", html)
+        self.assertIn("BAKIM BEKLEYENLER", html)
         self.assertIn("/bakim", html)
 
     def test_create_maintenance_record_adds_inventory_event(self):
         self.login_as(self.admin_id)
         with self.app.app_context():
-            computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
-            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
+            item = self.create_test_inventory("MAINT-SMOKE-001")
             item_id = item.id
         resp = self.client.post(
             f"/api/inventory/{item_id}/maintenance",
@@ -160,6 +169,7 @@ class SmokeRouteTests(unittest.TestCase):
                 "performed_by": "BT Ekibi",
                 "note": "Fan temizliği ve termal bakım yapıldı.",
             },
+            headers=self.csrf_headers(),
         )
         self.assertEqual(resp.status_code, 201)
         with self.app.app_context():
