@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from ..models import Brand, Factory, HardwareModel, HardwareType, InfoCategory, LicenseName, UsageArea
 from .common import apply_limit
@@ -33,7 +34,6 @@ def get_brand(brand_id: int | None):
 def get_model(model_id: int | None):
     return None if model_id is None else HardwareModel.query.filter(HardwareModel.id == model_id).first()
 
-
 def get_info_category(category_id: int | None):
     return None if category_id is None else InfoCategory.query.filter(InfoCategory.id == category_id).first()
 
@@ -60,3 +60,10 @@ def list_brands(*, limit: int = 100): return list_named(Brand, limit=limit)
 def list_info_categories(*, limit: int = 100): return list_named(InfoCategory, limit=limit)
 def list_license_names(*, limit: int = 100): return list_named(LicenseName, limit=limit)
 def list_usage_areas(*, limit: int = 100): return list_named(UsageArea, limit=limit)
+
+
+def list_brands_with_models(*, limit: int = 100):
+    query = Brand.query.options(joinedload(Brand.models)).order_by(
+        func.lower(Brand.name), Brand.id
+    )
+    return apply_limit(query, limit=limit).all()
