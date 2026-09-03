@@ -1,0 +1,50 @@
+name: One-time legacy cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: "!startsWith(github.event.head_commit.message, 'refactor: remove runtime schema and seed mutations')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove runtime schema and seed mutations
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/legacy.py")
+          text = path.read_text(encoding="utf-8")
+
+          startup = '''    with app.app_context():\n        db.create_all()\n        seed_initial_data()\n'''
+          replacement = '''    # Database schema is managed exclusively by Alembic migrations.\n    # Initial/demo data is intentionally not seeded during application startup.\n'''
+          if startup not in text:
+              raise SystemExit("startup schema/seed block not found")
+          text = text.replace(startup, replacement, 1)
+
+          start_marker = '    @app.post("/admin-panel/data/reset")\n    def reset_database_view():'
+          start = text.find(start_marker)
+          if start == -1:
+              raise SystemExit("reset route not found")
+          next_route = text.find("\n    @app.", start + len(start_marker))
+          if next_route == -1:
+              raise SystemExit("next route after reset not found")
+
+          reset_replacement = '''    @app.post("/admin-panel/data/reset")\n    def reset_database_view():\n        user = get_active_user()\n        if not has_system_role(user, "superadmin"):\n            flash("Veritabanı işlemleri için süper admin yetkisi gerekir.", "danger")\n            return redirect(url_for("admin_panel", section="data-section"))\n\n        flash(\n            "Veritabanı şeması uygulama üzerinden sıfırlanamaz. Alembic migration ve PostgreSQL backup/restore işlemlerini kullanın.",\n            "warning",\n        )\n        return redirect(url_for("admin_panel", section="data-section"))\n'''
+          text = text[:start] + reset_replacement + text[next_route:]
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          git diff --check
+          git diff -- app/legacy.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/legacy.py .github/workflows/legacy-cleanup.yml
+          git commit -m "refactor: remove runtime schema and seed mutations"
+          git push
