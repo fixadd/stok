@@ -13,19 +13,13 @@ from sqlalchemy import text
 
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
-_CSRF_EXEMPT_ENDPOINTS = {"login", "logout", "static"}
+_CSRF_EXEMPT_ENDPOINTS = {"login", "static"}
 _LOGIN_WINDOW_SECONDS = 300
 _LOGIN_LIMIT = 8
 
 
 class LoginRateLimiter:
-    """Persistent PostgreSQL login throttle with a process-local fallback.
-
-    Failed attempts are stored in the ``login_attempts`` table created by
-    Alembic migration 0006. The in-memory limiter remains a short-lived safety
-    net when the database is unavailable, so authentication is never made
-    dependent on a secondary security service.
-    """
+    """Persistent PostgreSQL login throttle with a process-local fallback."""
 
     def __init__(self, limit: int = _LOGIN_LIMIT, window_seconds: int = _LOGIN_WINDOW_SECONDS) -> None:
         self.limit = limit
@@ -156,9 +150,7 @@ def configure_security(app: Any) -> None:
 
         if request.method not in _MUTATING_METHODS:
             return None
-        if endpoint in _CSRF_EXEMPT_ENDPOINTS:
-            return None
-        if request.path.startswith("/static/"):
+        if endpoint in _CSRF_EXEMPT_ENDPOINTS or request.path.startswith("/static/"):
             return None
 
         provided = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
