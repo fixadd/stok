@@ -65,7 +65,7 @@ class SmokeRouteTests(unittest.TestCase):
 
     def create_test_inventory(self, inventory_no):
         factory = Factory(name=f"{inventory_no} Factory")
-        hardware_type = HardwareType(name=f"{inventory_no} Type")
+        hardware_type = HardwareType(name=f"Laptop {inventory_no}")
         brand = Brand(name=f"{inventory_no} Brand")
         db.session.add_all([factory, hardware_type, brand])
         db.session.flush()
@@ -113,18 +113,9 @@ class SmokeRouteTests(unittest.TestCase):
     def test_calculate_maintenance_status_thresholds(self):
         now = datetime.utcnow()
         self.assertEqual(calculate_maintenance_status(None)["status"], "none")
-        self.assertEqual(
-            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS + 1))["status"],
-            "overdue",
-        )
-        self.assertEqual(
-            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 14))["status"],
-            "warning",
-        )
-        self.assertEqual(
-            calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 16))["status"],
-            "ok",
-        )
+        self.assertEqual(calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS + 1))["status"], "overdue")
+        self.assertEqual(calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 14))["status"], "warning")
+        self.assertEqual(calculate_maintenance_status(now - timedelta(days=MAINTENANCE_INTERVAL_DAYS - 16))["status"], "ok")
 
     def test_maintenance_breadcrumb_follows_stock_parent(self):
         self.login_as(self.admin_id)
@@ -148,10 +139,7 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertIn("maintenance_due_count", metrics)
         self.assertIn("maintenance_warning_count", metrics)
         self.assertGreaterEqual(metrics["maintenance_due_count"], 1)
-        self.assertEqual(
-            metrics["critical_alerts"],
-            metrics["faulty_inventory"] + metrics["problem_stock"] + metrics["maintenance_due_count"],
-        )
+        self.assertEqual(metrics["critical_alerts"], metrics["faulty_inventory"] + metrics["problem_stock"] + metrics["maintenance_due_count"])
         resp = self.client.get("/")
         html = resp.get_data(as_text=True)
         self.assertIn("BAKIM BEKLEYENLER", html)
@@ -174,8 +162,4 @@ class SmokeRouteTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 201)
         with self.app.app_context():
             self.assertEqual(InventoryMaintenance.query.filter_by(item_id=item_id).count(), 1)
-            self.assertIsNotNone(
-                InventoryEvent.query.filter_by(
-                    item_id=item_id, event_type="Bakım Yapıldı", performed_by="BT Ekibi"
-                ).first()
-            )
+            self.assertIsNotNone(InventoryEvent.query.filter_by(item_id=item_id, event_type="Bakım Yapıldı", performed_by="BT Ekibi").first())
