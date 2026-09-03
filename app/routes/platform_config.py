@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import json
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy import text
+
+from ..models import db
 
 
 def register_platform_config_routes(app, deps):
     get_active_user = deps["get_active_user"]
     has_system_role = deps["has_system_role"]
     bp = Blueprint("platform_config", __name__)
-    db = app.extensions["sqlalchemy"].db if "sqlalchemy" in app.extensions else None
 
     def admin_error():
         user = get_active_user()
@@ -16,112 +19,72 @@ def register_platform_config_routes(app, deps):
             return jsonify({"error": "Bu işlem için admin yetkisi gerekir."}), 403
         return None
 
-    def conn():
-        if db is not None:
-            return db.session
-        from ..models import db as model_db
-        return model_db.session
-
     @bp.get("/api/platform/rules")
     def list_rules():
-        if (error := admin_error()):
-            return error
-        rows = conn().execute(text("SELECT id, entity_type, field_key, rule_type, rule_json, active, sort_order FROM configuration_rules ORDER BY entity_type, sort_order, id")).mappings().all()
+        if (error := admin_error()): return error
+        rows = db.session.execute(text("SELECT id, entity_type, field_key, rule_type, rule_json, active, sort_order FROM configuration_rules ORDER BY entity_type, sort_order, id")).mappings().all()
         return jsonify([dict(row) for row in rows])
 
     @bp.post("/api/platform/rules")
     def create_rule():
-        if (error := admin_error()):
-            return error
+        if (error := admin_error()): return error
         data = request.get_json(silent=True) or {}
-        required = ("entity_type", "field_key", "rule_type")
-        if any(not str(data.get(key, "")).strip() for key in required):
-            return jsonify({"error": "entity_type, field_key ve rule_type zorunludur."}), 400
-        session = conn()
-        row = session.execute(text("""
-            INSERT INTO configuration_rules(entity_type, field_key, rule_type, rule_json, active, sort_order)
-            VALUES (:entity_type, :field_key, :rule_type, CAST(:rule_json AS jsonb), :active, :sort_order)
-            RETURNING id
-        """), {"entity_type": str(data["entity_type"]).strip(), "field_key": str(data["field_key"]).strip(), "rule_type": str(data["rule_type"]).strip(), "rule_json": __import__("json").dumps(data.get("rule") or {}), "active": bool(data.get("active", True)), "sort_order": int(data.get("sort_order", 0) or 0)}).scalar_one()
-        session.commit()
-        return jsonify({"ok": True, "id": row}), 201
+        entity = str(data.get("entity_type", "")).strip(); field = str(data.get("field_key", "")).strip(); rule_type = str(data.get("rule_type", "")).strip()
+        if not entity or not field or not rule_type: return jsonify({"error": "entity_type, field_key ve rule_type zorunludur."}), 400
+        row = db.session.execute(text("INSERT INTO configuration_rules(entity_type, field_key, rule_type, rule_json, active, sort_order) VALUES (:entity,:field,:rule_type,CAST(:rule AS jsonb),:active,:sort_order) RETURNING id"), {"entity": entity, "field": field, "rule_type": rule_type, "rule": json.dumps(data.get("rule") or {}), "active": bool(data.get("active", True)), "sort_order": int(data.get("sort_order", 0) or 0)}).scalar_one()
+        db.session.commit(); return jsonify({"ok": True, "id": row}), 201
 
     @bp.get("/api/platform/dependencies")
     def list_dependencies():
-        if (error := admin_error()):
-            return error
-        rows = conn().execute(text("SELECT id, parent_key, child_key, mapping_json, active FROM lookup_dependencies ORDER BY id")).mappings().all()
+        if (error := admin_error()): return error
+        rows = db.session.execute(text("SELECT id, parent_key, child_key, mapping_json, active FROM lookup_dependencies ORDER BY id")).mappings().all()
         return jsonify([dict(row) for row in rows])
 
     @bp.post("/api/platform/dependencies")
     def create_dependency():
-        if (error := admin_error()):
-            return error
+        if (error := admin_error()): return error
         data = request.get_json(silent=True) or {}
         parent = str(data.get("parent_key", "")).strip(); child = str(data.get("child_key", "")).strip()
-        if not parent or not child or parent == child:
-            return jsonify({"error": "Geçerli üst ve alt seçim alanları gerekir."}), 400
-        session = conn()
-        session.execute(text("""
-            INSERT INTO lookup_dependencies(parent_key, child_key, mapping_json, active)
-            VALUES (:parent_key, :child_key, CAST(:mapping AS jsonb), :active)
-            ON CONFLICT (parent_key, child_key) DO UPDATE SET mapping_json=EXCLUDED.mapping_json, active=EXCLUDED.active, updated_at=CURRENT_TIMESTAMP
-        """), {"parent_key": parent, "child_key": child, "mapping": __import__("json").dumps(data.get("mapping") or {}), "active": bool(data.get("active", True))})
-        session.commit()
-        return jsonify({"ok": True})
+        if not parent or not child or parent == child: return jsonify({"error": "Geçerli üst ve alt seçim alanları gerekir."}), 400
+        db.session.execute(text("INSERT INTO lookup_dependencies(parent_key, child_key, mapping_json, active) VALUES (:parent_key,:child_key,CAST(:mapping AS jsonb),:active) ON CONFLICT (parent_key,child_key) DO UPDATE SET mapping_json=EXCLUDED.mapping_json, active=EXCLUDED.active, updated_at=CURRENT_TIMESTAMP"), {"parent_key": parent, "child_key": child, "mapping": json.dumps(data.get("mapping") or {}), "active": bool(data.get("active", True))})
+        db.session.commit(); return jsonify({"ok": True})
 
     @bp.get("/api/platform/reports")
     def list_reports():
-        if (error := admin_error()):
-            return error
-        rows = conn().execute(text("SELECT id, key, label, entity_type, definition_json, active FROM report_definitions ORDER BY label, id")).mappings().all()
+        if (error := admin_error()): return error
+        rows = db.session.execute(text("SELECT id, key, label, entity_type, definition_json, active FROM report_definitions ORDER BY label, id")).mappings().all()
         return jsonify([dict(row) for row in rows])
 
     @bp.post("/api/platform/reports")
     def create_report():
-        if (error := admin_error()):
-            return error
+        if (error := admin_error()): return error
         data = request.get_json(silent=True) or {}
         key = str(data.get("key", "")).strip(); label = str(data.get("label", "")).strip(); entity = str(data.get("entity_type", "")).strip()
-        if not key or not label or not entity:
-            return jsonify({"error": "Rapor anahtarı, adı ve modülü zorunludur."}), 400
-        session = conn()
+        if not key or not label or not entity: return jsonify({"error": "Rapor anahtarı, adı ve modülü zorunludur."}), 400
         try:
-            row = session.execute(text("""
-                INSERT INTO report_definitions(key, label, entity_type, definition_json, active)
-                VALUES (:key, :label, :entity, CAST(:definition AS jsonb), :active) RETURNING id
-            """), {"key": key, "label": label, "entity": entity, "definition": __import__("json").dumps(data.get("definition") or {}), "active": bool(data.get("active", True))}).scalar_one()
-            session.commit()
-        except Exception as exc:
-            session.rollback()
-            return jsonify({"error": "Rapor oluşturulamadı.", "detail": str(exc)}), 400
+            row = db.session.execute(text("INSERT INTO report_definitions(key,label,entity_type,definition_json,active) VALUES (:key,:label,:entity,CAST(:definition AS jsonb),:active) RETURNING id"), {"key": key, "label": label, "entity": entity, "definition": json.dumps(data.get("definition") or {}), "active": bool(data.get("active", True))}).scalar_one()
+            db.session.commit()
+        except Exception:
+            db.session.rollback(); return jsonify({"error": "Rapor oluşturulamadı."}), 400
         return jsonify({"ok": True, "id": row}), 201
 
     @bp.get("/api/platform/notifications")
     def list_notifications():
-        if (error := admin_error()):
-            return error
-        rows = conn().execute(text("SELECT id, key, label, event_key, channel, target_json, condition_json, active FROM notification_rules ORDER BY label, id")).mappings().all()
+        if (error := admin_error()): return error
+        rows = db.session.execute(text("SELECT id, key, label, event_key, channel, target_json, condition_json, active FROM notification_rules ORDER BY label, id")).mappings().all()
         return jsonify([dict(row) for row in rows])
 
     @bp.post("/api/platform/notifications")
     def create_notification():
-        if (error := admin_error()):
-            return error
+        if (error := admin_error()): return error
         data = request.get_json(silent=True) or {}
-        values = {key: str(data.get(key, "")).strip() for key in ("key", "label", "event_key")}
-        if any(not value for value in values.values()):
-            return jsonify({"error": "Bildirim anahtarı, adı ve olay anahtarı zorunludur."}), 400
-        session = conn()
+        key = str(data.get("key", "")).strip(); label = str(data.get("label", "")).strip(); event_key = str(data.get("event_key", "")).strip()
+        if not key or not label or not event_key: return jsonify({"error": "Bildirim anahtarı, adı ve olay anahtarı zorunludur."}), 400
         try:
-            row = session.execute(text("""
-                INSERT INTO notification_rules(key,label,event_key,channel,target_json,condition_json,active)
-                VALUES (:key,:label,:event_key,:channel,CAST(:target AS jsonb),CAST(:condition AS jsonb),:active) RETURNING id
-            """), {**values, "channel": str(data.get("channel", "web")), "target": __import__("json").dumps(data.get("target") or {}), "condition": __import__("json").dumps(data.get("condition") or {}), "active": bool(data.get("active", True))}).scalar_one()
-            session.commit()
+            row = db.session.execute(text("INSERT INTO notification_rules(key,label,event_key,channel,target_json,condition_json,active) VALUES (:key,:label,:event_key,:channel,CAST(:target AS jsonb),CAST(:condition AS jsonb),:active) RETURNING id"), {"key": key, "label": label, "event_key": event_key, "channel": str(data.get("channel", "web")), "target": json.dumps(data.get("target") or {}), "condition": json.dumps(data.get("condition") or {}), "active": bool(data.get("active", True))}).scalar_one()
+            db.session.commit()
         except Exception:
-            session.rollback()
-            return jsonify({"error": "Bildirim kuralı oluşturulamadı."}), 400
+            db.session.rollback(); return jsonify({"error": "Bildirim kuralı oluşturulamadı."}), 400
         return jsonify({"ok": True, "id": row}), 201
 
     app.register_blueprint(bp)
