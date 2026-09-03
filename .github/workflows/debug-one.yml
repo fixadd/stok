@@ -28,4 +28,11 @@ jobs:
         run: python -m alembic upgrade head
       - env:
           DATABASE_URL: postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci
-        run: python -m pytest -q tests/test_smoke_routes.py::SmokeRouteTests::test_create_maintenance_record_adds_inventory_event
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee pytest.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-full-debug
+          path: pytest.log
