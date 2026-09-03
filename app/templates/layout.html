@@ -4,17 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}Stok Yönetim Paneli{% endblock %}</title>
-
-    <!-- Tabler 1.4.0 / Bootstrap 5.3.7 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/tabler-overrides.css') }}" rel="stylesheet">
   </head>
-
   <body class="bg-body-tertiary {{ active_theme_class | default('') }}">
     <div class="page">
       <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="light">
@@ -40,7 +37,6 @@
           </div>
         </div>
       </aside>
-
       <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
         <div class="container-xl">
           <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
@@ -63,61 +59,38 @@
           </div>
         </div>
       </header>
-
       <div class="page-wrapper">
         <div class="page-header d-print-none">
           <div class="container-xl">
             {% set resolved_breadcrumbs = build_breadcrumbs(active_page, request.endpoint) %}
             {% if resolved_breadcrumbs %}
             <div class="row align-items-center">
-              <div class="col">
-                <ol class="breadcrumb breadcrumb-arrows mb-0" aria-label="breadcrumb">
-                  {% for crumb in resolved_breadcrumbs %}
-                  {% if loop.last %}
-                  <li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
-                  {% else %}
-                  <li class="breadcrumb-item"><a href="{{ url_for(crumb.endpoint) }}">{{ crumb.title }}</a></li>
-                  {% endif %}
-                  {% endfor %}
-                </ol>
-              </div>
+              <div class="col"><ol class="breadcrumb breadcrumb-arrows mb-0" aria-label="breadcrumb">
+                {% for crumb in resolved_breadcrumbs %}
+                {% if loop.last %}<li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
+                {% else %}<li class="breadcrumb-item"><a href="{{ url_for(crumb.endpoint) }}">{{ crumb.title }}</a></li>{% endif %}
+                {% endfor %}
+              </ol></div>
             </div>
             {% endif %}
             {% block breadcrumb %}{% endblock %}
           </div>
         </div>
-
         <div class="page-body">
           <div class="container-xl">
             {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="mb-3">
-              {% for category, message in messages %}
-              <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible" role="alert">
-                <div>{{ message }}</div>
-                <a class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></a>
-              </div>
-              {% endfor %}
-            </div>
-            {% endif %}
+            {% if messages %}<div class="mb-3">{% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible" role="alert"><div>{{ message }}</div><a class="btn-close" data-bs-dismiss="alert" aria-label="Kapat"></a></div>
+            {% endfor %}</div>{% endif %}
             {% endwith %}
             <div class="page-content">{% block main %}{% endblock %}</div>
           </div>
         </div>
-
-        <footer class="footer footer-transparent d-print-none">
-          <div class="container-xl">
-            <div class="row text-center align-items-center flex-row-reverse">
-              <div class="col-12 col-lg-auto mt-3 mt-lg-0">
-                Stok Yönetim Sistemi
-              </div>
-            </div>
-          </div>
-        </footer>
+        <footer class="footer footer-transparent d-print-none"><div class="container-xl"><div class="row text-center align-items-center"><div class="col-12 col-lg-auto mt-3 mt-lg-0">Stok Yönetim Sistemi</div></div></div></footer>
       </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
+    <script src="{{ url_for('static', filename='js/security.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='js/inventory-maintenance-enhancements.js') }}"></script>
