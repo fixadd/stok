@@ -583,9 +583,8 @@ def create_app() -> Flask:
     register_error_handlers(app)
     app.register_blueprint(personnel_lifecycle_bp)
 
-    with app.app_context():
-        db.create_all()
-        seed_initial_data()
+    # Database schema is managed exclusively by Alembic migrations.
+    # Initial/demo data is intentionally not seeded during application startup.
 
     @app.after_request
     def apply_security_headers(response):
@@ -1209,39 +1208,13 @@ def create_app() -> Flask:
     def reset_database_view():
         user = get_active_user()
         if not has_system_role(user, "superadmin"):
-            flash("Veritabanını sıfırlamak için süper admin yetkisi gerekir.", "danger")
+            flash("Veritabanı işlemleri için süper admin yetkisi gerekir.", "danger")
             return redirect(url_for("admin_panel", section="data-section"))
 
-        data_dir = Path(
-            current_app.config.get(
-                "DATA_DIR", Path(__file__).resolve().parent.parent / "data"
-            )
+        flash(
+            "Veritabanı şeması uygulama üzerinden sıfırlanamaz. Alembic migration ve PostgreSQL backup/restore işlemlerini kullanın.",
+            "warning",
         )
-        info_upload_dir = Path(
-            current_app.config.get("INFO_UPLOAD_DIR", data_dir / "info_uploads")
-        )
-
-        try:
-            db.session.remove()
-            db.drop_all()
-            db.create_all()
-            if info_upload_dir.exists():
-                shutil.rmtree(info_upload_dir, ignore_errors=True)
-            info_upload_dir.mkdir(parents=True, exist_ok=True)
-            seed_initial_data()
-            record_activity(
-                area="sistem",
-                action="Veritabanı sıfırlandı",
-                description="Sistem varsayılan başlangıç verileriyle yeniden oluşturuldu.",
-                actor=current_actor_name(),
-            )
-            db.session.commit()
-        except Exception:  # pragma: no cover - güvenlik amaçlı kayıt
-            current_app.logger.exception("Veritabanı sıfırlanamadı")
-            flash("Veritabanı sıfırlanırken bir hata oluştu.", "danger")
-            return redirect(url_for("admin_panel", section="data-section"))
-
-        flash("Veritabanı varsayılan verilerle yeniden oluşturuldu.", "success")
         return redirect(url_for("admin_panel", section="data-section"))
 
     @app.post("/admin-panel/users")
