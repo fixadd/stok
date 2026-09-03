@@ -4,122 +4,67 @@
 
 {% block main %}
 <div class="dashboard-page">
-
-  <!-- HEADER -->
   <div class="dashboard-header mb-4">
     <div>
       <div class="dashboard-eyebrow">
-        <i class="bi bi-grid-1x2-fill"></i>
+        <i class="ti ti-layout-dashboard"></i>
         GENEL BAKIŞ
       </div>
       <h1 class="dashboard-title">Stok Yönetim Paneli</h1>
-      <p class="dashboard-subtitle">
-        Envanter, stok, talepler ve bakım süreçlerini tek ekrandan takip edin.
-      </p>
+      <p class="dashboard-subtitle">Envanter, stok, talepler ve bakım süreçlerini tek ekrandan takip edin.</p>
     </div>
   </div>
 
-  <!-- KPI CARDS -->
   <section class="dashboard-kpis">
-
-    <a class="dashboard-kpi kpi-primary"
-       href="{{ url_for('stock_tracking') }}">
-      <div class="kpi-icon">
-        <i class="bi bi-box-seam"></i>
-      </div>
-
+    <a class="dashboard-kpi kpi-primary" href="{{ url_for('stock_tracking') }}">
+      <div class="kpi-icon"><i class="ti ti-package"></i></div>
       <div class="kpi-content">
         <div class="kpi-label">GÜNCEL STOK</div>
         <div class="kpi-value">{{ dashboard.available_stock }}</div>
-        <div class="kpi-description">
-          {{ dashboard.total_stock }} toplam stok kalemi
-        </div>
+        <div class="kpi-description">{{ dashboard.total_stock }} toplam stok kalemi</div>
       </div>
-
-      <div class="kpi-arrow">
-        <i class="bi bi-arrow-up-right"></i>
-      </div>
+      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
 
-    <a class="dashboard-kpi kpi-success"
-       href="{{ url_for('talep_takip') }}">
-      <div class="kpi-icon">
-        <i class="bi bi-clipboard-check"></i>
-      </div>
-
+    <a class="dashboard-kpi kpi-success" href="{{ url_for('talep_takip') }}">
+      <div class="kpi-icon"><i class="ti ti-clipboard-check"></i></div>
       <div class="kpi-content">
         <div class="kpi-label">AKTİF TALEPLER</div>
         <div class="kpi-value">{{ dashboard.open_requests }}</div>
-        <div class="kpi-description">
-          {{ dashboard.total_requests }} toplam talep
-        </div>
+        <div class="kpi-description">{{ dashboard.total_requests }} toplam talep</div>
       </div>
-
-      <div class="kpi-arrow">
-        <i class="bi bi-arrow-up-right"></i>
-      </div>
+      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
 
-    <a class="dashboard-kpi kpi-warning"
-       href="{{ url_for('inventory_tracking') }}">
-      <div class="kpi-icon">
-        <i class="bi bi-exclamation-triangle"></i>
-      </div>
-
+    <a class="dashboard-kpi kpi-warning" href="{{ url_for('inventory_tracking') }}">
+      <div class="kpi-icon"><i class="ti ti-alert-triangle"></i></div>
       <div class="kpi-content">
         <div class="kpi-label">KRİTİK UYARILAR</div>
         <div class="kpi-value">{{ dashboard.critical_alerts }}</div>
-        <div class="kpi-description">
-          {{ dashboard.faulty_inventory }} arızalı envanter
-        </div>
+        <div class="kpi-description">{{ dashboard.faulty_inventory }} arızalı envanter</div>
       </div>
-
-      <div class="kpi-arrow">
-        <i class="bi bi-arrow-up-right"></i>
-      </div>
+      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
 
-    <a class="dashboard-kpi kpi-info"
-       href="{{ url_for('maintenance_tracking') }}">
-      <div class="kpi-icon">
-        <i class="bi bi-tools"></i>
-      </div>
-
+    <a class="dashboard-kpi kpi-info" href="{{ url_for('maintenance_tracking') }}">
+      <div class="kpi-icon"><i class="ti ti-tool"></i></div>
       <div class="kpi-content">
         <div class="kpi-label">BAKIM BEKLEYENLER</div>
         <div class="kpi-value">{{ dashboard.maintenance_due_count }}</div>
-        <div class="kpi-description">
-          {{ dashboard.maintenance_warning_count }} yakında bakım
-        </div>
+        <div class="kpi-description">{{ dashboard.maintenance_warning_count }} yakında bakım</div>
       </div>
-
-      <div class="kpi-arrow">
-        <i class="bi bi-arrow-up-right"></i>
-      </div>
+      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
-
   </section>
 
-  <!-- CONTENT -->
   <section class="dashboard-content">
-
-    <!-- ACTIVITIES -->
     <div class="dashboard-panel dashboard-activity-panel">
-
       <div class="dashboard-panel-header">
         <div>
-          <div class="panel-eyebrow">
-            <i class="bi bi-activity"></i>
-            SİSTEM
-          </div>
+          <div class="panel-eyebrow"><i class="ti ti-activity"></i> SİSTEM</div>
           <h2>Son Aktiviteler</h2>
         </div>
-
-        <a class="dashboard-panel-link"
-           href="{{ url_for('activity_logs') }}">
-          Tümünü Gör
-          <i class="bi bi-arrow-right"></i>
-        </a>
+        <a class="dashboard-panel-link" href="{{ url_for('activity_logs') }}">Tümünü Gör <i class="ti ti-arrow-right"></i></a>
       </div>
 
       {% set area_badges = {
@@ -130,141 +75,73 @@
       } %}
 
       <div class="dashboard-activity-list">
-
         {% if recent_activity %}
-
           {% for log in recent_activity %}
-
-          {% set badge = area_badges.get(
-            log.area,
-            {'label': log.area|capitalize, 'variant': 'dark'}
-          ) %}
-
-          <div class="dashboard-activity-item">
-
-            <div class="activity-marker marker-{{ badge.variant }}">
-              {% if log.area == 'envanter' %}
-                <i class="bi bi-pc-display"></i>
-              {% elif log.area == 'talep' %}
-                <i class="bi bi-clipboard-check"></i>
-              {% elif log.area == 'urun' %}
-                <i class="bi bi-box"></i>
-              {% elif log.area == 'kullanici' %}
-                <i class="bi bi-person"></i>
-              {% else %}
-                <i class="bi bi-circle"></i>
-              {% endif %}
+            {% set badge = area_badges.get(log.area, {'label': log.area|capitalize, 'variant': 'dark'}) %}
+            <div class="dashboard-activity-item">
+              <div class="activity-marker marker-{{ badge.variant }}">
+                {% if log.area == 'envanter' %}
+                  <i class="ti ti-device-desktop"></i>
+                {% elif log.area == 'talep' %}
+                  <i class="ti ti-clipboard-check"></i>
+                {% elif log.area == 'urun' %}
+                  <i class="ti ti-package"></i>
+                {% elif log.area == 'kullanici' %}
+                  <i class="ti ti-user"></i>
+                {% else %}
+                  <i class="ti ti-circle"></i>
+                {% endif %}
+              </div>
+              <div class="activity-body">
+                <div class="activity-top">
+                  <span class="activity-badge badge-{{ badge.variant }}">{{ badge.label }}</span>
+                  <span class="activity-date">{{ log.created_display }}</span>
+                </div>
+                <div class="activity-title">{{ log.action }}</div>
+                {% if log.description %}<div class="activity-description">{{ log.description }}</div>{% endif %}
+                <div class="activity-actor"><i class="ti ti-user-circle"></i> {{ log.actor }}</div>
+              </div>
             </div>
-
-            <div class="activity-body">
-
-              <div class="activity-top">
-                <span class="activity-badge badge-{{ badge.variant }}">
-                  {{ badge.label }}
-                </span>
-
-                <span class="activity-date">
-                  {{ log.created_display }}
-                </span>
-              </div>
-
-              <div class="activity-title">
-                {{ log.action }}
-              </div>
-
-              {% if log.description %}
-              <div class="activity-description">
-                {{ log.description }}
-              </div>
-              {% endif %}
-
-              <div class="activity-actor">
-                <i class="bi bi-person-circle"></i>
-                {{ log.actor }}
-              </div>
-
-            </div>
-
-          </div>
-
           {% endfor %}
-
         {% else %}
-
           <div class="dashboard-empty">
-            <div class="empty-icon">
-              <i class="bi bi-activity"></i>
-            </div>
+            <div class="empty-icon"><i class="ti ti-activity"></i></div>
             <strong>Henüz aktivite bulunmuyor</strong>
             <span>Sistemde gerçekleşen işlemler burada görünecek.</span>
           </div>
-
         {% endif %}
-
       </div>
-
     </div>
 
-    <!-- STOCK MOVEMENTS -->
     <div class="dashboard-panel">
-
       <div class="dashboard-panel-header">
         <div>
-          <div class="panel-eyebrow">
-            <i class="bi bi-arrow-left-right"></i>
-            STOK
-          </div>
+          <div class="panel-eyebrow"><i class="ti ti-arrows-left-right"></i> STOK</div>
           <h2>Son Stok Hareketleri</h2>
         </div>
-
-        <a class="dashboard-panel-link"
-           href="{{ url_for('stock_tracking') }}">
-          Stok Ekranı
-          <i class="bi bi-arrow-right"></i>
-        </a>
+        <a class="dashboard-panel-link" href="{{ url_for('stock_tracking') }}">Stok Ekranı <i class="ti ti-arrow-right"></i></a>
       </div>
 
       <div class="dashboard-stock-list">
-
         {% for movement in dashboard.recent_stock_movements %}
-
-        <div class="stock-movement-item">
-
-          <div class="stock-movement-icon">
-            <i class="bi bi-arrow-left-right"></i>
-          </div>
-
-          <div class="stock-movement-content">
-            <div class="stock-movement-title">
-              {{ movement.title }}
-            </div>
-
-            <div class="stock-movement-meta">
-              <span>{{ movement.operation }}</span>
-              <span class="meta-dot"></span>
-              <span>{{ movement.created_display }}</span>
+          <div class="stock-movement-item">
+            <div class="stock-movement-icon"><i class="ti ti-arrows-left-right"></i></div>
+            <div class="stock-movement-content">
+              <div class="stock-movement-title">{{ movement.title }}</div>
+              <div class="stock-movement-meta">
+                <span>{{ movement.operation }}</span><span class="meta-dot"></span><span>{{ movement.created_display }}</span>
+              </div>
             </div>
           </div>
-
-        </div>
-
         {% else %}
-
-        <div class="dashboard-empty">
-          <div class="empty-icon">
-            <i class="bi bi-box-seam"></i>
+          <div class="dashboard-empty">
+            <div class="empty-icon"><i class="ti ti-package"></i></div>
+            <strong>Henüz stok hareketi yok</strong>
+            <span>Stok giriş ve çıkışları burada görünecek.</span>
           </div>
-          <strong>Henüz stok hareketi yok</strong>
-          <span>Stok giriş ve çıkışları burada görünecek.</span>
-        </div>
-
         {% endfor %}
-
       </div>
-
     </div>
-
   </section>
-
 </div>
 {% endblock %}
