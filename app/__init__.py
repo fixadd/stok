@@ -11,7 +11,17 @@ import sys
 from .legacy import *  # noqa: F401,F403
 from .legacy import app, db
 from .bootstrap import configure_security
+from .services.activity_service import (
+    load_activity_logs as _service_load_activity_logs,
+    load_recent_activity as _service_load_recent_activity,
+    record_activity as _service_record_activity,
+)
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
+from .services.stock_audit_service import (
+    record_stock_audit as _service_record_stock_audit,
+    record_stock_log as _service_record_stock_log,
+    record_stock_movement as _service_record_stock_movement,
+)
 from .services.stock_metadata import configure_stock_metadata
 from .services.stock_payloads import (
     json_error as _service_json_error,
@@ -30,6 +40,12 @@ if _legacy_module is not None:
     # their old names avoids a flag-day rewrite of all legacy call sites.
     _legacy_module.build_inventory_stock_metadata = _service_build_inventory_stock_metadata
     _legacy_module.json_error = _service_json_error
+    _legacy_module.record_activity = _service_record_activity
+    _legacy_module.load_activity_logs = _service_load_activity_logs
+    _legacy_module.load_recent_activity = _service_load_recent_activity
+    _legacy_module.record_stock_movement = _service_record_stock_movement
+    _legacy_module.record_stock_audit = _service_record_stock_audit
+    _legacy_module.record_stock_log = _service_record_stock_log
     if _db_metadata:
         STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
