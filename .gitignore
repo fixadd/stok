@@ -11,3 +11,12 @@ venv/
 data/*
 !data/.gitkeep
 .venv/
+
+# Local/editor backup artifacts
+*.before-*
+*.bak
+*.backup
+*~
+
+# Generated audit/report artifacts
+backend-audit.txt
