@@ -1,57 +1,68 @@
-"""Dashboard read-model helpers."""
-
 from __future__ import annotations
 
-from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import func
 
-from ..models import InventoryItem
-from .maintenance_service import (
-    MAINTENANCE_INTERVAL_DAYS,
-    MAINTENANCE_WARNING_DAYS,
-    is_computer_hardware_type,
-)
+from ..models import InventoryItem, RequestGroup, RequestOrder, StockItem, StockMovement
+from .maintenance_helpers import calculate_maintenance_status
 
 
 def load_maintenance_metrics() -> dict[str, int]:
-    """Calculate maintenance counters from each active computer's latest record."""
-    items = (
-        InventoryItem.query
-        .filter(func.lower(InventoryItem.status).notin_(["hurda", "stokta"]))
-        .all()
-    )
-    today = date.today()
-    due = warning = overdue = current = none = 0
-
+    items = InventoryItem.query.filter(
+        func.lower(InventoryItem.status).notin_(["hurda", "stokta"])
+    ).all()
+    current_count = warning_count = overdue_count = none_count = due_count = 0
     for item in items:
-        if not is_computer_hardware_type(item.hardware_type.name if item.hardware_type else None):
-            continue
-        records = sorted(item.maintenances, key=lambda row: (row.performed_at, row.id), reverse=True)
+        records = sorted(item.maintenances or [], key=lambda row: (row.performed_at, row.id), reverse=True)
         if not records:
-            none += 1
-            due += 1
+            none_count += 1
             continue
-        next_date = (records[0].performed_at + timedelta(days=MAINTENANCE_INTERVAL_DAYS)).date()
-        days_until = (next_date - today).days
-        if days_until < 0:
-            overdue += 1
-            due += 1
-        elif days_until <= MAINTENANCE_WARNING_DAYS:
-            warning += 1
-            due += 1
+        status = calculate_maintenance_status(records[0].performed_at)
+        if status == "overdue":
+            overdue_count += 1
+            due_count += 1
+        elif status == "warning":
+            warning_count += 1
+            due_count += 1
         else:
-            current += 1
-
+            current_count += 1
     return {
-        "maintenance_current_count": current,
-        "maintenance_warning_count": warning,
-        "maintenance_overdue_count": overdue,
-        "maintenance_none_count": none,
-        "maintenance_due_count": due,
+        "maintenance_current_count": current_count,
+        "maintenance_warning_count": warning_count,
+        "maintenance_overdue_count": overdue_count,
+        "maintenance_none_count": none_count,
+        "maintenance_due_count": due_count,
     }
 
 
 def load_dashboard_metrics() -> dict[str, Any]:
-    return load_maintenance_metrics()
+    available_stock = db_sum = (
+        StockItem.query.with_entities(func.sum(StockItem.quantity))
+        .filter(StockItem.status == "stokta")
+        .scalar() or 0
+    )
+    total_stock = StockItem.query.with_entities(func.sum(StockItem.quantity)).scalar() or 0
+    open_request_count = RequestOrder.query.join(RequestGroup).filter(func.lower(RequestGroup.key) == "acik").count()
+    total_request_count = RequestOrder.query.count()
+    faulty_inventory_count = InventoryItem.query.filter(InventoryItem.status == "arizali").count()
+    critical_stock_count = StockItem.query.filter(StockItem.quantity <= 0).count()
+    maintenance_counts = load_maintenance_metrics()
+    critical_alerts = faulty_inventory_count + critical_stock_count + maintenance_counts["maintenance_due_count"]
+    recent_stock_movements = (
+        StockMovement.query.order_by(StockMovement.created_at.desc()).limit(5).all()
+    )
+    return {
+        "available_stock": int(available_stock),
+        "total_stock": int(total_stock),
+        "open_requests": int(open_request_count),
+        "total_requests": int(total_request_count),
+        "critical_alerts": int(critical_alerts),
+        "faulty_inventory": int(faulty_inventory_count),
+        "problem_stock": int(critical_stock_count),
+        "maintenance_due_count": int(maintenance_counts["maintenance_due_count"]),
+        "maintenance_warning_count": int(maintenance_counts["maintenance_warning_count"]),
+        "maintenance_overdue_count": int(maintenance_counts["maintenance_overdue_count"]),
+        "maintenance_none_count": int(maintenance_counts["maintenance_none_count"]),
+        "recent_stock_movements": recent_stock_movements,
+    }
