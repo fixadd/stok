@@ -17,6 +17,13 @@ from .services.activity_service import (
     record_activity as _service_record_activity,
 )
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
+from .services.maintenance_helpers import (
+    calculate_maintenance_status as _service_calculate_maintenance_status,
+    format_datetime_display as _service_format_datetime_display,
+    maintenance_row_class as _service_maintenance_row_class,
+    maintenance_status_badge_class as _service_maintenance_status_badge_class,
+    serialize_maintenance_record as _service_serialize_maintenance_record,
+)
 from .services.stock_audit_service import (
     record_stock_audit as _service_record_stock_audit,
     record_stock_log as _service_record_stock_log,
@@ -46,6 +53,11 @@ if _legacy_module is not None:
     _legacy_module.record_stock_movement = _service_record_stock_movement
     _legacy_module.record_stock_audit = _service_record_stock_audit
     _legacy_module.record_stock_log = _service_record_stock_log
+    _legacy_module.format_datetime_display = _service_format_datetime_display
+    _legacy_module.serialize_maintenance_record = _service_serialize_maintenance_record
+    _legacy_module.calculate_maintenance_status = _service_calculate_maintenance_status
+    _legacy_module.maintenance_status_badge_class = _service_maintenance_status_badge_class
+    _legacy_module.maintenance_row_class = _service_maintenance_row_class
     if _db_metadata:
         STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
