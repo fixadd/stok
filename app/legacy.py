@@ -5048,7 +5048,15 @@ MAINTENANCE_WARNING_DAYS = 15
 def load_maintenance_dashboard_counts() -> dict[str, int]:
     due_count = 0
     warning_count = 0
-    items = maintenance_candidate_items_query().all()
+
+    latest_by_item: dict[int, InventoryMaintenance] = {}
+    maintenance_records = InventoryMaintenance.query.order_by(
+        InventoryMaintenance.item_id, InventoryMaintenance.performed_at.desc()
+    ).all()
+    for record in maintenance_records:
+        latest_by_item.setdefault(record.item_id, record)
+
+    items = InventoryItem.query.options(joinedload(InventoryItem.hardware_type)).all()
     for item in items:
         if not is_computer_hardware_type(
             item.hardware_type.name if item.hardware_type else None
@@ -5057,7 +5065,7 @@ def load_maintenance_dashboard_counts() -> dict[str, int]:
         if (item.status or "").lower() in {"hurda", "stokta"}:
             continue
 
-        last_maintenance = max(item.maintenances, key=lambda record: record.performed_at) if item.maintenances else None
+        last_maintenance = latest_by_item.get(item.id)
         maintenance_status = calculate_maintenance_status(
             last_maintenance.performed_at if last_maintenance else None
         )["status"]
