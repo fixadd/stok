@@ -48,3 +48,22 @@ class User(db.Model):
         }
 
 
+class LdapProfile(db.Model):
+    __tablename__ = "ldap_profiles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    host = db.Column(db.String(256), nullable=False)
+    port = db.Column(db.Integer, nullable=False, default=389)
+    base_dn = db.Column(db.String(256), nullable=False)
+    bind_dn = db.Column(db.String(256), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "host": self.host,
+            "port": self.port,
+            "base_dn": self.base_dn,
+            "bind_dn": self.bind_dn,
+        }
