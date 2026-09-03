@@ -14,51 +14,8 @@
   </head>
   <body class="bg-body-tertiary {{ active_theme_class | default('') }}">
     <div class="page">
-      <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="light">
-        <div class="container-fluid">
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Menüyü aç/kapat">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
-            <a href="{{ url_for('index') }}" class="text-decoration-none">Stok Yönetim</a>
-          </h1>
-          <div class="collapse navbar-collapse" id="sidebar-menu">
-            <div class="navbar-nav pt-lg-3 w-100">
-              {% for section in sidebar_sections %}
-              <div class="nav-item nav-item-section text-secondary text-uppercase small fw-semibold mt-3 mb-1 px-2">{{ section.title }}</div>
-              {% for item in section.nav_items %}
-              <a class="nav-link {{ 'active' if item.key == active_page else '' }}" href="{{ url_for(item.endpoint) }}">
-                <span class="nav-link-icon"><i class="ti {{ item.icon | replace('bi ', '') | replace('bi-', 'ti-') }}"></i></span>
-                <span class="nav-link-title">{{ item.title }}</span>
-              </a>
-              {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </aside>
-      <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
-        <div class="container-xl">
-          <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
-            {% if active_user %}
-            <div class="nav-item dropdown">
-              <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Kullanıcı menüsü">
-                <span class="avatar avatar-sm">{{ (active_user.first_name or 'K')[:1] }}{{ (active_user.last_name or '')[:1] }}</span>
-                <div class="d-none d-xl-block ps-2">
-                  <div>{{ active_user.first_name }} {{ active_user.last_name }}</div>
-                  <div class="mt-1 small text-secondary">{{ system_role_labels.get(active_system_role, 'Kullanıcı') }}</div>
-                </div>
-              </a>
-              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                <a class="dropdown-item" href="{{ url_for('profile') }}"><i class="ti ti-user me-2"></i>Profil</a>
-                <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="{{ url_for('logout') }}"><i class="ti ti-logout me-2"></i>Çıkış Yap</a>
-              </div>
-            </div>
-            {% endif %}
-          </div>
-        </div>
-      </header>
+      {% include 'partials/sidebar.html' %}
+      {% include 'partials/topbar.html' %}
       <div class="page-wrapper">
         <div class="page-header d-print-none">
           <div class="container-xl">
