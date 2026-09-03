@@ -40,10 +40,15 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q app migrations tests
 
-      - name: Load Alembic migration scripts
+      - name: Validate Alembic heads
+        env:
+          DATABASE_URL: postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci
         run: python -m alembic heads
 
       - name: Run tests
         env:
           DATABASE_URL: postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci
         run: python -m pytest -q
+
+      - name: Build Docker image
+        run: docker build -t stok-web:ci .
