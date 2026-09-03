@@ -121,12 +121,8 @@ class SmokeRouteTests(unittest.TestCase):
         self.login_as(self.admin_id)
         with self.app.app_context():
             computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
-            item = (
-                InventoryItem.query
-                .filter_by(hardware_type_id=computer_type.id)
-                .filter(~InventoryItem.maintenances.any())
-                .first()
-            )
+            self.assertIsNotNone(computer_type)
+            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
             self.assertIsNotNone(item)
             db.session.add(
                 InventoryMaintenance(
