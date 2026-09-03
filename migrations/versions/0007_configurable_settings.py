@@ -89,7 +89,7 @@ def upgrade() -> None:
     for key, (label, scope, options) in seed.items():
         conn.execute(text("INSERT INTO setting_lists (key,label,scope,active,sort_order,created_at,updated_at) VALUES (:key,:label,:scope,TRUE,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT (key) DO NOTHING"), {"key": key, "label": label, "scope": scope})
         for order, (option_label, value) in enumerate(options):
-            conn.execute(text("INSERT INTO setting_options (setting_list_id,label,value,sort_order,active,created_at,updated_at) SELECT id,:label,:value,:sort_order,TRUE,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM setting_lists WHERE key=:key ON CONFLICT (setting_list_id,value) DO NOTHING"), {"key": key, "label": option_label, "value": value, "sort_order": order})
+            conn.execute(text("INSERT INTO setting_options (setting_list_id,label,value,sort_order,active,metadata_json,created_at,updated_at) SELECT id,:label,:value,:sort_order,TRUE,'{}'::jsonb,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM setting_lists WHERE key=:key ON CONFLICT (setting_list_id,value) DO NOTHING"), {"key": key, "label": option_label, "value": value, "sort_order": order})
 
 
 def downgrade() -> None:
