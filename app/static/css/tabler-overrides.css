@@ -1,5 +1,5 @@
 :root {
-  --tblr-primary: #206bc4;
+  --tblr-primary: #171717;
   --tblr-border-radius: 6px;
 }
 
@@ -39,28 +39,8 @@ body {
   width: 100%;
 }
 
-/* Keep existing application-specific components visually compatible with Tabler. */
-.dashboard-kpi,
-.dashboard-panel,
-.card,
-.modal-content,
-.table-responsive {
-  border-radius: var(--tblr-border-radius);
-}
-
-.dashboard-kpi:hover,
-.card:hover {
-  box-shadow: 0 0.25rem 0.75rem rgba(30, 41, 59, .08);
-}
-
 .table th {
   white-space: nowrap;
-}
-
-.form-control:focus,
-.form-select:focus,
-.form-check-input:focus {
-  box-shadow: 0 0 0 0.2rem rgba(32, 107, 196, .15);
 }
 
 .btn .ti,
