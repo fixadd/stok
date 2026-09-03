@@ -1,6 +1,7 @@
 name: Debug migrations
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 jobs:
   debug:
     runs-on: ubuntu-latest
