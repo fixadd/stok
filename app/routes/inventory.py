@@ -19,11 +19,10 @@ def register_inventory_routes(app, deps):
 
     @app.route("/lisans-takip")
     def license_tracking():
-        from .. import serialize_inventory_item, serialize_license_record
+        from .. import serialize_license_record
 
         payload = license_tracking_service.load_tracking_payload(
             serialize_license=serialize_license_record,
-            serialize_item=serialize_inventory_item,
         )
         return render_template(
             "license_tracking.html",
