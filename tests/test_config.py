@@ -31,6 +31,15 @@ def test_configure_sets_session_security(monkeypatch):
     assert app.permanent_session_lifetime.total_seconds() == 480 * 60
 
 
+def test_security_headers_are_added(monkeypatch):
+    app = configure(monkeypatch)
+    response = app.test_client().get("/")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+
+
 def test_production_requires_secret_key(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://stok:pass@localhost/stok")
     monkeypatch.setenv("APP_ENV", "production")
