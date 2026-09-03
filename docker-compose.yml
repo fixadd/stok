@@ -39,6 +39,11 @@ services:
       FLASK_APP: app
       FLASK_RUN_HOST: 0.0.0.0
       FLASK_RUN_PORT: 5001
+      APP_ENV: ${APP_ENV:-production}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+      SESSION_LIFETIME_MINUTES: ${SESSION_LIFETIME_MINUTES:-480}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stok}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-stok}
     volumes:
       - ./data:/app/data
