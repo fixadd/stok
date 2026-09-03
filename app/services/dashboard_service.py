@@ -8,7 +8,11 @@ from typing import Any
 from sqlalchemy import func
 
 from ..models import InventoryItem
-from .maintenance_service import MAINTENANCE_INTERVAL_DAYS, MAINTENANCE_WARNING_DAYS, is_computer_hardware_type
+from .maintenance_service import (
+    MAINTENANCE_INTERVAL_DAYS,
+    MAINTENANCE_WARNING_DAYS,
+    is_computer_hardware_type,
+)
 
 
 def load_maintenance_metrics() -> dict[str, int]:
