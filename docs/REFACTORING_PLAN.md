@@ -41,6 +41,18 @@ Güvenli şekilde taşınabilen inline script'ler `app/static/js/pages/` altına
 
 Yeni minimal/Vercel-benzeri görünüm `redesign.css` ile aktif. `tabler-overrides.css` yalnızca uyumluluk kurallarını içeriyor. Bilgi ekranı da aynı tasarım diline getirildi.
 
+### 6. Yapılandırılabilir ayarlar ve özel alan altyapısı
+
+Seçilebilir değerler için PostgreSQL tabanlı ayar listeleri ve seçenekleri, admin için hızlı `+`/dişli yönetimi, özel alanlar, alan grupları ve dashboard widget metadata'sı eklendi. Envanter özel alanları oluşturma/düzenleme akışına bağlandı; mevcut özel değerler düzenleme modalı açılırken yükleniyor. İsteğe bağlı özel alanlar boş bırakılabilir ve kısmi güncellemeler gönderilmediği alanları değiştirmiyor.
+
+### 7. Platform genişletme altyapısı
+
+Koşullu alan kuralları, bağımlı lookup'lar, rapor tanımları, bildirim kuralları ve API token metadata'sı için PostgreSQL/Alembic altyapısı eklendi. Ayar seçenekleri aktif/pasif tutulabiliyor; hard-delete yerine deaktivasyon yaklaşımı korunuyor.
+
+### 8. Migration ve CI doğrulaması
+
+Yeni migration'lar PostgreSQL 17 üzerinde temiz veritabanında doğrulandı. Seed kayıtları Python/ORM varsayılanlarına bağımlı olmayacak şekilde gerekli `active`, timestamp ve JSON değerlerini açıkça veriyor. Testler güncel migration head'i ve yeni yapılandırma tablolarını kontrol ediyor.
+
 ## Kalan büyük işler
 
 ### `app/legacy.py`
