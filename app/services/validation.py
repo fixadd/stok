@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+from typing import Any, Iterable
 
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -61,3 +63,38 @@ def non_negative_int(value: Any, field_name: str) -> tuple[int | None, str | Non
     if number < 0:
         return None, f"{field_name} negatif olamaz."
     return number, None
+
+
+def one_of(value: Any, field_name: str, allowed: Iterable[str]) -> tuple[str | None, str | None]:
+    normalized = "" if value is None else str(value).strip().lower()
+    choices = {str(item).strip().lower() for item in allowed}
+    if normalized not in choices:
+        return None, f"{field_name} geçerli bir seçenek olmalıdır."
+    return normalized, None
+
+
+def validate_date(value: Any, field_name: str) -> tuple[date | None, str | None]:
+    if isinstance(value, datetime):
+        return value.date(), None
+    if isinstance(value, date):
+        return value, None
+    text = "" if value is None else str(value).strip()
+    if not text:
+        return None, f"{field_name} zorunludur."
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(text, fmt).date(), None
+        except ValueError:
+            continue
+    return None, f"{field_name} geçerli bir tarih olmalıdır."
+
+
+def non_negative_decimal(value: Any, field_name: str, *, places: int = 2) -> tuple[Decimal | None, str | None]:
+    try:
+        number = Decimal(str(value).replace(",", "."))
+    except (InvalidOperation, TypeError, ValueError):
+        return None, f"{field_name} geçerli bir tutar olmalıdır."
+    if number < 0:
+        return None, f"{field_name} negatif olamaz."
+    quantum = Decimal(1).scaleb(-places)
+    return number.quantize(quantum), None
