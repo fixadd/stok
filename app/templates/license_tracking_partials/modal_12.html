@@ -1,0 +1,43 @@
+<div class="modal fade" id="licenseAssignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header license-modal-header">
+        <div>
+          <h5 class="modal-title text-white">Lisansı Ata</h5>
+          <p class="modal-subtitle text-white-50 mb-0">Lisansı bir personele veya envanter kaydına bağlayın.</p>
+        </div>
+        <button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4">
+          <span class="text-muted small d-block">Seçili Lisans</span>
+          <h6 class="mb-0" id="assignModalTitle">—</h6>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="assignResponsibleSelect">Sorumlu Personel</label>
+            <select class="form-select" id="assignResponsibleSelect" data-role="assign-responsible">
+              <option value="">Seçiniz</option>
+              {% for user in license_users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignInventorySelect">Bağlı Olduğu Envanter</label>
+            <select class="form-select" id="assignInventorySelect" data-role="assign-inventory">
+              <option value="">Seçiniz</option>
+              {% for inventory in license_inventory_options %}
+              <option value="{{ inventory.id }}">{{ inventory.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="button" id="licenseAssignSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,59 @@
+<div class="modal fade" id="licenseDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h5 class="modal-title" data-detail-field="title">Lisans Detayı</h5>
+            <p class="text-muted mb-0 small" data-detail-field="subtitle">Seçilen lisansa ait özet bilgiler.</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-primary" type="button" id="licenseDetailEditButton" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#licenseEditModal">Düzenle</button>
+            <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+          </div>
+        </div>
+        <div class="modal-body pt-3">
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="license-detail-modal-card h-100">
+                <h6 class="text-uppercase text-muted small mb-3">Temel Bilgiler</h6>
+                <dl class="row mb-0">
+                  <dt class="col-sm-5 text-muted small">Kayıt No</dt>
+                  <dd class="col-sm-7 fw-semibold" data-detail-field="number">—</dd>
+                  <dt class="col-sm-5 text-muted small">Lisans Adı</dt>
+                  <dd class="col-sm-7" data-detail-field="name">—</dd>
+                  <dt class="col-sm-5 text-muted small">Anahtar</dt>
+                  <dd class="col-sm-7" data-detail-field="key">—</dd>
+                  <dt class="col-sm-5 text-muted small">Durum</dt>
+                  <dd class="col-sm-7"><span class="license-status-badge status-aktif" data-detail-field="status">—</span></dd>
+                </dl>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="license-detail-modal-card h-100">
+                <h6 class="text-uppercase text-muted small mb-3">Atama Bilgileri</h6>
+                <dl class="row mb-0">
+                  <dt class="col-sm-5 text-muted small">Sorumlu</dt>
+                  <dd class="col-sm-7" data-detail-field="responsible">—</dd>
+                  <dt class="col-sm-5 text-muted small">Departman</dt>
+                  <dd class="col-sm-7" data-detail-field="department">—</dd>
+                  <dt class="col-sm-5 text-muted small">E-Posta</dt>
+                  <dd class="col-sm-7" data-detail-field="email">—</dd>
+                  <dt class="col-sm-5 text-muted small">Bağlı Envanter</dt>
+                  <dd class="col-sm-7" data-detail-field="inventory">—</dd>
+                  <dt class="col-sm-5 text-muted small">Fabrika</dt>
+                  <dd class="col-sm-7" data-detail-field="factory">—</dd>
+                  <dt class="col-sm-5 text-muted small">IFS No</dt>
+                  <dd class="col-sm-7" data-detail-field="ifs">—</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div class="license-history-card mt-4">
+            <h6 class="text-uppercase text-muted small mb-3">Geçmiş</h6>
+            <ul class="list-group list-group-flush license-history-list d-none" id="licenseHistoryList"></ul>
+            <div class="license-history-empty text-muted" id="licenseHistoryEmpty">Kayıt yok.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

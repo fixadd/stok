@@ -1,0 +1,263 @@
+<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
+            <div class="modal-content">
+
+              <div class="modal-header border-0 pb-0">
+
+                <div>
+
+                  <h5 class="modal-title" id="newRequestLabel">
+                    Yeni Talep Aç
+                  </h5>
+
+                  <p class="text-muted mb-0 small">
+                    Sipariş numarası belirleyin, talepleri satır satır ekleyin.
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Kapat"
+                ></button>
+
+              </div>
+
+              <div class="modal-body">
+
+                <form id="new-request-form">
+
+                  <div class="row g-3 mb-4">
+
+                    <div class="col-md-6">
+
+                      <label class="form-label">
+                        Sipariş No
+                      </label>
+
+                      <input
+                        type="text"
+                        class="form-control"
+                        name="order_no"
+                        placeholder="SIP-2024-020"
+                        required
+                      >
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                      <label class="form-label">
+                        Talep Sahibi
+                      </label>
+
+                      <div
+                        class="form-control-plaintext bg-light border rounded px-3 py-2"
+                        data-request-owner-display
+                      >
+                        {% if active_user %}
+                          {{ active_user.first_name }} {{ active_user.last_name }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+
+                      <input
+                        type="hidden"
+                        name="requested_by_id"
+                        data-request-owner-id
+                        value="{{ active_user.id if active_user else '' }}"
+                      >
+
+                      <div class="form-text text-muted" data-request-owner-department>
+                        Departman:
+                        {% if active_user and active_user.department %}
+                          {{ active_user.department }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="request-rows" data-rows-container>
+
+                    <div class="request-row" data-request-row>
+
+                      <div class="row g-3 align-items-end">
+
+                        <div class="col-md-4 col-lg-2">
+
+                          <label class="form-label">
+                            Ürün Tipi
+                          </label>
+
+                          <select
+                            class="form-select"
+                            name="category[]"
+                            required
+                          >
+                            <option value="cevre_birimi">
+                              Çevre Birimi
+                            </option>
+
+                            <option value="envanter">
+                              Envanter
+                            </option>
+
+                            <option value="yazici">
+                              IP Yazıcı
+                            </option>
+
+                            <option value="lisans">
+                              Lisans
+                            </option>
+                          </select>
+
+                        </div>
+
+
+                        <div class="col-md-4 col-lg-3">
+
+                          <label class="form-label">
+                            Donanım Tipi
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="hardware_type[]"
+                            list="hardware-types"
+                            placeholder="Örn. Laptop"
+                            required
+                          >
+
+                        </div>
+
+
+                        <div class="col-md-4 col-lg-1">
+
+                          <label class="form-label">
+                            Miktar
+                          </label>
+
+                          <input
+                            type="number"
+                            class="form-control"
+                            name="quantity[]"
+                            min="1"
+                            value="1"
+                            required
+                          >
+
+                        </div>
+
+
+                        <div class="col-md-4 col-lg-2">
+
+                          <label class="form-label">
+                            Marka
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="brand[]"
+                            list="hardware-brands"
+                            placeholder="Örn. Dell"
+                          >
+
+                        </div>
+
+
+                        <div class="col-md-4 col-lg-2">
+
+                          <label class="form-label">
+                            Model
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="model[]"
+                            list="hardware-models"
+                            placeholder="Model adı"
+                          >
+
+                        </div>
+
+
+                        <div class="col-md-8 col-lg-2">
+
+                          <label class="form-label">
+                            Açıklama
+                          </label>
+
+                          <input
+                            class="form-control"
+                            name="note[]"
+                            placeholder="Not ekleyin"
+                          >
+
+                        </div>
+
+
+                        <div class="col-12 d-flex justify-content-end">
+
+                          <button
+                            class="btn btn-outline-danger d-none"
+                            type="button"
+                            data-remove-row
+                          >
+                            <i class="bi bi-dash-circle me-1"></i>
+                            Satırı Sil
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="d-flex justify-content-between align-items-center mt-4">
+
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-add-row
+                    >
+                      <i class="bi bi-plus-lg me-1"></i>
+                      Satır Ekle
+                    </button>
+
+                    <div class="d-flex align-items-center gap-2">
+
+                      <button
+                        class="btn btn-light"
+                        type="button"
+                        data-bs-dismiss="modal"
+                      >
+                        Vazgeç
+                      </button>
+
+                      <button
+                        class="btn btn-primary"
+                        type="submit"
+                      >
+                        Talep Aç
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                </form>
+
+              </div>
+            </div>
+          </div>

@@ -1,0 +1,31 @@
+<div class="modal fade inventory-modal" id="inventoryFaultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="inventoryFaultForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Arızalı İşaretle</h5>
+          <p class="text-muted small mb-0">Seçilen envanter için arıza kaydı oluşturarak durumu güncelleyin.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="faultInventoryNo">Arızalı Cihaz No</label>
+          <input class="form-control" id="faultInventoryNo" name="inventory_no" type="text" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="faultReason">Arıza Nedeni</label>
+          <textarea class="form-control" id="faultReason" name="reason" rows="3" placeholder="Arıza detayını girin"></textarea>
+        </div>
+        <div class="mb-0">
+          <label class="form-label" for="faultLocation">Gönderildiği Yer</label>
+          <input class="form-control" id="faultLocation" name="location" type="text" placeholder="Servis veya depo bilgisi">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-warning" type="submit">Arızalı Yap</button>
+      </div>
+    </form>
+  </div>
+</div>

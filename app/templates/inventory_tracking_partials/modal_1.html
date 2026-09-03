@@ -1,0 +1,121 @@
+<div class="modal fade inventory-detail-modal" id="inventoryDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" data-inventory-detail="title">Envanter Detayı</h5>
+          <p class="text-muted mb-0 small" data-inventory-detail="subtitle">Seçilen kayda ait temel bilgiler ve işlem geçmişi.</p>
+        </div>
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="row g-4">
+          <div class="col-lg-7">
+            <div class="inventory-detail-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <p class="text-muted small mb-1">Envanter No</p>
+                  <h5 class="mb-0" data-detail-field="inventory_no">—</h5>
+                </div>
+                <span class="inventory-status-badge status-aktif" id="inventoryDetailStatus">Aktif</span>
+              </div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Bilgisayar Adı</span>
+                  <span class="detail-value" data-detail-field="computer_name">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Fabrika</span>
+                  <span class="detail-value" data-detail-field="factory">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Departman</span>
+                  <span class="detail-value" data-detail-field="department">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Donanım Tipi</span>
+                  <span class="detail-value" data-detail-field="hardware_type">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Marka</span>
+                  <span class="detail-value" data-detail-field="brand">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Model</span>
+                  <span class="detail-value" data-detail-field="model">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Sorumlu</span>
+                  <span class="detail-value" data-detail-field="responsible">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Seri No</span>
+                  <span class="detail-value" data-detail-field="serial_no">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">IFS No</span>
+                  <span class="detail-value" data-detail-field="ifs_no">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Kayıt Tarihi</span>
+                  <span class="detail-value" data-detail-field="created_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Son Güncelleme</span>
+                  <span class="detail-value" data-detail-field="updated_at">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Bağlı Makine No</span>
+                  <span class="detail-value" data-detail-field="related_machine_no">—</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Makine No</span>
+                  <span class="detail-value" data-detail-field="machine_no">—</span>
+                </div>
+                <div class="detail-item detail-item-note">
+                  <span class="detail-label">Not</span>
+                  <span class="detail-value" data-detail-field="note">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5 d-flex flex-column gap-3">
+            <div class="inventory-detail-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">Bağlı Lisanslar</h6>
+                <span class="badge rounded-pill bg-light text-muted" id="inventoryLicenseCount">0 kayıt</span>
+              </div>
+              <ul class="list-group inventory-license-list" id="inventoryLicenseList"></ul>
+            </div>
+            <div class="inventory-detail-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">İşlem Geçmişi</h6>
+              </div>
+              <div class="inventory-history" id="inventoryHistory"></div>
+
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  id="inventoryMaintenanceButton"
+                >
+                  <i class="bi bi-wrench-adjustable me-1"></i>
+                  Bakım Geçmişi
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  id="inventoryRefreshDetailButton"
+                >
+                  <i class="bi bi-arrow-clockwise me-1"></i>
+                  Yenile
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

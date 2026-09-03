@@ -1,0 +1,69 @@
+<div class="modal fade" id="inventoryMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" id="inventoryMaintenanceTitle">
+            Bakım Geçmişi
+          </h5>
+          <p class="text-muted mb-0 small" id="inventoryMaintenanceSubtitle">
+            Envantere ait bakım kayıtları.
+          </p>
+        </div>
+
+        <button
+          class="btn btn-light"
+          type="button"
+          data-bs-dismiss="modal"
+        >
+          Kapat
+        </button>
+      </div>
+
+      <div class="modal-body pt-3">
+
+        <div
+          id="inventoryMaintenanceAlert"
+          class="alert d-none"
+          role="alert"
+        ></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="text-muted small">Toplam kayıt</span>
+            <span
+              class="badge rounded-pill bg-light text-dark ms-2"
+              id="inventoryMaintenanceCount"
+            >
+              0
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="inventoryMaintenanceNewButton"
+          >
+            <i class="bi bi-plus-lg me-1"></i>
+            Yeni Bakım
+          </button>
+        </div>
+
+        <div
+          id="inventoryMaintenanceList"
+          class="maintenance-history-list"
+        ></div>
+
+        <div
+          id="inventoryMaintenanceEmpty"
+          class="text-center text-muted py-5 d-none"
+        >
+          <i class="bi bi-wrench-adjustable-circle fs-1 d-block mb-2"></i>
+          Bu envantere ait bakım kaydı bulunmuyor.
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

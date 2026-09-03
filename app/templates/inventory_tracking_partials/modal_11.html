@@ -1,0 +1,115 @@
+<div class="modal fade" id="inventoryMaintenanceFormModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content shadow-lg" id="inventoryMaintenanceForm">
+
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="inventoryMaintenanceFormTitle">
+            Yeni Bakım Kaydı
+          </h5>
+          <p class="text-muted mb-0 small">
+            Bakım bilgilerini girin.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Kapat"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+
+        <div
+          id="inventoryMaintenanceFormError"
+          class="alert alert-danger d-none"
+        ></div>
+
+        <input
+          type="hidden"
+          id="inventoryMaintenanceEditId"
+          value=""
+        >
+
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <label
+              for="inventoryMaintenancePerformedAt"
+              class="form-label"
+            >
+              Bakım Tarihi
+            </label>
+
+            <input
+              type="datetime-local"
+              class="form-control"
+              id="inventoryMaintenancePerformedAt"
+              name="performed_at"
+              required
+            >
+          </div>
+
+          <div class="col-md-6">
+            <label
+              for="inventoryMaintenancePerformedBy"
+              class="form-label"
+            >
+              Bakımı Yapan
+            </label>
+
+            <input
+              type="text"
+              class="form-control"
+              id="inventoryMaintenancePerformedBy"
+              name="performed_by"
+              placeholder="Örn. Kadir Can"
+              required
+            >
+          </div>
+
+          <div class="col-12">
+            <label
+              for="inventoryMaintenanceNote"
+              class="form-label"
+            >
+              Açıklama
+            </label>
+
+            <textarea
+              class="form-control"
+              id="inventoryMaintenanceNote"
+              name="note"
+              rows="5"
+              placeholder="Yapılan bakım işlemini açıklayın..."
+            ></textarea>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-light"
+          data-bs-dismiss="modal"
+        >
+          İptal
+        </button>
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+          id="inventoryMaintenanceSubmitButton"
+        >
+          <i class="bi bi-check-lg me-1"></i>
+          Kaydet
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>

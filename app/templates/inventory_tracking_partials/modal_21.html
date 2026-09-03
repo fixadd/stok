@@ -1,0 +1,91 @@
+<div class="modal fade inventory-modal" id="inventoryCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content" id="inventoryCreateForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Envanter Ekle</h5>
+          <p class="text-muted small mb-0">Ürün kataloğundan gelen seçeneklerle yeni envanter kaydı oluşturun.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryNo">Envanter No</label>
+            <input class="form-control" id="inventoryNo" name="inventory_no" type="text" placeholder="ENV-000500" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryComputerName">Bilgisayar Adı</label>
+            <input class="form-control" id="inventoryComputerName" name="computer_name" type="text" placeholder="PC-OFIS-10">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryFactory">Fabrika</label>
+            <select class="form-select" id="inventoryFactory" name="factory_id" required>
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryDepartment">Departman</label>
+            <select class="form-select" id="inventoryDepartment" name="department" required>
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for department in departments %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryType">Donanım Tipi</label>
+            <select class="form-select" id="inventoryType" name="hardware_type_id" required>
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for hardware_type in hardware_types %}
+              <option value="{{ hardware_type.id }}">{{ hardware_type.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryResponsible">Sorumlu Personel</label>
+            <select class="form-select" id="inventoryResponsible" name="responsible_user_id">
+              <option value="" selected>Seçiniz…</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryBrand">Marka</label>
+            <select class="form-select" id="inventoryBrand" name="brand_id" required>
+              {% for brand in brand_models %}
+              <option value="{{ brand.id }}">{{ brand.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryModel">Model</label>
+            <select class="form-select" id="inventoryModel" name="model_id" disabled required>
+              <option value="" selected>Önce marka seçiniz</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventorySerial">Seri No</label>
+            <input class="form-control" id="inventorySerial" name="serial_no" type="text" placeholder="SN123456789">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="inventoryIfs">IFS No</label>
+            <input class="form-control" id="inventoryIfs" name="ifs_no" type="text" placeholder="IFS-00001">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="inventoryNote">Açıklama / Notlar</label>
+            <textarea class="form-control" id="inventoryNote" name="note" rows="3" placeholder="Teslimat, garanti veya kullanım notları"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="submit">Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>

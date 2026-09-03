@@ -1,0 +1,25 @@
+<div class="modal fade" id="licenseStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="licenseStockForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" data-license-stock="title">Lisansı Stoğa Taşı</h5>
+          <p class="text-muted small mb-0">Seçili lisans stok takip ekranına aktarılacaktır.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" data-license-stock="message">Bu lisansı stok kayıtlarına taşımak istediğinize emin misiniz?</p>
+        <div class="alert alert-soft" data-license-stock="summary"></div>
+        <div class="mb-0">
+          <label class="form-label" for="licenseStockNote">Not (opsiyonel)</label>
+          <textarea class="form-control" id="licenseStockNote" rows="2" placeholder="İşlem hakkında kısa not"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="submit">Stok Girişini Onayla</button>
+      </div>
+    </form>
+  </div>
+</div>

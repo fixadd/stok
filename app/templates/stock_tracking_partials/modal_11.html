@@ -1,0 +1,34 @@
+<div class="modal fade" id="stockActionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="stockActionForm">
+      <div class="modal-header">
+        <h5 class="modal-title" data-stock-action="title">Stok İşlemi</h5>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" data-stock-action="message">Seçili stok kaydı üzerinde işlem yapacaksınız.</p>
+        <div class="mb-3 d-none" data-stock-action-quantity>
+          <label class="form-label" for="stockActionQuantity">Miktar</label>
+          <input class="form-control" id="stockActionQuantity" name="quantity" type="number" min="1" value="1">
+          <div class="form-text" data-stock-action-quantity-hint></div>
+        </div>
+        <div class="mb-3 d-none" data-stock-action-metadata-section>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label mb-0">Atama Bilgileri</label>
+            <span class="badge bg-light text-dark" data-stock-action="category"></span>
+          </div>
+          <div class="row g-3" data-stock-action-metadata-container></div>
+          <div class="alert alert-danger d-none mt-3" data-stock-action-metadata-error></div>
+        </div>
+        <div class="mb-0">
+          <label class="form-label" for="stockActionNote">Not (opsiyonel)</label>
+          <textarea class="form-control" id="stockActionNote" name="note" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="submit" data-stock-action="confirm">Onayla</button>
+      </div>
+    </form>
+  </div>
+</div>

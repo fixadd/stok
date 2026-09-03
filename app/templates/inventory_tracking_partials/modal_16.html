@@ -1,0 +1,42 @@
+<div class="modal fade" id="inventoryLicenseDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title" data-license-detail-field="title">Lisans Detayı</h5>
+          <p class="text-muted mb-0 small" data-license-detail-field="subtitle">Bağlı envantere ait bilgiler.</p>
+        </div>
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="license-detail-modal-card mb-3">
+          <dl class="row mb-0">
+            <dt class="col-sm-5 text-muted small">Lisans</dt>
+            <dd class="col-sm-7" data-license-detail-field="name">—</dd>
+            <dt class="col-sm-5 text-muted small">Anahtar</dt>
+            <dd class="col-sm-7" data-license-detail-field="key">—</dd>
+            <dt class="col-sm-5 text-muted small">Durum</dt>
+            <dd class="col-sm-7"><span class="license-status-badge status-aktif" data-license-detail-field="status">—</span></dd>
+            <dt class="col-sm-5 text-muted small">Sorumlu</dt>
+            <dd class="col-sm-7" data-license-detail-field="responsible">—</dd>
+            <dt class="col-sm-5 text-muted small">Departman</dt>
+            <dd class="col-sm-7" data-license-detail-field="department">—</dd>
+            <dt class="col-sm-5 text-muted small">E-Posta</dt>
+            <dd class="col-sm-7" data-license-detail-field="email">—</dd>
+            <dt class="col-sm-5 text-muted small">Bağlı Envanter</dt>
+            <dd class="col-sm-7" data-license-detail-field="inventory">—</dd>
+            <dt class="col-sm-5 text-muted small">Fabrika</dt>
+            <dd class="col-sm-7" data-license-detail-field="factory">—</dd>
+            <dt class="col-sm-5 text-muted small">IFS No</dt>
+            <dd class="col-sm-7" data-license-detail-field="ifs">—</dd>
+          </dl>
+        </div>
+        <div class="license-history-card">
+          <h6 class="text-uppercase text-muted small mb-3">Geçmiş</h6>
+          <ul class="list-group list-group-flush license-history-list d-none" id="inventoryLicenseHistoryList"></ul>
+          <div class="license-history-empty text-muted" id="inventoryLicenseHistoryEmpty">Kayıt bulunamadı.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

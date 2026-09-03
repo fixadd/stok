@@ -1,0 +1,168 @@
+<div class="modal-dialog modal-dialog-centered">
+
+            <div class="modal-content">
+
+              <div class="modal-header border-0 pb-0">
+
+                <h5 class="modal-title" id="requestActionLabel">
+                  Talep İşlemi
+                </h5>
+
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Kapat"
+                ></button>
+
+              </div>
+
+
+              <div class="modal-body">
+
+                <p class="mb-3" data-action-message>
+                  Seçili talep satırı için işlem yapın.
+                </p>
+
+
+                <div
+                  class="alert alert-light border d-none"
+                  role="alert"
+                  data-single-info
+                >
+                  <i class="bi bi-exclamation-circle me-2"></i>
+                  Bu satır 1 adet içeriyor, işlem tüm adetler için uygulanacak.
+                </div>
+
+
+                <div class="mb-3" data-quantity-group>
+
+                  <label
+                    class="form-label"
+                    for="action-quantity"
+                  >
+                    İşlem Yapılacak Miktar
+                  </label>
+
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="action-quantity"
+                    min="1"
+                    value="1"
+                  >
+
+                  <div
+                    class="form-text"
+                    data-quantity-hint
+                  ></div>
+
+                </div>
+
+
+                <div
+                  class="form-check form-switch d-none mb-3"
+                  data-ip-printer-toggle
+                >
+
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="ipPrinterToggle"
+                  >
+
+                  <label
+                    class="form-check-label"
+                    for="ipPrinterToggle"
+                  >
+                    IP yazıcı olarak kaydet
+                  </label>
+
+                  <div class="form-text">
+                    Seçildiğinde IP yazıcı alanları görüntülenir.
+                  </div>
+
+                </div>
+
+
+                <div
+                  class="mb-3 d-none"
+                  data-action-metadata-section
+                >
+
+                  <label class="form-label">
+                    Stok Kategorisi
+                  </label>
+
+                  <div
+                    class="form-control-plaintext bg-light border rounded px-3 py-2"
+                    data-action-category-label
+                  >
+                    —
+                  </div>
+
+                  <input
+                    type="hidden"
+                    data-action-category-value
+                  >
+
+                  <div class="form-text">
+                    Kategoriye göre zorunlu bilgileri doldurun.
+                  </div>
+
+                </div>
+
+
+                <div
+                  class="row g-3 d-none"
+                  data-action-metadata-container
+                ></div>
+
+
+                <div
+                  class="alert alert-danger d-none mt-3"
+                  data-action-metadata-error
+                ></div>
+
+
+                <div class="form-floating">
+
+                  <textarea
+                    class="form-control"
+                    placeholder="Not ekleyin"
+                    id="action-note"
+                    style="height: 120px"
+                  ></textarea>
+
+                  <label for="action-note">
+                    Not / Açıklama
+                  </label>
+
+                </div>
+
+              </div>
+
+
+              <div class="modal-footer border-0 pt-0">
+
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Vazgeç
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  data-confirm-action
+                >
+                  İşlemi Kaydet
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>

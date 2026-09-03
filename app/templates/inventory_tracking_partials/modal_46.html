@@ -1,0 +1,24 @@
+<div class="modal fade inventory-modal" id="inventoryScrapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="inventoryScrapForm">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Hurdaya Ayır</h5>
+          <p class="text-muted small mb-0">Ürünü hurda listesine taşıyacak ve bu ekrandan kaldıracak.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Bu envanter hurdaya ayrılacak. Onaylıyor musunuz?</p>
+        <div class="mb-0">
+          <label class="form-label" for="scrapNote">Açıklama (opsiyonel)</label>
+          <textarea class="form-control" id="scrapNote" name="note" rows="3" placeholder="Hurdaya ayırma nedeni veya not"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-danger" type="submit">Hurdaya Ayır</button>
+      </div>
+    </form>
+  </div>
+</div>

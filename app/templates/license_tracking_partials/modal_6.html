@@ -1,0 +1,40 @@
+<div class="modal fade" id="licenseCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header license-modal-header">
+        <div>
+          <h5 class="modal-title text-white">Yeni Lisans Ekle</h5>
+          <p class="modal-subtitle text-white-50 mb-0">Lisans envanterinize yeni bir kayıt ekleyin ve atama için hazır hale getirin.</p>
+        </div>
+        <button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form id="licenseCreateForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="licenseCreateName">Lisans Adı</label>
+              <select class="form-select" id="licenseCreateName" name="name" data-license-name-select required>
+                <option value="" selected disabled>Seçiniz</option>
+                {% for name in license_names %}
+                <option value="{{ name.name }}">{{ name.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="licenseCreateKey">Lisans Anahtarı</label>
+              <input class="form-control" id="licenseCreateKey" name="key" placeholder="XXXX-XXXX-XXXX" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="licenseCreateNote">Not</label>
+              <textarea class="form-control" id="licenseCreateNote" name="note" rows="2" placeholder="Lisans hakkında kısa bir not ekleyin"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-primary" type="button" id="licenseCreateSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>

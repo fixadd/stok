@@ -1,0 +1,52 @@
+<div class="modal fade inventory-modal" id="inventoryAssignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content" id="inventoryAssignForm">
+      <div class="modal-header">
+        <div>
+          <p class="text-uppercase text-muted small mb-1 fw-semibold">Envanter Yönetimi</p>
+          <h5 class="modal-title mb-0">Envanter Atama</h5>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="assignInventoryNo">Envanter No</label>
+            <input class="form-control" id="assignInventoryNo" name="inventory_no" type="text" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignFactory">Fabrika</label>
+            <select class="form-select" id="assignFactory" name="factory_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for factory in factories %}
+              <option value="{{ factory.id }}">{{ factory.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignDepartment">Departman</label>
+            <select class="form-select" id="assignDepartment" name="department">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for department in departments %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="assignUser">Sorumlu Personel</label>
+            <select class="form-select" id="assignUser" name="responsible_user_id">
+              <option value="" selected disabled>Seçiniz…</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}{% if user.department %} • {{ user.department }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Kapat</button>
+        <button class="btn btn-primary" type="submit">Atamayı Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>

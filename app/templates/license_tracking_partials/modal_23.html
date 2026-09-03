@@ -1,0 +1,71 @@
+<div class="modal fade" id="licenseEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <p class="text-uppercase text-muted small mb-1">Lisans Yönetimi</p>
+          <h5 class="modal-title mb-1">Lisans Bilgilerini Güncelleyin</h5>
+          <p class="text-muted small mb-0">Lisans kayıtlarını güncel tutarak kullanım ve atama geçmişini netleştirin.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body">
+        <form id="licenseEditForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="editLicenseName">Lisans Adı</label>
+              <select class="form-select" id="editLicenseName" name="edit_name" data-license-name-select required>
+                <option value="" disabled>Seçiniz</option>
+                {% for name in license_names %}
+                <option value="{{ name.name }}">{{ name.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editLicenseKey">Lisans Anahtarı</label>
+              <input class="form-control" id="editLicenseKey" name="edit_key" placeholder="XXXX-XXXX-XXXX" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editResponsibleSelect">Sorumlu Personel</label>
+              <select class="form-select" id="editResponsibleSelect" name="edit_responsible">
+                <option value="">Seçiniz</option>
+                {% for user in license_users %}
+                <option value="{{ user.id }}">{{ user.name }}{% if user.department %} · {{ user.department }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editInventorySelect">Bağlı Olduğu Envanter</label>
+              <select class="form-select" id="editInventorySelect" name="edit_inventory">
+                <option value="">Seçiniz</option>
+                {% for inventory in license_inventory_options %}
+                <option value="{{ inventory.id }}">{{ inventory.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editIfsInput">IFS No</label>
+              <input class="form-control" id="editIfsInput" name="edit_ifs" placeholder="IFS referansı">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="editEmailInput">Mail Adresi</label>
+              <input class="form-control" id="editEmailInput" name="edit_email" type="email" placeholder="ornek@firma.com">
+            </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editStatusSelect">Durum</label>
+            <select class="form-select" id="editStatusSelect" name="edit_status">
+              <option value="aktif">Aktif</option>
+              <option value="pasif">Pasif</option>
+              <option value="beklemede">Beklemede</option>
+            </select>
+          </div>
+        </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Vazgeç</button>
+        <button class="btn btn-primary" type="button" id="licenseEditSubmit">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
