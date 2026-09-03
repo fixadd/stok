@@ -11,6 +11,7 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/tabler-overrides.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/configurable-selects.css') }}" rel="stylesheet">
   </head>
   <body class="bg-body-tertiary {{ active_theme_class | default('') }}" data-is-admin="{{ '1' if is_admin_user else '0' }}">
     <div class="page">
