@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from ..models import RequestGroup, RequestLine, RequestOrder
 from .common import apply_limit
@@ -16,11 +17,7 @@ def get_group_by_key(key: str | None) -> RequestGroup | None:
     value = (key or "").strip()
     if not value:
         return None
-    return (
-        RequestGroup.query
-        .filter(func.lower(RequestGroup.key) == value.lower())
-        .first()
-    )
+    return RequestGroup.query.filter(func.lower(RequestGroup.key) == value.lower()).first()
 
 
 def list_groups(*, limit: int = 100) -> list[RequestGroup]:
@@ -38,9 +35,7 @@ def get_order_by_number(order_no: str | None) -> RequestOrder | None:
     value = (order_no or "").strip()
     if not value:
         return None
-    return RequestOrder.query.filter(
-        func.lower(RequestOrder.order_no) == value.lower()
-    ).first()
+    return RequestOrder.query.filter(func.lower(RequestOrder.order_no) == value.lower()).first()
 
 
 def list_orders(*, group_id: int | None = None, limit: int = 500) -> list[RequestOrder]:
@@ -55,11 +50,7 @@ def list_orders_by_requester(requested_by: str | None, *, limit: int = 500) -> l
     value = (requested_by or "").strip()
     if not value:
         return []
-    query = (
-        RequestOrder.query
-        .filter(func.lower(RequestOrder.requested_by) == value.lower())
-        .order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
-    )
+    query = RequestOrder.query.filter(func.lower(RequestOrder.requested_by) == value.lower()).order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
     return apply_limit(query, limit=limit).all()
 
 
@@ -67,11 +58,7 @@ def list_orders_by_department(department: str | None, *, limit: int = 500) -> li
     value = (department or "").strip()
     if not value:
         return []
-    query = (
-        RequestOrder.query
-        .filter(func.lower(RequestOrder.department) == value.lower())
-        .order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
-    )
+    query = RequestOrder.query.filter(func.lower(RequestOrder.department) == value.lower()).order_by(RequestOrder.opened_at.desc(), RequestOrder.id.desc())
     return apply_limit(query, limit=limit).all()
 
 
@@ -79,4 +66,12 @@ def list_order_lines(order_id: int | None, *, limit: int = 500) -> list[RequestL
     if order_id is None:
         return []
     query = RequestLine.query.filter(RequestLine.order_id == order_id).order_by(RequestLine.id)
+    return apply_limit(query, limit=limit).all()
+
+
+def list_groups_with_relations(*, limit: int = 100) -> list[RequestGroup]:
+    query = RequestGroup.query.options(
+        joinedload(RequestGroup.orders).joinedload(RequestOrder.lines),
+        joinedload(RequestGroup.orders).joinedload(RequestOrder.snapshots),
+    ).order_by(RequestGroup.id)
     return apply_limit(query, limit=limit).all()
