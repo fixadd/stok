@@ -1,5 +1,7 @@
 from flask import render_template
 
+from ..services import stock_service
+
 
 def register_stock_routes(app, deps):
     get_active_user = deps["get_active_user"]
@@ -7,7 +9,15 @@ def register_stock_routes(app, deps):
 
     @app.route("/stok-takip")
     def stock_tracking():
-        payload = deps["load_stock_payload"]()
+        from .. import STOCK_METADATA_FIELDS, build_stock_support_options
+        from .. import serialize_stock_item, serialize_stock_log
+
+        payload = stock_service.load_tracking_payload(
+            serialize_item=serialize_stock_item,
+            serialize_log=serialize_stock_log,
+            metadata_config=STOCK_METADATA_FIELDS,
+            support_options=build_stock_support_options(),
+        )
         return render_template(
             "stock_tracking.html",
             active_page="stock_tracking",
@@ -17,7 +27,11 @@ def register_stock_routes(app, deps):
 
     @app.route("/hurdalar")
     def scrap_inventory_page():
-        payload = deps["load_scrap_inventory_payload"]()
+        from .. import serialize_inventory_item
+
+        payload = stock_service.load_scrap_inventory_payload(
+            serialize_item=serialize_inventory_item,
+        )
         can_restore = has_system_role(get_active_user(), "superadmin")
         return render_template(
             "scrap_inventory.html",
