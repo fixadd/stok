@@ -4,7 +4,6 @@ from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..queries.user_queries import get_by_username
-from ..services.security import record_login_attempt
 from ..services.validation import validate_password
 from .index import register_index_routes
 
@@ -37,7 +36,6 @@ def register_auth_routes(app, deps):
             user = get_by_username(username)
 
             if user and user.password_hash and check_password_hash(user.password_hash, password):
-                record_login_attempt(True)
                 session.clear()
                 session.permanent = True
                 set_active_user(user)
@@ -57,7 +55,6 @@ def register_auth_routes(app, deps):
                 session.pop("post_password_change_redirect", None)
                 return redirect(target or url_for("index"))
 
-            record_login_attempt(False)
             error = "Kullanıcı adı veya şifre hatalı."
 
         return render_template(
