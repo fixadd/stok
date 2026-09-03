@@ -56,29 +56,19 @@ class SmokeRouteTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session["active_user_id"] = user_id
 
-    def test_database_path_environment_overrides_data_dir(self):
-        with tempfile.TemporaryDirectory() as data_dir, tempfile.TemporaryDirectory() as root_dir:
-            custom_database_path = os.path.join(root_dir, "external", "backup", "stok.db")
-            previous_data_dir = os.environ.get("DATA_DIR")
-            previous_database_path = os.environ.get("DATABASE_PATH")
-            os.environ["DATA_DIR"] = data_dir
-            os.environ["DATABASE_PATH"] = custom_database_path
-            try:
-                custom_app = create_app()
-                with custom_app.app_context():
-                    self.assertEqual(
-                        custom_app.config["DATABASE_PATH"], Path(custom_database_path).resolve()
-                    )
-                    self.assertEqual(custom_app.config["DATA_DIR"], Path(data_dir))
-            finally:
-                if previous_data_dir is None:
-                    os.environ.pop("DATA_DIR", None)
-                else:
-                    os.environ["DATA_DIR"] = previous_data_dir
-                if previous_database_path is None:
-                    os.environ.pop("DATABASE_PATH", None)
-                else:
-                    os.environ["DATABASE_PATH"] = previous_database_path
+    def test_database_url_environment_overrides_default(self):
+        previous_database_url = os.environ.get("DATABASE_URL")
+        custom_database_url = "postgresql+psycopg://stok:stok_ci_password@127.0.0.1:5432/stok_ci"
+        os.environ["DATABASE_URL"] = custom_database_url
+        try:
+            custom_app = create_app()
+            self.assertEqual(custom_app.config["SQLALCHEMY_DATABASE_URI"], custom_database_url)
+            self.assertEqual(custom_app.config["DATA_DIR"], Path(os.environ["DATA_DIR"]))
+        finally:
+            if previous_database_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = previous_database_url
 
     def test_login_page(self):
         resp = self.client.get("/giris")
@@ -131,7 +121,13 @@ class SmokeRouteTests(unittest.TestCase):
         self.login_as(self.admin_id)
         with self.app.app_context():
             computer_type = HardwareType.query.filter(HardwareType.name.ilike("%laptop%")).first()
-            item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
+            item = (
+                InventoryItem.query
+                .filter_by(hardware_type_id=computer_type.id)
+                .filter(~InventoryItem.maintenances.any())
+                .first()
+            )
+            self.assertIsNotNone(item)
             db.session.add(
                 InventoryMaintenance(
                     item_id=item.id,
