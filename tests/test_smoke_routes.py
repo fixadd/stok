@@ -124,6 +124,7 @@ class SmokeRouteTests(unittest.TestCase):
             self.assertIsNotNone(computer_type)
             item = InventoryItem.query.filter_by(hardware_type_id=computer_type.id).first()
             self.assertIsNotNone(item)
+            item.status = "aktif"
             db.session.add(
                 InventoryMaintenance(
                     item_id=item.id,
