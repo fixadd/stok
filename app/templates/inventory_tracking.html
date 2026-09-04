@@ -2419,25 +2419,3 @@ inventoryInitializeFilters();
   filterInventory();
 </script>
 {% endblock %}
-
-
-  document.querySelectorAll(".inventory-row").forEach((row) => {
-    row.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") {
-        return;
-      }
-
-      event.preventDefault();
-
-      const trigger = row.querySelector(".inventory-detail-trigger");
-
-      if (trigger) {
-        trigger.click();
-      }
-    });
-  });
-
-
-  window.addEventListener("unhandledrejection", (event) => {
-    console.error("Envanter işlem hatası:", event.reason);
-  });
