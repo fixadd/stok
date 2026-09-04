@@ -16,12 +16,13 @@ SYSTEM_ROLE_LEVELS = {
 
 
 def get_active_user() -> User | None:
+    from app import db
     from app.models import User
 
     user_id = session.get("active_user_id")
     if not user_id:
         return None
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user is None:
         return None
     if (user.employment_status or "aktif").strip().lower() != "aktif":
