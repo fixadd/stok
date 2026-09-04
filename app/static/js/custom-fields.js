@@ -2,12 +2,14 @@
   const originalFetch = window.fetch.bind(window);
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+  function isVisible(container) { return !container.classList.contains('d-none'); }
+
   function readCustomValues(form) {
     const values = {};
     if (!form) return values;
     form.querySelectorAll('[data-custom-field-key]').forEach((container) => {
       const input = container.querySelector('[name]');
-      if (!input) return;
+      if (!input || !isVisible(container)) return;
       const key = input.name;
       if (input.type === 'checkbox') {
         values[key] = input.checked;
