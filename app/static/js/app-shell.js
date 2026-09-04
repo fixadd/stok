@@ -23,6 +23,19 @@
   })();
   applyTheme(savedTheme || root.getAttribute('data-bs-theme') || 'dark');
 
+  // Older templates used Bootstrap Icons. Convert those classes to Tabler Icons
+  // at runtime so the application has one icon system without breaking legacy views.
+  const normalizeLegacyIcons = (scope = document) => {
+    scope.querySelectorAll?.('i.bi[class*="bi-"]').forEach((icon) => {
+      const legacy = [...icon.classList].find((name) => name.startsWith('bi-'));
+      if (!legacy) return;
+      const name = legacy.slice(3);
+      icon.classList.remove('bi', legacy);
+      icon.classList.add('ti', `ti-${name}`);
+    });
+  };
+  normalizeLegacyIcons();
+
   document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-theme-toggle]');
     if (!button) return;
