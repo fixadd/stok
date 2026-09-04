@@ -1,0 +1,152 @@
+:root {
+  --ui-bg: #0f172a;
+  --ui-surface: #1e293b;
+  --ui-surface-2: #161d2a;
+  --ui-surface-3: #111827;
+  --ui-border: #334155;
+  --ui-border-strong: #475569;
+  --ui-text: #f8fafc;
+  --ui-muted: #94a3b8;
+  --ui-subtle: #64748b;
+  --ui-primary: #0d6efd;
+}
+
+/* Enterprise shell: compact, flat, predictable */
+html[data-bs-theme="dark"],
+html[data-bs-theme="dark"] body,
+html[data-bs-theme="dark"] .page,
+html[data-bs-theme="dark"] .page-wrapper,
+html[data-bs-theme="dark"] .page-body {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text) !important;
+}
+
+html[data-bs-theme="dark"] .page-wrapper { min-width: 0; }
+html[data-bs-theme="dark"] .page-body { padding-bottom: 28px; }
+html[data-bs-theme="dark"] .container-xl { width: 100%; max-width: 1480px; }
+
+.app-sidebar {
+  width: 252px !important;
+  min-width: 252px !important;
+  background: #111827 !important;
+  border-right: 1px solid #263244 !important;
+}
+.app-sidebar .container-fluid { padding-left: 12px !important; padding-right: 12px !important; }
+.sidebar-brand-wrap { height: 70px !important; min-height: 70px !important; border-bottom-color: #263244 !important; }
+.navbar-brand { height: 70px !important; padding-left: 8px !important; }
+.brand-mark { width: 32px !important; height: 32px !important; border-radius: 4px !important; }
+.brand-copy strong { font-size: 13px !important; }
+.brand-copy small { font-size: 8px !important; }
+.sidebar-nav { padding-top: 10px !important; }
+.nav-item-section { margin-top: 16px !important; margin-bottom: 5px !important; }
+.nav-link { min-height: 38px !important; margin: 1px 0 !important; border-radius: 4px !important; }
+.nav-link-icon { flex: 0 0 22px !important; }
+.sidebar-footer { padding-left: 10px !important; padding-right: 10px !important; }
+
+.app-topbar {
+  height: 62px !important;
+  min-height: 62px !important;
+  background: #161d2a !important;
+  border-bottom: 1px solid #334155 !important;
+}
+.app-topbar .container-xl { max-width: none !important; }
+.topbar-search { width: min(440px, 42vw) !important; background: #111827 !important; border-color: #334155 !important; }
+.app-shell-icon-btn { border-radius: 4px !important; }
+
+/* Common page header */
+.page-header { padding-top: 14px !important; padding-bottom: 0 !important; }
+.page-body { padding-top: 10px !important; }
+.page-content > :first-child { margin-top: 0 !important; }
+
+/* Legacy cards are intentionally normalized instead of removed. */
+.card, .content-card, .dashboard-panel, .dashboard-kpi {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--ui-border) !important;
+  background: var(--ui-surface) !important;
+}
+.card-header, .content-card-header {
+  min-height: 48px;
+  background: #172235 !important;
+  border-bottom: 1px solid var(--ui-border) !important;
+}
+.card-title, .content-card-title { font-size: 14px !important; font-weight: 650 !important; }
+
+.table-responsive { border-radius: 4px !important; border-color: var(--ui-border) !important; }
+.table thead th { white-space: nowrap; }
+.table tbody tr { transition: background .12s ease; }
+.table td, .table th { vertical-align: middle; }
+
+.form-control, .form-select, .input-group-text { border-radius: 4px !important; }
+.form-control-sm, .form-select-sm { min-height: 32px !important; }
+.btn { border-radius: 4px !important; }
+.btn-sm { min-height: 32px; }
+
+/* Search/filter toolbars */
+.page-toolbar, .table-toolbar, .filter-toolbar, .search-filter-bar, .content-card-toolbar {
+  background: #172235 !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 4px !important;
+  padding: 10px !important;
+}
+
+/* Status colors remain visible without neon effects. */
+.badge.bg-success, .badge-success { background: #146c43 !important; }
+.badge.bg-warning, .badge-warning { background: #997404 !important; color: #fff !important; }
+.badge.bg-danger, .badge-danger { background: #b02a37 !important; }
+.badge.bg-info, .badge-info { background: #087990 !important; }
+
+/* Dashboard */
+.dashboard-page { max-width: none; }
+.dashboard-header { padding-bottom: 2px !important; }
+.dashboard-title { font-size: clamp(22px, 2vw, 28px) !important; }
+.dashboard-kpis { gap: 10px !important; }
+.dashboard-kpi { min-height: 112px !important; }
+.dashboard-content { gap: 12px !important; }
+.dashboard-panel { padding: 16px !important; }
+
+.dashboard-distribution { margin-top: 12px; }
+.dashboard-distribution-row { display: grid; grid-template-columns: 96px 1fr 42px; align-items: center; gap: 10px; margin-top: 9px; font-size: 11px; }
+.dashboard-distribution-label { color: #cbd5e1; }
+.dashboard-distribution-track { height: 7px; overflow: hidden; background: #111827; border: 1px solid #334155; border-radius: 2px; }
+.dashboard-distribution-bar { height: 100%; min-width: 2px; background: #0d6efd; }
+.dashboard-distribution-value { color: #f8fafc; text-align: right; font-weight: 700; }
+
+/* Empty states */
+.dashboard-empty, .empty-state { border: 1px dashed #475569 !important; border-radius: 4px !important; background: #172235 !important; }
+
+/* Modals/dropdowns */
+.modal-content, .dropdown-menu, .offcanvas, .popover, .toast {
+  border-radius: 4px !important;
+  border-color: var(--ui-border) !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,.32) !important;
+}
+
+/* Accessibility */
+:focus-visible { outline: 2px solid rgba(13,110,253,.75) !important; outline-offset: 2px; }
+
+@media (max-width: 1199.98px) {
+  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dashboard-content { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 991.98px) {
+  .app-sidebar { width: 100% !important; min-width: 100% !important; }
+  .topbar-search { width: 100% !important; }
+}
+@media (max-width: 575.98px) {
+  .dashboard-kpis { grid-template-columns: 1fr !important; }
+  .dashboard-header { display: block !important; }
+  .dashboard-actions { margin-top: 12px; }
+  .dashboard-actions .btn { flex: 1 1 auto; }
+  .dashboard-panel { padding: 13px !important; }
+  .page-body { padding-left: 8px !important; padding-right: 8px !important; }
+}
+
+html[data-bs-theme="light"] {
+  --ui-bg: #f4f6f8;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f1f4f8;
+  --ui-surface-3: #ffffff;
+  --ui-border: #d8dee6;
+  --ui-text: #172033;
+}
