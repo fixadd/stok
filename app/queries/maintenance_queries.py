@@ -5,7 +5,7 @@ from .common import apply_limit
 
 
 def get_item(item_id: int) -> InventoryItem | None:
-    return InventoryItem.query.get(item_id)
+    return InventoryItem.query.filter_by(id=item_id).first()
 
 
 def get_record(item_id: int, maintenance_id: int) -> InventoryMaintenance | None:
