@@ -196,5 +196,7 @@ def serialize_custom_field(field: CustomField) -> dict[str, Any]:
         "default_value": field.default_value or "",
         "sort_order": field.sort_order,
         "group_id": field.group_id,
+        "depends_on_field_id": field.depends_on_field_id,
+        "depends_on_values": field.depends_on_values or [],
         "options": [{"id": o.id, "label": o.label, "value": o.value, "active": o.active, "sort_order": o.sort_order} for o in field.options],
     }
