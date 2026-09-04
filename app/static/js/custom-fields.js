@@ -44,10 +44,33 @@
       const response = await originalFetch(`/api/custom-fields/inventory/${entityId}`, {
         headers: {'Accept': 'application/json', 'X-CSRF-Token': csrf},
       });
-      if (response.ok) setCustomValues(form, await response.json());
+      if (response.ok) { setCustomValues(form, await response.json()); applyDependencies(form); }
     } catch (_) {
       // Core inventory editing must continue even if optional custom data is unavailable.
     }
+  }
+
+  function applyDependencies(form) {
+    if (!form) return;
+    form.querySelectorAll('[data-custom-field-key]').forEach((container) => {
+      const dependsOn = container.dataset.dependsOnKey;
+      if (!dependsOn) return;
+      const parent = form.querySelector('[name="' + CSS.escape(dependsOn) + '"]');
+      if (!parent) return;
+      const selected = parent.multiple ? Array.from(parent.selectedOptions).map(o => o.value) : [parent.type === 'checkbox' ? String(parent.checked) : parent.value];
+      const allowed = (container.dataset.dependsOnValues || '').split(',').map(v => v.trim()).filter(Boolean);
+      const visible = !allowed.length || selected.some(value => allowed.includes(value));
+      container.classList.toggle('d-none', !visible);
+      const input = container.querySelector('[name]');
+      if (input) input.disabled = !visible;
+    });
+  }
+
+  function bindDependencies(form) {
+    if (!form || form.dataset.customDependenciesBound) return;
+    form.dataset.customDependenciesBound = '1';
+    form.addEventListener('change', () => applyDependencies(form));
+    applyDependencies(form);
   }
 
   function customFormForInventory() {
@@ -90,9 +113,11 @@
     return response;
   };
 
+  document.querySelectorAll('form[data-custom-entity]').forEach(bindDependencies);
+
   document.addEventListener('shown.bs.modal', (event) => {
     const modal = event.target;
     const form = modal?.querySelector('#inventoryEditForm[data-custom-entity="inventory"]');
-    if (form) loadCustomValues(form);
+    if (form) { bindDependencies(form); loadCustomValues(form); }
   });
 })();
