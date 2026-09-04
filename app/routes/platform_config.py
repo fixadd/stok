@@ -87,4 +87,27 @@ def register_platform_config_routes(app, deps):
             db.session.rollback(); return jsonify({"error": "Bildirim kuralı oluşturulamadı."}), 400
         return jsonify({"ok": True, "id": row}), 201
 
+
+    @bp.get("/api/platform/reports/<string:key>/data")
+    def report_data(key):
+        if (error := admin_error()): return error
+        row = db.session.execute(text("SELECT key, label, entity_type, definition_json FROM report_definitions WHERE key=:key AND active=TRUE"), {"key": key}).mappings().first()
+        if row is None: return jsonify({"error": "Rapor bulunamadı."}), 404
+        definition = row["definition_json"] or {}
+        allowed = {"inventory": ("inventory_items", ["id", "inventory_no", "brand", "model", "status"]), "stock": ("stock_items", ["id", "title", "category", "quantity", "status"])}
+        if row["entity_type"] not in allowed: return jsonify({"error": "Bu rapor tipi henüz desteklenmiyor."}), 400
+        table, default_columns = allowed[row["entity_type"]]
+        columns = [x for x in (definition.get("columns") or default_columns) if x in default_columns] or default_columns
+        rows = db.session.execute(text("SELECT " + ", ".join(columns) + " FROM " + table + " ORDER BY id DESC LIMIT 500")).mappings().all()
+        return jsonify({"report": {"key": row["key"], "label": row["label"], "columns": columns}, "rows": [dict(item) for item in rows]})
+
+    @bp.post("/api/platform/notifications/dispatch")
+    def dispatch_notification():
+        if (error := admin_error()): return error
+        data = request.get_json(silent=True) or {}
+        event_key = str(data.get("event_key", "")).strip()
+        if not event_key: return jsonify({"error": "event_key zorunludur."}), 400
+        rows = db.session.execute(text("SELECT key, label, channel, target_json FROM notification_rules WHERE active=TRUE AND event_key=:event_key"), {"event_key": event_key}).mappings().all()
+        return jsonify({"ok": True, "event_key": event_key, "matched_rules": [dict(row) for row in rows]})
+
     app.register_blueprint(bp)
