@@ -1,9 +1,17 @@
 <header class="navbar navbar-expand-md d-none d-lg-flex d-print-none app-topbar">
   <div class="container-xl">
-    <div class="d-flex align-items-center gap-3">
-      <span class="topbar-section-title">{{ active_page|default('Genel Bakış') }}</span>
+    <div class="topbar-left d-flex align-items-center gap-3">
+      <div class="topbar-search" role="search">
+        <i class="ti ti-search"></i>
+        <input type="search" class="topbar-search-input" placeholder="Ara..." aria-label="Ara" autocomplete="off">
+        <kbd>Ctrl K</kbd>
+      </div>
     </div>
-    <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
+    <div class="navbar-nav flex-row order-md-last ms-auto align-items-center gap-2">
+      <div class="topbar-context d-none d-xl-flex align-items-center">
+        <i class="ti ti-layout-dashboard"></i>
+        <span>{{ active_page|default('Genel Bakış') }}</span>
+      </div>
       {% if active_user %}
       <div class="nav-item dropdown">
         <a href="#" class="nav-link d-flex align-items-center lh-1 text-reset p-0 user-menu-link" data-bs-toggle="dropdown" aria-label="Kullanıcı menüsü">
@@ -15,11 +23,12 @@
           <i class="ti ti-chevron-down ms-2 text-secondary"></i>
         </a>
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+          <div class="dropdown-header">HESAP</div>
           <a class="dropdown-item" href="{{ url_for('profile') }}"><i class="ti ti-user me-2"></i>Profil</a>
           <div class="dropdown-divider"></div>
           <form method="post" action="{{ url_for('logout') }}" class="m-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="dropdown-item" type="submit"><i class="ti ti-logout me-2"></i>Çıkış Yap</button>
+            <button class="dropdown-item text-danger" type="submit"><i class="ti ti-logout me-2"></i>Çıkış Yap</button>
           </form>
         </div>
       </div>
