@@ -36,7 +36,7 @@ def test_postgresql_schema_contains_operational_tables():
 
     with engine.connect() as connection:
         revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        assert revision == "0009_platform_extensions"
+        assert revision == "0010_conditional_fields"
         metadata_count = connection.execute(
             text("SELECT COUNT(*) FROM stock_metadata_fields WHERE active = TRUE")
         ).scalar_one()
