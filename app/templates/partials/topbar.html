@@ -8,6 +8,12 @@
       </div>
     </div>
     <div class="navbar-nav flex-row order-md-last ms-auto align-items-center gap-2">
+      <a class="app-shell-icon-btn" href="{{ url_for('talep_takip') }}" aria-label="Yeni talep" title="Yeni talep">
+        <i class="ti ti-plus"></i>
+      </a>
+      <a class="app-shell-icon-btn position-relative" href="{{ url_for('activity_logs') }}" aria-label="Bildirimler ve son kayıtlar" title="Son kayıtlar">
+        <i class="ti ti-bell"></i>
+      </a>
       <button type="button" class="app-shell-icon-btn" data-theme-toggle aria-label="Açık temaya geç" title="Açık tema">
         <i class="ti ti-sun"></i>
       </button>
@@ -28,6 +34,7 @@
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
           <div class="dropdown-header">HESAP</div>
           <a class="dropdown-item" href="{{ url_for('profile') }}"><i class="ti ti-user me-2"></i>Profil</a>
+          <a class="dropdown-item" href="{{ url_for('activity_logs') }}"><i class="ti ti-bell me-2"></i>Son Kayıtlar</a>
           <div class="dropdown-divider"></div>
           <form method="post" action="{{ url_for('logout') }}" class="m-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
