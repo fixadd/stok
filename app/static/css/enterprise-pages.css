@@ -1,6 +1,5 @@
 /* BAYLAN STOK — enterprise dark page layer
- * Loaded after the shared design system. Keeps legacy page markup/JS intact
- * while normalising the remaining module-specific presentation.
+ * Keeps existing page markup/JS intact and normalises module presentation.
  */
 
 html[data-bs-theme="dark"] {
@@ -12,24 +11,38 @@ html[data-bs-theme="dark"] {
   --page-muted: #94a3b8;
 }
 
+/* Module shells */
 html[data-bs-theme="dark"] .content-card,
 html[data-bs-theme="dark"] .inventory-detail-card,
 html[data-bs-theme="dark"] .license-detail-modal-card,
 html[data-bs-theme="dark"] .stock-detail-card {
   background: var(--page-surface) !important;
-  border-color: var(--page-border) !important;
+  border: 1px solid var(--page-border) !important;
+  color: var(--page-text) !important;
 }
 
-html[data-bs-theme="dark"] .content-card > .stock-header,
-html[data-bs-theme="dark"] .content-card > .license-header,
-html[data-bs-theme="dark"] .content-card > .inventory-header,
-html[data-bs-theme="dark"] .content-card > .request-header,
-html[data-bs-theme="dark"] .content-card > .maintenance-header {
+html[data-bs-theme="dark"] .content-card > .d-flex:first-child,
+html[data-bs-theme="dark"] .content-card > .row:first-child {
+  position: relative;
+}
+
+/* Consistent page hero/header spacing without requiring markup changes. */
+html[data-bs-theme="dark"] .content-card > .d-flex:first-child {
+  padding: 16px !important;
+  margin: -1px -1px 0 !important;
   border-bottom: 1px solid var(--page-border);
   background: var(--page-surface-2);
+  border-radius: 4px 4px 0 0;
 }
+html[data-bs-theme="dark"] .content-card > .d-flex:first-child h1 {
+  color: var(--page-text) !important;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+html[data-bs-theme="dark"] .content-card > .d-flex:first-child p { color: var(--page-muted) !important; }
 
-/* Module headers */
+/* Dedicated module header classes, used by newer pages. */
 html[data-bs-theme="dark"] .stock-header,
 html[data-bs-theme="dark"] .inventory-header,
 html[data-bs-theme="dark"] .license-header,
@@ -37,6 +50,8 @@ html[data-bs-theme="dark"] .request-header,
 html[data-bs-theme="dark"] .maintenance-header {
   padding: 16px !important;
   gap: 12px;
+  border-bottom: 1px solid var(--page-border);
+  background: var(--page-surface-2);
 }
 html[data-bs-theme="dark"] .stock-header h1,
 html[data-bs-theme="dark"] .inventory-header h1,
@@ -54,29 +69,33 @@ html[data-bs-theme="dark"] .license-header p,
 html[data-bs-theme="dark"] .request-header p,
 html[data-bs-theme="dark"] .maintenance-header p { color: var(--page-muted) !important; }
 
-/* Toolbar controls */
+/* Toolbars */
 html[data-bs-theme="dark"] .stock-toolbar,
 html[data-bs-theme="dark"] .inventory-toolbar,
 html[data-bs-theme="dark"] .license-toolbar,
 html[data-bs-theme="dark"] .request-toolbar,
 html[data-bs-theme="dark"] .maintenance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 html[data-bs-theme="dark"] .stock-search,
 html[data-bs-theme="dark"] .inventory-search,
-html[data-bs-theme="dark"] .license-search { margin-top: 12px; }
+html[data-bs-theme="dark"] .license-search,
+html[data-bs-theme="dark"] .maintenance-search,
+html[data-bs-theme="dark"] .repair-search { min-width: 220px; }
 html[data-bs-theme="dark"] .search-input .input-group-text {
-  background: #111827 !important;
+  background: var(--page-surface-3) !important;
   border-color: var(--page-border) !important;
   color: #64748b !important;
 }
 html[data-bs-theme="dark"] .search-input .form-control {
-  background: #111827 !important;
+  background: var(--page-surface-3) !important;
   border-color: var(--page-border) !important;
   color: var(--page-text) !important;
 }
 
-/* Tables: dense enterprise layout */
+/* Tables — dense enterprise layout */
 html[data-bs-theme="dark"] .table-responsive {
   background: var(--page-surface) !important;
   border-color: var(--page-border) !important;
@@ -87,24 +106,23 @@ html[data-bs-theme="dark"] .table {
   --tblr-table-border-color: var(--page-border);
 }
 html[data-bs-theme="dark"] .table thead th {
-  background: #172235 !important;
+  background: var(--page-surface-2) !important;
   color: #94a3b8 !important;
   border-bottom-color: var(--page-border) !important;
   font-size: 10px;
   font-weight: 650;
   letter-spacing: .055em;
+  text-transform: uppercase;
 }
 html[data-bs-theme="dark"] .table tbody td {
   color: #e2e8f0 !important;
   border-color: #263244 !important;
 }
-html[data-bs-theme="dark"] .table tbody tr:hover > td {
-  background: #243247 !important;
-}
+html[data-bs-theme="dark"] .table tbody tr:hover > td { background: #243247 !important; }
 html[data-bs-theme="dark"] .table .text-muted,
 html[data-bs-theme="dark"] .table .text-secondary { color: #94a3b8 !important; }
 
-/* Stock-specific controls */
+/* Stock */
 html[data-bs-theme="dark"] .stock-tabs { border-bottom-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .stock-tabs .nav-link.active {
   color: #fff !important;
@@ -123,13 +141,13 @@ html[data-bs-theme="dark"] .stock-category-filters .btn-check:checked + .btn {
   border-color: #0d6efd !important;
 }
 html[data-bs-theme="dark"] .stock-category-filters .badge {
-  background: #111827 !important;
+  background: var(--page-surface-3) !important;
   color: #cbd5e1 !important;
-  border-color: #334155 !important;
+  border-color: var(--page-border) !important;
 }
 html[data-bs-theme="dark"] .stock-summary-chip,
 html[data-bs-theme="dark"] .license-counter-card {
-  background: #172235 !important;
+  background: var(--page-surface-2) !important;
   border-color: var(--page-border) !important;
 }
 html[data-bs-theme="dark"] .stock-summary-count,
@@ -137,13 +155,23 @@ html[data-bs-theme="dark"] .license-counter-value { color: #f8fafc !important; }
 html[data-bs-theme="dark"] .stock-summary-label,
 html[data-bs-theme="dark"] .license-counter-label { color: #94a3b8 !important; }
 
-/* Buttons: keep Bootstrap semantics, remove legacy white surfaces */
+/* KPI cards */
+html[data-bs-theme="dark"] .content-card .card,
+html[data-bs-theme="dark"] .content-card .card.shadow-sm,
+html[data-bs-theme="dark"] .row > [class*="col-"] > .card {
+  background: var(--page-surface) !important;
+  border: 1px solid var(--page-border) !important;
+  box-shadow: none !important;
+}
+html[data-bs-theme="dark"] .row > [class*="col-"] > .card .card-body { color: var(--page-text); }
+
+/* Buttons */
 html[data-bs-theme="dark"] .btn-outline-secondary,
 html[data-bs-theme="dark"] .btn-outline-primary,
 html[data-bs-theme="dark"] .btn-light,
 html[data-bs-theme="dark"] .btn-secondary {
   color: #cbd5e1 !important;
-  background: #172235 !important;
+  background: var(--page-surface-2) !important;
   border-color: var(--page-border) !important;
 }
 html[data-bs-theme="dark"] .btn-outline-secondary:hover,
@@ -154,10 +182,7 @@ html[data-bs-theme="dark"] .btn-secondary:hover {
   background: #243247 !important;
   border-color: #475569 !important;
 }
-html[data-bs-theme="dark"] .btn-primary {
-  background: #0d6efd !important;
-  border-color: #0d6efd !important;
-}
+html[data-bs-theme="dark"] .btn-primary { background: #0d6efd !important; border-color: #0d6efd !important; }
 html[data-bs-theme="dark"] .btn-warning {
   color: #fef3c7 !important;
   background: #5b4600 !important;
@@ -168,7 +193,7 @@ html[data-bs-theme="dark"] .btn-warning {
 html[data-bs-theme="dark"] .dropdown-menu,
 html[data-bs-theme="dark"] .modal-content,
 html[data-bs-theme="dark"] .offcanvas {
-  background: #1e293b !important;
+  background: var(--page-surface) !important;
   border-color: var(--page-border) !important;
 }
 html[data-bs-theme="dark"] .dropdown-item { color: #e2e8f0 !important; }
@@ -176,7 +201,7 @@ html[data-bs-theme="dark"] .dropdown-item:hover,
 html[data-bs-theme="dark"] .dropdown-item:focus { background: #243247 !important; color: #fff !important; }
 html[data-bs-theme="dark"] .form-control,
 html[data-bs-theme="dark"] .form-select {
-  background: #111827 !important;
+  background: var(--page-surface-3) !important;
   color: #f8fafc !important;
   border-color: var(--page-border) !important;
 }
@@ -187,15 +212,15 @@ html[data-bs-theme="dark"] .form-select:focus {
 }
 html[data-bs-theme="dark"] .form-label { color: #cbd5e1 !important; }
 
-/* Legacy detail/status blocks */
+/* Detail/status blocks */
 html[data-bs-theme="dark"] .detail-grid,
 html[data-bs-theme="dark"] .status-toggle,
 html[data-bs-theme="dark"] .admin-toggle,
 html[data-bs-theme="dark"] .status-pills {
-  background: #111827 !important;
+  background: var(--page-surface-3) !important;
   border-color: var(--page-border) !important;
 }
-html[data-bs-theme="dark"] .detail-item { background: #1e293b !important; }
+html[data-bs-theme="dark"] .detail-item { background: var(--page-surface) !important; }
 html[data-bs-theme="dark"] .detail-label { color: #64748b !important; }
 html[data-bs-theme="dark"] .detail-value { color: #e2e8f0 !important; }
 html[data-bs-theme="dark"] .status-pill.active,
@@ -206,13 +231,23 @@ html[data-bs-theme="dark"] .status-toggle button.active {
   box-shadow: none !important;
 }
 
-/* Mobile: never allow toolbars to create horizontal overflow */
+/* Legacy light badges/alerts inside dark modules */
+html[data-bs-theme="dark"] .bg-light,
+html[data-bs-theme="dark"] .badge.bg-light,
+html[data-bs-theme="dark"] .alert-soft {
+  background: var(--page-surface-2) !important;
+  color: #cbd5e1 !important;
+  border-color: var(--page-border) !important;
+}
+
+/* Prevent the large legacy rounded treatment. */
+html[data-bs-theme="dark"] .rounded,
+html[data-bs-theme="dark"] .rounded-3,
+html[data-bs-theme="dark"] .rounded-4 { border-radius: 4px !important; }
+
+/* Mobile */
 @media (max-width: 767.98px) {
-  html[data-bs-theme="dark"] .stock-header,
-  html[data-bs-theme="dark"] .inventory-header,
-  html[data-bs-theme="dark"] .license-header,
-  html[data-bs-theme="dark"] .request-header,
-  html[data-bs-theme="dark"] .maintenance-header { padding: 13px !important; }
+  html[data-bs-theme="dark"] .content-card > .d-flex:first-child { padding: 13px !important; }
   html[data-bs-theme="dark"] .stock-toolbar,
   html[data-bs-theme="dark"] .inventory-toolbar,
   html[data-bs-theme="dark"] .license-toolbar,
@@ -224,6 +259,7 @@ html[data-bs-theme="dark"] .status-toggle button.active {
   html[data-bs-theme="dark"] .stock-search,
   html[data-bs-theme="dark"] .inventory-search,
   html[data-bs-theme="dark"] .license-search { min-width: 100%; }
+  html[data-bs-theme="dark"] .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (min-width: 992px) {
