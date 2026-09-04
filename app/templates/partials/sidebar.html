@@ -1,15 +1,15 @@
-<aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="light">
+<aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
   <div class="container-fluid">
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Menüyü aç/kapat">
       <span class="navbar-toggler-icon"></span>
     </button>
     <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
-      <a href="{{ url_for('index') }}" class="text-decoration-none">Stok Yönetim</a>
+      <a href="{{ url_for('index') }}" class="text-decoration-none"><span class="brand-mark">S</span><span>Stok Yönetim</span></a>
     </h1>
     <div class="collapse navbar-collapse" id="sidebar-menu">
       <div class="navbar-nav pt-lg-3 w-100">
         {% for section in sidebar_sections %}
-        <div class="nav-item nav-item-section text-secondary text-uppercase small fw-semibold mt-3 mb-1 px-2">{{ section.title }}</div>
+        <div class="nav-item nav-item-section text-uppercase">{{ section.title }}</div>
         {% for item in section.nav_items %}
         <a class="nav-link {{ 'active' if item.key == active_page else '' }}" href="{{ url_for(item.endpoint) }}">
           <span class="nav-link-icon"><i class="ti {{ item.icon | replace('bi ', '') | replace('bi-', 'ti-') }}"></i></span>
