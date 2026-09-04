@@ -1,7 +1,7 @@
 """Add conditional custom field dependencies
 
 Revision ID: 0010_conditional_fields
-Revises: 0009_platform_config
+Revises: 0009_platform_extensions
 Create Date: 2026-09-04
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0010_conditional_fields"
-down_revision = "0009_platform_config"
+down_revision = "0009_platform_extensions"
 branch_labels = None
 depends_on = None
 
