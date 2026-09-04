@@ -87,6 +87,8 @@ class CustomField(db.Model):
     regex_pattern = db.Column(db.String(500))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     settings_json = db.Column(JSONB, nullable=False, default=dict)
+    depends_on_field_id = db.Column(db.Integer, db.ForeignKey("custom_fields.id", ondelete="SET NULL"), nullable=True, index=True)
+    depends_on_values = db.Column(JSONB, nullable=False, default=list)
 
     group = db.relationship("FieldGroup", back_populates="fields")
     options = db.relationship(
