@@ -27,7 +27,7 @@ def register_information_routes(app, deps):
             flash(title_error or content_error or "Kategori seçimi zorunludur.", "danger")
             return redirect(url_for("information_list"))
 
-        category = deps["InfoCategory"].query.get(category_id)
+        category = deps["db"].session.get(deps["InfoCategory"], category_id)
         if category is None:
             flash("Seçilen kategori bulunamadı.", "danger")
             return redirect(url_for("information_list"))
@@ -99,7 +99,7 @@ def register_information_routes(app, deps):
                 flash(title_error or content_error or "Kategori seçimi zorunludur.", "danger")
                 return redirect(url_for("information_edit", entry_id=entry.id))
 
-            category = deps["InfoCategory"].query.get(category_id)
+            category = deps["db"].session.get(deps["InfoCategory"], category_id)
             if category is None:
                 flash("Seçilen kategori bulunamadı.", "danger")
                 return redirect(url_for("information_edit", entry_id=entry.id))
