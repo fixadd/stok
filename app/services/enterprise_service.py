@@ -65,6 +65,8 @@ def apply_filter_rules(items: Iterable[Any], spec: FilterSpec, getter=None) -> l
         raise ValueError(f"Desteklenmeyen filtre operatörü: {rule.operator}")
 
     rules = spec.rules
+    if not rules:
+        return list(items)
     return [item for item in items if (all(matches(item, r) for r in rules) if spec.match == "all" else any(matches(item, r) for r in rules))]
 
 
