@@ -35,6 +35,9 @@ def build_form_schema(entity_type: str) -> list[dict[str, Any]]:
             "default_value": field.default_value,
             "group_id": field.group_id,
             "group_label": groups[field.group_id].label if field.group_id in groups else None,
+            "depends_on_field_id": field.depends_on_field_id,
+            "depends_on_key": field.depends_on_field.field_key if field.depends_on_field_id and field.depends_on_field else None,
+            "depends_on_values": field.depends_on_values or [],
             "options": [
                 {"value": option.value, "label": option.label}
                 for option in field.options if option.active
