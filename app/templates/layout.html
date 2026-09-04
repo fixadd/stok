@@ -11,8 +11,8 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/tabler-overrides.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/dark-theme.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/configurable-selects.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/dark-theme.css') }}" rel="stylesheet">
   </head>
   <body class="bg-body-tertiary {{ active_theme_class | default('') }}" data-is-admin="{{ '1' if is_admin_user else '0' }}">
     <div class="page">
@@ -45,7 +45,7 @@
             <div class="page-content">{% block main %}{% endblock %}</div>
           </div>
         </div>
-        <footer class="footer footer-transparent d-print-none"><div class="container-xl"><div class="row text-center align-items-center"><div class="col-12 col-lg-auto mt-3 mt-lg-0">Stok Yönetim Sistemi</div></div></div></footer>
+        <footer class="footer footer-transparent d-print-none"><div class="container-xl"><div class="row text-center align-items-center"><div class="col-12 col-lg-auto mt-3 mt-lg-0">BAYLAN IT · Stok Yönetim Sistemi</div></div></div></footer>
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
