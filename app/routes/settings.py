@@ -102,7 +102,10 @@ def register_settings_routes(app, deps=None):
                 required=_bool(data.get("required")), active=True, visible_form=_bool(data.get("visible_form"), True),
                 visible_list=_bool(data.get("visible_list")), searchable=_bool(data.get("searchable")), sortable=_bool(data.get("sortable")),
                 placeholder=str(data.get("placeholder", "")).strip() or None, help_text=str(data.get("help_text", "")).strip() or None,
-                default_value=str(data.get("default_value", "")).strip() or None, sort_order=int(data.get("sort_order", 0) or 0))
+                default_value=str(data.get("default_value", "")).strip() or None, sort_order=int(data.get("sort_order", 0) or 0),
+                group_id=int(data["group_id"]) if data.get("group_id") else None,
+                depends_on_field_id=int(data["depends_on_field_id"]) if data.get("depends_on_field_id") else None,
+                depends_on_values=data.get("depends_on_values") or [])
             db.session.add(field); audit("ozel_alan_ekle", f"{label} alanı oluşturuldu."); db.session.commit()
             return jsonify({"ok": True, "field": serialize_custom_field(field)})
         except (ValueError, TypeError) as exc:
@@ -123,6 +126,9 @@ def register_settings_routes(app, deps=None):
             for key in ("required", "active", "visible_form", "visible_list", "searchable", "sortable"):
                 if key in data: setattr(field, key, _bool(data[key]))
             if "sort_order" in data: field.sort_order = int(data["sort_order"])
+            if "group_id" in data: field.group_id = int(data["group_id"]) if data["group_id"] else None
+            if "depends_on_field_id" in data: field.depends_on_field_id = int(data["depends_on_field_id"]) if data["depends_on_field_id"] else None
+            if "depends_on_values" in data: field.depends_on_values = data["depends_on_values"] or []
             audit("ozel_alan_guncelle", f"{field.label} alanı güncellendi."); db.session.commit()
             return jsonify({"ok": True, "field": serialize_custom_field(field)})
         except (ValueError, TypeError) as exc:
