@@ -19,8 +19,8 @@
 
   <section class="dashboard-kpis">
     <a class="dashboard-kpi kpi-primary" href="{{ url_for('inventory_tracking') }}">
-      <div class="kpi-icon"><i class="ti ti-devices"></i></div>
-      <div class="kpi-content"><div class="kpi-label">ENVANTER</div><div class="kpi-value">{{ dashboard.faulty_inventory + dashboard.maintenance_due_count }}</div><div class="kpi-description">{{ dashboard.faulty_inventory }} arızalı · {{ dashboard.maintenance_due_count }} bakım bekliyor</div></div>
+      <div class="kpi-icon"><i class="ti ti-device-desktop"></i></div>
+      <div class="kpi-content"><div class="kpi-label">SORUNLU VARLIKLAR</div><div class="kpi-value">{{ dashboard.faulty_inventory }}</div><div class="kpi-description">Arızalı envanter kaydı</div></div>
       <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
     <a class="dashboard-kpi kpi-success" href="{{ url_for('stock_tracking') }}">
@@ -84,12 +84,14 @@
           <div class="dashboard-empty"><div class="empty-icon"><i class="ti ti-package"></i></div><strong>Henüz stok hareketi yok</strong><span>Stok giriş ve çıkışları burada görünecek.</span></div>
         {% endfor %}
       </div>
-      <div class="dashboard-health">
-        <div class="health-title">SİSTEM DURUMU</div>
-        <div class="health-row"><span><i class="ti ti-circle-check text-success"></i> Normal stok</span><strong>{{ dashboard.available_stock }}</strong></div>
-        <div class="health-row"><span><i class="ti ti-alert-triangle text-warning"></i> Kritik stok</span><strong>{{ dashboard.problem_stock }}</strong></div>
-        <div class="health-row"><span><i class="ti ti-tool text-info"></i> Bakım</span><strong>{{ dashboard.maintenance_due_count }}</strong></div>
-        <div class="health-row"><span><i class="ti ti-alert-circle text-danger"></i> Arızalı</span><strong>{{ dashboard.faulty_inventory }}</strong></div>
+      <div class="dashboard-health mt-3 pt-3 border-top">
+        <div class="health-title text-secondary small fw-semibold mb-2">SİSTEM DURUMU</div>
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between"><span><i class="ti ti-circle-check text-success me-1"></i> Normal stok</span><strong>{{ dashboard.available_stock }}</strong></div>
+          <div class="d-flex justify-content-between"><span><i class="ti ti-alert-triangle text-warning me-1"></i> Kritik stok</span><strong>{{ dashboard.problem_stock }}</strong></div>
+          <div class="d-flex justify-content-between"><span><i class="ti ti-tool text-info me-1"></i> Bakım</span><strong>{{ dashboard.maintenance_due_count }}</strong></div>
+          <div class="d-flex justify-content-between"><span><i class="ti ti-alert-circle text-danger me-1"></i> Arızalı</span><strong>{{ dashboard.faulty_inventory }}</strong></div>
+        </div>
       </div>
     </div>
   </section>
