@@ -1,9 +1,9 @@
 """Application package entrypoint.
 
-The historical monolithic implementation lives in ``legacy.py`` while the
-package entrypoint stays intentionally small. Cross-cutting HTTP security and
-DB-backed configuration are attached here so route modules do not need to
-know about infrastructure.
+The historical monolithic implementation remains temporarily available for
+compatibility, while extracted services become the runtime owners of migrated
+helpers. This keeps the migration incremental and avoids a risky big-bang
+rewrite of the application.
 """
 
 import sys
@@ -18,6 +18,7 @@ from .routes.settings import register_settings_routes
 from .routes.settings_quick import register_settings_quick_routes
 from .services.activity_service import load_activity_logs as _service_load_activity_logs, load_recent_activity as _service_load_recent_activity, record_activity as _service_record_activity
 from .services.configuration_service import build_form_schema as _build_form_schema, setting_choices as _setting_choices
+from .services.core_helpers import active_user_by_id as _service_active_user_by_id, active_users_query as _service_active_users_query, build_qr_code_url as _service_build_qr_code_url, generate_unique_sku as _service_generate_unique_sku, split_license_name as _service_split_license_name, user_is_active as _service_user_is_active
 from .services.dashboard_service import load_dashboard_metrics as _service_load_dashboard_metrics
 from .services.inventory_payloads import build_inventory_stock_metadata as _service_build_inventory_stock_metadata
 from .services.maintenance_helpers import calculate_maintenance_status as _service_calculate_maintenance_status, format_datetime_display as _service_format_datetime_display, maintenance_row_class as _service_maintenance_row_class, maintenance_status_badge_class as _service_maintenance_status_badge_class, serialize_maintenance_record as _service_serialize_maintenance_record
@@ -30,7 +31,11 @@ configure_security(app)
 _db_metadata = configure_stock_metadata()
 _legacy_module = sys.modules.get("app.legacy")
 if _legacy_module is not None:
+    _legacy_module.active_user_by_id = _service_active_user_by_id
+    _legacy_module.active_users_query = _service_active_users_query
     _legacy_module.build_inventory_stock_metadata = _service_build_inventory_stock_metadata
+    _legacy_module.build_qr_code_url = _service_build_qr_code_url
+    _legacy_module.generate_unique_sku = _service_generate_unique_sku
     _legacy_module.json_error = _service_json_error
     _legacy_module.record_activity = _service_record_activity
     _legacy_module.load_activity_logs = _service_load_activity_logs
@@ -43,6 +48,8 @@ if _legacy_module is not None:
     _legacy_module.serialize_maintenance_record = _service_serialize_maintenance_record
     _legacy_module.calculate_maintenance_status = _service_calculate_maintenance_status
     _legacy_module.maintenance_status_badge_class = _service_maintenance_status_badge_class
+    _legacy_module.split_license_name = _service_split_license_name
+    _legacy_module.user_is_active = _service_user_is_active
     if _db_metadata:
         STOCK_METADATA_FIELDS = _db_metadata
         _legacy_module.STOCK_METADATA_FIELDS = _db_metadata
@@ -54,6 +61,12 @@ load_recent_activity = _service_load_recent_activity
 record_activity = _service_record_activity
 build_form_schema = _build_form_schema
 setting_choices = _setting_choices
+active_user_by_id = _service_active_user_by_id
+active_users_query = _service_active_users_query
+build_qr_code_url = _service_build_qr_code_url
+generate_unique_sku = _service_generate_unique_sku
+split_license_name = _service_split_license_name
+user_is_active = _service_user_is_active
 
 _EXTENSION_REGISTRARS = (register_settings_routes, register_settings_quick_routes, register_custom_field_routes, register_platform_config_routes)
 
@@ -69,12 +82,7 @@ _register_extensions(app)
 
 
 def create_app(*args, **kwargs):
-    """Create the legacy application and attach the configuration APIs.
-
-    The production singleton is protected by the global security hooks above.
-    The legacy factory remains intentionally free of those hooks because the
-    existing test/tool factory is used to create isolated application instances.
-    """
+    """Create the legacy application and attach the configuration APIs."""
     application = _legacy_create_app(*args, **kwargs)
     return _register_extensions(application)
 
