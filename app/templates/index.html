@@ -11,8 +11,8 @@
       <p class="dashboard-subtitle">Stok ve IT varlıklarının genel durumu.</p>
     </div>
     <div class="dashboard-actions d-flex flex-wrap gap-2">
-      <a class="btn btn-primary" href="{{ url_for('inventory_tracking') }}"><i class="ti ti-plus me-1"></i> Yeni Varlık</a>
-      <a class="btn btn-outline-secondary" href="{{ url_for('talep_takip') }}"><i class="ti ti-clipboard-plus me-1"></i> Talep</a>
+      <a class="btn btn-primary" href="{{ url_for('inventory_tracking') }}"><i class="ti ti-box-seam me-1"></i> Envanter</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('talep_takip') }}"><i class="ti ti-clipboard-plus me-1"></i> Yeni Talep</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('activity_logs') }}"><i class="ti ti-file-analytics me-1"></i> Kayıtlar</a>
     </div>
   </div>
@@ -35,7 +35,7 @@
     </a>
     <a class="dashboard-kpi kpi-info" href="{{ url_for('maintenance_tracking') }}">
       <div class="kpi-icon"><i class="ti ti-tool"></i></div>
-      <div class="kpi-content"><div class="kpi-label">BAKIM</div><div class="kpi-value">{{ dashboard.maintenance_due_count }}</div><div class="kpi-description">{{ dashboard.maintenance_warning_count }} yaklaşan · {{ dashboard.maintenance_overdue_count }} geciken</div></div>
+      <div class="kpi-content"><div class="kpi-label">BAKIM BEKLEYENLER</div><div class="kpi-value">{{ dashboard.maintenance_due_count }}</div><div class="kpi-description">{{ dashboard.maintenance_warning_count }} yaklaşan · {{ dashboard.maintenance_overdue_count }} geciken</div></div>
       <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
   </section>
