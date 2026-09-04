@@ -1,15 +1,16 @@
 <!doctype html>
-<html lang="tr" data-bs-theme="light">
+<html lang="tr" data-bs-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="dark">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Stok Yönetimi · Giriş</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/dark-theme.css') }}" rel="stylesheet">
   </head>
   <body class="auth-body">
     <main class="auth-card">
@@ -17,7 +18,7 @@
         <div class="mb-4">
           <div class="auth-kicker">BAYLAN IT · STOK YÖNETİM</div>
           <h1 class="auth-title">Panele giriş yapın</h1>
-          <p class="text-muted mb-0">Hesabınızla devam etmek için bilgilerinizi girin.</p>
+          <p class="text-muted mb-0">IT varlık, stok ve bakım süreçlerini yönetmek için devam edin.</p>
         </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -29,29 +30,29 @@
           {% endif %}
         {% endwith %}
         {% if error %}
-          <div class="alert alert-danger" role="alert">
-            <i class="ti ti-alert-circle me-2"></i>{{ error }}
-          </div>
+          <div class="alert alert-danger" role="alert"><i class="ti ti-alert-circle me-2"></i>{{ error }}</div>
         {% endif %}
         <form method="post" class="d-flex flex-column gap-3">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="next" value="{{ next_target }}">
           <div>
             <label class="form-label" for="loginUsername">Kullanıcı Adı</label>
-            <input class="form-control" id="loginUsername" name="username" placeholder="kullanici.adi" autocomplete="username" required>
+            <div class="input-icon">
+              <span class="input-icon-addon"><i class="ti ti-user"></i></span>
+              <input class="form-control" id="loginUsername" name="username" placeholder="kullanici.adi" autocomplete="username" required>
+            </div>
           </div>
           <div>
             <label class="form-label" for="loginPassword">Şifre</label>
-            <input class="form-control" id="loginPassword" name="password" type="password" placeholder="Şifreniz" autocomplete="current-password" required>
+            <div class="input-icon">
+              <span class="input-icon-addon"><i class="ti ti-lock"></i></span>
+              <input class="form-control" id="loginPassword" name="password" type="password" placeholder="Şifreniz" autocomplete="current-password" required>
+            </div>
           </div>
-          <div class="form-hint d-flex align-items-start gap-2">
-            <i class="ti ti-shield-check"></i>
-            <span>İlk girişte sistem sizden güçlü bir şifre belirlemenizi ister.</span>
-          </div>
-          <button class="btn btn-primary w-100" type="submit">
-            Giriş Yap <i class="ti ti-arrow-right"></i>
-          </button>
+          <div class="form-hint d-flex align-items-start gap-2"><i class="ti ti-shield-check"></i><span>İlk girişte sistem sizden güçlü bir şifre belirlemenizi ister.</span></div>
+          <button class="btn btn-primary w-100" type="submit">Giriş Yap <i class="ti ti-arrow-right"></i></button>
         </form>
+        <div class="login-footer">BAYLAN IT · Stok Yönetim Sistemi</div>
       </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
