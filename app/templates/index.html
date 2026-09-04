@@ -12,7 +12,7 @@
     </div>
     <div class="dashboard-actions d-flex flex-wrap gap-2">
       <a class="btn btn-primary" href="{{ url_for('inventory_tracking') }}"><i class="ti ti-box-seam me-1"></i> Envanter</a>
-      <a class="btn btn-outline-secondary" href="{{ url_for('talep_takip') }}"><i class="ti ti-clipboard-plus me-1"></i> Yeni Talep</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('talep_takip') }}"><i class="ti ti-clipboard-plus me-1"></i> Talepler</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('activity_logs') }}"><i class="ti ti-file-analytics me-1"></i> Kayıtlar</a>
     </div>
   </div>
@@ -83,6 +83,17 @@
         {% else %}
           <div class="dashboard-empty"><div class="empty-icon"><i class="ti ti-package"></i></div><strong>Henüz stok hareketi yok</strong><span>Stok giriş ve çıkışları burada görünecek.</span></div>
         {% endfor %}
+      </div>
+      <div class="dashboard-distribution">
+        <div class="health-title text-secondary small fw-semibold mb-2">VARLIK / İŞLEM DAĞILIMI</div>
+        {% set stock_max = [dashboard.total_stock, 1]|max %}
+        {% set request_max = [dashboard.total_requests, 1]|max %}
+        {% set maintenance_max = [dashboard.maintenance_due_count, 1]|max %}
+        {% set faulty_max = [dashboard.faulty_inventory, 1]|max %}
+        <div class="dashboard-distribution-row"><span class="dashboard-distribution-label">Stok</span><div class="dashboard-distribution-track"><div class="dashboard-distribution-bar" style="width: {{ ((dashboard.available_stock / stock_max) * 100)|round(0) }}%"></div></div><strong class="dashboard-distribution-value">{{ dashboard.available_stock }}</strong></div>
+        <div class="dashboard-distribution-row"><span class="dashboard-distribution-label">Talepler</span><div class="dashboard-distribution-track"><div class="dashboard-distribution-bar" style="width: {{ ((dashboard.open_requests / request_max) * 100)|round(0) }}%"></div></div><strong class="dashboard-distribution-value">{{ dashboard.open_requests }}</strong></div>
+        <div class="dashboard-distribution-row"><span class="dashboard-distribution-label">Bakım</span><div class="dashboard-distribution-track"><div class="dashboard-distribution-bar" style="width: {{ ((dashboard.maintenance_due_count / maintenance_max) * 100)|round(0) }}%"></div></div><strong class="dashboard-distribution-value">{{ dashboard.maintenance_due_count }}</strong></div>
+        <div class="dashboard-distribution-row"><span class="dashboard-distribution-label">Arızalı</span><div class="dashboard-distribution-track"><div class="dashboard-distribution-bar" style="width: {{ ((dashboard.faulty_inventory / faulty_max) * 100)|round(0) }}%"></div></div><strong class="dashboard-distribution-value">{{ dashboard.faulty_inventory }}</strong></div>
       </div>
       <div class="dashboard-health mt-3 pt-3 border-top">
         <div class="health-title text-secondary small fw-semibold mb-2">SİSTEM DURUMU</div>
