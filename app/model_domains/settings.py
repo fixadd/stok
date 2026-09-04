@@ -91,6 +91,7 @@ class CustomField(db.Model):
     depends_on_values = db.Column(JSONB, nullable=False, default=list)
 
     group = db.relationship("FieldGroup", back_populates="fields")
+    depends_on_field = db.relationship("CustomField", remote_side="CustomField.id", foreign_keys=[depends_on_field_id])
     options = db.relationship(
         "CustomFieldOption",
         back_populates="field",
