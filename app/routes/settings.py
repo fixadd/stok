@@ -97,6 +97,11 @@ def register_settings_routes(app, deps=None):
         if not field_key or not label: return jsonify({"error": "Alan anahtarı ve adı zorunludur."}), 400
         if field_type not in FIELD_TYPES: return jsonify({"error": "Geçersiz alan tipi."}), 400
         if CustomField.query.filter_by(entity_type=entity_type, field_key=field_key).first(): return jsonify({"error": "Bu alan zaten mevcut."}), 409
+        depends_on_field_id = int(data["depends_on_field_id"]) if data.get("depends_on_field_id") else None
+        if depends_on_field_id:
+            parent_field = db.session.get(CustomField, depends_on_field_id)
+            if parent_field is None or parent_field.entity_type != entity_type:
+                return jsonify({"error": "Bağımlı alan aynı modülde bulunan geçerli bir alan olmalıdır."}), 400
         try:
             field = CustomField(entity_type=entity_type, field_key=field_key, label=label, field_type=field_type,
                 required=_bool(data.get("required")), active=True, visible_form=_bool(data.get("visible_form"), True),
