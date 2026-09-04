@@ -55,10 +55,30 @@
   });
 
   const fieldForm = document.getElementById('newFieldForm');
+  const entitySelect = fieldForm?.querySelector('[name="entity_type"]');
+  const dependencySelect = fieldForm?.querySelector('[name="depends_on_field_id"]');
+
+  async function loadDependencyFields() {
+    if (!entitySelect || !dependencySelect) return;
+    dependencySelect.innerHTML = '<option value="">Bağımlılık yok</option>';
+    try {
+      const response = await requestJson(`/api/configuration/${entitySelect.value}/form-schema`);
+      const fields = response.data || response.fields || response || [];
+      (Array.isArray(fields) ? fields : []).forEach((field) => {
+        const option = document.createElement('option');
+        option.value = field.id;
+        option.textContent = field.label || field.key;
+        dependencySelect.appendChild(option);
+      });
+    } catch (error) { showError(error.message); }
+  }
+  entitySelect?.addEventListener('change', loadDependencyFields);
+  entitySelect && loadDependencyFields();
   fieldForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(fieldForm).entries());
     for (const key of ['required', 'visible_form', 'visible_list', 'searchable']) data[key] = data[key] === 'true';
+    data.depends_on_values = String(data.depends_on_values || '').split(',').map(v => v.trim()).filter(Boolean);
     try {
       await requestJson('/api/settings/fields', {method: 'POST', body: data});
       window.location.reload();
