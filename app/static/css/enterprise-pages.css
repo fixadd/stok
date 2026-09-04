@@ -11,7 +11,6 @@ html[data-bs-theme="dark"] {
   --page-muted: #94a3b8;
 }
 
-/* Module shells */
 html[data-bs-theme="dark"] .content-card,
 html[data-bs-theme="dark"] .inventory-detail-card,
 html[data-bs-theme="dark"] .license-detail-modal-card,
@@ -22,11 +21,7 @@ html[data-bs-theme="dark"] .stock-detail-card {
 }
 
 html[data-bs-theme="dark"] .content-card > .d-flex:first-child,
-html[data-bs-theme="dark"] .content-card > .row:first-child {
-  position: relative;
-}
-
-/* Consistent page hero/header spacing without requiring markup changes. */
+html[data-bs-theme="dark"] .content-card > .row:first-child { position: relative; }
 html[data-bs-theme="dark"] .content-card > .d-flex:first-child {
   padding: 16px !important;
   margin: -1px -1px 0 !important;
@@ -42,7 +37,6 @@ html[data-bs-theme="dark"] .content-card > .d-flex:first-child h1 {
 }
 html[data-bs-theme="dark"] .content-card > .d-flex:first-child p { color: var(--page-muted) !important; }
 
-/* Dedicated module header classes, used by newer pages. */
 html[data-bs-theme="dark"] .stock-header,
 html[data-bs-theme="dark"] .inventory-header,
 html[data-bs-theme="dark"] .license-header,
@@ -69,7 +63,6 @@ html[data-bs-theme="dark"] .license-header p,
 html[data-bs-theme="dark"] .request-header p,
 html[data-bs-theme="dark"] .maintenance-header p { color: var(--page-muted) !important; }
 
-/* Toolbars */
 html[data-bs-theme="dark"] .stock-toolbar,
 html[data-bs-theme="dark"] .inventory-toolbar,
 html[data-bs-theme="dark"] .license-toolbar,
@@ -95,7 +88,6 @@ html[data-bs-theme="dark"] .search-input .form-control {
   color: var(--page-text) !important;
 }
 
-/* Tables — dense enterprise layout */
 html[data-bs-theme="dark"] .table-responsive {
   background: var(--page-surface) !important;
   border-color: var(--page-border) !important;
@@ -114,15 +106,11 @@ html[data-bs-theme="dark"] .table thead th {
   letter-spacing: .055em;
   text-transform: uppercase;
 }
-html[data-bs-theme="dark"] .table tbody td {
-  color: #e2e8f0 !important;
-  border-color: #263244 !important;
-}
+html[data-bs-theme="dark"] .table tbody td { color: #e2e8f0 !important; border-color: #263244 !important; }
 html[data-bs-theme="dark"] .table tbody tr:hover > td { background: #243247 !important; }
 html[data-bs-theme="dark"] .table .text-muted,
 html[data-bs-theme="dark"] .table .text-secondary { color: #94a3b8 !important; }
 
-/* Stock */
 html[data-bs-theme="dark"] .stock-tabs { border-bottom-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .stock-tabs .nav-link.active {
   color: #fff !important;
@@ -146,16 +134,12 @@ html[data-bs-theme="dark"] .stock-category-filters .badge {
   border-color: var(--page-border) !important;
 }
 html[data-bs-theme="dark"] .stock-summary-chip,
-html[data-bs-theme="dark"] .license-counter-card {
-  background: var(--page-surface-2) !important;
-  border-color: var(--page-border) !important;
-}
+html[data-bs-theme="dark"] .license-counter-card { background: var(--page-surface-2) !important; border-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .stock-summary-count,
 html[data-bs-theme="dark"] .license-counter-value { color: #f8fafc !important; }
 html[data-bs-theme="dark"] .stock-summary-label,
 html[data-bs-theme="dark"] .license-counter-label { color: #94a3b8 !important; }
 
-/* KPI cards */
 html[data-bs-theme="dark"] .content-card .card,
 html[data-bs-theme="dark"] .content-card .card.shadow-sm,
 html[data-bs-theme="dark"] .row > [class*="col-"] > .card {
@@ -165,7 +149,6 @@ html[data-bs-theme="dark"] .row > [class*="col-"] > .card {
 }
 html[data-bs-theme="dark"] .row > [class*="col-"] > .card .card-body { color: var(--page-text); }
 
-/* Buttons */
 html[data-bs-theme="dark"] .btn-outline-secondary,
 html[data-bs-theme="dark"] .btn-outline-primary,
 html[data-bs-theme="dark"] .btn-light,
@@ -183,69 +166,78 @@ html[data-bs-theme="dark"] .btn-secondary:hover {
   border-color: #475569 !important;
 }
 html[data-bs-theme="dark"] .btn-primary { background: #0d6efd !important; border-color: #0d6efd !important; }
-html[data-bs-theme="dark"] .btn-warning {
-  color: #fef3c7 !important;
-  background: #5b4600 !important;
-  border-color: #806600 !important;
-}
+html[data-bs-theme="dark"] .btn-warning { color: #fef3c7 !important; background: #5b4600 !important; border-color: #806600 !important; }
 
-/* Dropdowns / modals / forms */
 html[data-bs-theme="dark"] .dropdown-menu,
 html[data-bs-theme="dark"] .modal-content,
-html[data-bs-theme="dark"] .offcanvas {
-  background: var(--page-surface) !important;
-  border-color: var(--page-border) !important;
-}
+html[data-bs-theme="dark"] .offcanvas { background: var(--page-surface) !important; border-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .dropdown-item { color: #e2e8f0 !important; }
 html[data-bs-theme="dark"] .dropdown-item:hover,
 html[data-bs-theme="dark"] .dropdown-item:focus { background: #243247 !important; color: #fff !important; }
 html[data-bs-theme="dark"] .form-control,
-html[data-bs-theme="dark"] .form-select {
-  background: var(--page-surface-3) !important;
-  color: #f8fafc !important;
-  border-color: var(--page-border) !important;
-}
+html[data-bs-theme="dark"] .form-select { background: var(--page-surface-3) !important; color: #f8fafc !important; border-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .form-control:focus,
-html[data-bs-theme="dark"] .form-select:focus {
-  border-color: #0d6efd !important;
-  box-shadow: 0 0 0 .15rem rgba(13,110,253,.18) !important;
-}
+html[data-bs-theme="dark"] .form-select:focus { border-color: #0d6efd !important; box-shadow: 0 0 0 .15rem rgba(13,110,253,.18) !important; }
 html[data-bs-theme="dark"] .form-label { color: #cbd5e1 !important; }
 
-/* Detail/status blocks */
 html[data-bs-theme="dark"] .detail-grid,
 html[data-bs-theme="dark"] .status-toggle,
 html[data-bs-theme="dark"] .admin-toggle,
-html[data-bs-theme="dark"] .status-pills {
-  background: var(--page-surface-3) !important;
-  border-color: var(--page-border) !important;
-}
+html[data-bs-theme="dark"] .status-pills { background: var(--page-surface-3) !important; border-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .detail-item { background: var(--page-surface) !important; }
 html[data-bs-theme="dark"] .detail-label { color: #64748b !important; }
 html[data-bs-theme="dark"] .detail-value { color: #e2e8f0 !important; }
 html[data-bs-theme="dark"] .status-pill.active,
-html[data-bs-theme="dark"] .status-toggle button.active {
-  background: #243247 !important;
-  color: #fff !important;
-  border-color: #475569 !important;
-  box-shadow: none !important;
-}
+html[data-bs-theme="dark"] .status-toggle button.active { background: #243247 !important; color: #fff !important; border-color: #475569 !important; box-shadow: none !important; }
 
-/* Legacy light badges/alerts inside dark modules */
+/* Personnel lifecycle */
+html[data-bs-theme="dark"] .personnel-page,
+html[data-bs-theme="dark"] .lifecycle-page { color: var(--page-text); }
+html[data-bs-theme="dark"] .content-card.shadow-sm { box-shadow: none !important; }
+html[data-bs-theme="dark"] .content-card .list-group,
+html[data-bs-theme="dark"] .content-card .list-group-item { background: transparent !important; color: #e2e8f0 !important; border-color: var(--page-border) !important; }
+html[data-bs-theme="dark"] .content-card .list-group-item .text-muted { color: var(--page-muted) !important; }
+html[data-bs-theme="dark"] [data-person-key] .content-card h1 { color: #f8fafc !important; }
+html[data-bs-theme="dark"] [data-person-key] .content-card h2 { color: #e2e8f0 !important; }
+html[data-bs-theme="dark"] [data-person-key] #lifecycleActions { padding: 2px; }
+html[data-bs-theme="dark"] [data-person-key] #lifecycleActions .btn { min-height: 36px; }
+html[data-bs-theme="dark"] [data-person-key] .alert { border: 1px solid var(--page-border); }
+
+/* Information management */
+html[data-bs-theme="dark"] .information-page .info-hero { padding: 0 !important; overflow: hidden; }
+html[data-bs-theme="dark"] .information-page .info-hero-copy { padding: 20px; }
+html[data-bs-theme="dark"] .information-page .info-hero-copy .badge { background: #243247 !important; color: #93c5fd !important; border: 1px solid #334155; border-radius: 4px !important; }
+html[data-bs-theme="dark"] .information-page .info-hero h1 { color: #f8fafc !important; font-size: 24px; }
+html[data-bs-theme="dark"] .information-page .info-count-pill { background: var(--page-surface-3) !important; border: 1px solid var(--page-border); color: #cbd5e1; }
+html[data-bs-theme="dark"] .information-page .info-filters { padding: 16px 20px 20px; border-top: 1px solid var(--page-border); background: var(--page-surface-2); }
+html[data-bs-theme="dark"] .information-page .info-actions { padding-right: 20px; }
+html[data-bs-theme="dark"] .information-page .info-table tbody td { vertical-align: middle; }
+html[data-bs-theme="dark"] .information-page .info-table .btn { white-space: nowrap; }
+html[data-bs-theme="dark"] .information-page .form-text { color: var(--page-muted) !important; }
+html[data-bs-theme="dark"] .information-page .alert { border: 1px solid var(--page-border); }
+
+/* Admin */
+html[data-bs-theme="dark"] .admin-section > .mb-4 h2,
+html[data-bs-theme="dark"] .admin-section h3 { color: #f8fafc !important; }
+html[data-bs-theme="dark"] .admin-section .search-container { max-width: 620px; }
+html[data-bs-theme="dark"] .admin-toggle { padding: 4px !important; gap: 3px; }
+html[data-bs-theme="dark"] .admin-toggle .status-pill { color: #94a3b8; border: 1px solid transparent; background: transparent; border-radius: 3px !important; padding: 8px 12px; }
+html[data-bs-theme="dark"] .admin-toggle .status-pill:hover { color: #fff; background: #243247; }
+html[data-bs-theme="dark"] .admin-toggle .status-pill.active { background: #0d6efd !important; color: #fff !important; border-color: #0d6efd !important; }
+html[data-bs-theme="dark"] #userTable { min-width: 1080px; }
+html[data-bs-theme="dark"] #userTable td:first-child { color: #f8fafc !important; }
+html[data-bs-theme="dark"] #userTable .form-select { min-width: 140px; }
+html[data-bs-theme="dark"] .admin-section .table-responsive { border: 1px solid var(--page-border); }
+html[data-bs-theme="dark"] .admin-section .badge { border: 1px solid rgba(148,163,184,.16); }
+html[data-bs-theme="dark"] .admin-section .alert-soft { background: var(--page-surface-2) !important; }
+
 html[data-bs-theme="dark"] .bg-light,
 html[data-bs-theme="dark"] .badge.bg-light,
-html[data-bs-theme="dark"] .alert-soft {
-  background: var(--page-surface-2) !important;
-  color: #cbd5e1 !important;
-  border-color: var(--page-border) !important;
-}
-
-/* Prevent the large legacy rounded treatment. */
+html[data-bs-theme="dark"] .alert-soft { background: var(--page-surface-2) !important; color: #cbd5e1 !important; border-color: var(--page-border) !important; }
 html[data-bs-theme="dark"] .rounded,
 html[data-bs-theme="dark"] .rounded-3,
 html[data-bs-theme="dark"] .rounded-4 { border-radius: 4px !important; }
 
-/* Mobile */
 @media (max-width: 767.98px) {
   html[data-bs-theme="dark"] .content-card > .d-flex:first-child { padding: 13px !important; }
   html[data-bs-theme="dark"] .stock-toolbar,
@@ -260,6 +252,10 @@ html[data-bs-theme="dark"] .rounded-4 { border-radius: 4px !important; }
   html[data-bs-theme="dark"] .inventory-search,
   html[data-bs-theme="dark"] .license-search { min-width: 100%; }
   html[data-bs-theme="dark"] .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  html[data-bs-theme="dark"] .information-page .info-actions { padding: 0 20px 20px; }
+  html[data-bs-theme="dark"] .information-page .info-actions .btn { width: 100%; }
+  html[data-bs-theme="dark"] .admin-toggle { width: 100%; overflow-x: auto; }
+  html[data-bs-theme="dark"] .admin-toggle .status-pill { flex: 0 0 auto; white-space: nowrap; }
 }
 
 @media (min-width: 992px) {
