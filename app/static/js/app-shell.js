@@ -23,8 +23,7 @@
   })();
   applyTheme(savedTheme || root.getAttribute('data-bs-theme') || 'dark');
 
-  // Older templates used Bootstrap Icons. Convert those classes to Tabler Icons
-  // at runtime so the application has one icon system without breaking legacy views.
+  // Legacy Bootstrap Icons are normalized to Tabler Icons at runtime.
   const normalizeLegacyIcons = (scope = document) => {
     scope.querySelectorAll?.('i.bi[class*="bi-"]').forEach((icon) => {
       const legacy = [...icon.classList].find((name) => name.startsWith('bi-'));
@@ -150,4 +149,45 @@
     }
     if (event.key === 'Escape' && palette && !palette.hidden) closePalette();
   });
+
+  // Compatibility layer for the current inventory view. The inventory template
+  // exposes data-item-id while its filter logic historically expected
+  // data-inventory-item-id. Keep both conventions working without touching the
+  // page's existing modal/action JavaScript.
+  const initInventoryCompatibility = () => {
+    const table = document.getElementById('inventoryTable');
+    const search = document.getElementById('inventorySearch');
+    if (!table || !search || !Array.isArray(window.inventoryItems)) return;
+
+    const rows = [...table.querySelectorAll('tbody tr[data-item-id]')];
+    const items = window.inventoryItems;
+    const normalize = (value) => String(value ?? '').toLocaleLowerCase('tr-TR').trim();
+    const textOf = (item) => [
+      item.inventory_no, item.serial_no, item.serial_number, item.brand, item.model,
+      item.hardware_type, item.hardware_type_name, item.responsible_name, item.user_name,
+      item.factory, item.factory_name, item.computer_name, item.status
+    ].filter(Boolean).map(normalize).join(' ');
+
+    const apply = () => {
+      const term = normalize(search.value);
+      let visible = 0;
+      rows.forEach((row) => {
+        const item = items.find((candidate) => String(candidate.id) === String(row.dataset.itemId));
+        const match = !term || (item ? textOf(item).includes(term) : normalize(row.dataset.search).includes(term));
+        row.classList.toggle('d-none', !match);
+        if (match) visible += 1;
+      });
+      const count = document.getElementById('inventoryResultCount');
+      if (count) count.textContent = `${visible} / ${items.length} kayıt`;
+      const empty = document.getElementById('inventoryEmptyState');
+      if (empty) empty.classList.toggle('d-none', visible !== 0);
+    };
+
+    search.addEventListener('input', apply);
+    apply();
+  };
+
+  // inventoryItems is declared by the page script; wait one tick so the page
+  // declaration is initialized before the compatibility layer reads it.
+  window.setTimeout(initInventoryCompatibility, 0);
 })();
