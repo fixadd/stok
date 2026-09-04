@@ -62,8 +62,8 @@
     if (!entitySelect || !dependencySelect) return;
     dependencySelect.innerHTML = '<option value="">Bağımlılık yok</option>';
     try {
-      const response = await requestJson(`/api/configuration/${entitySelect.value}/form-schema`);
-      const fields = response.data || response.fields || response || [];
+      const response = await requestJson(`/api/settings/schema/${entitySelect.value}`);
+      const fields = response.fields || [];
       (Array.isArray(fields) ? fields : []).forEach((field) => {
         const option = document.createElement('option');
         option.value = field.id;
