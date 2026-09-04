@@ -1,58 +1,41 @@
 {% extends "layout.html" %}
 
-{% block title %}Stok Yönetim Paneli{% endblock %}
+{% block title %}Genel Bakış · Stok Yönetim{% endblock %}
 
 {% block main %}
 <div class="dashboard-page">
   <div class="dashboard-header mb-4">
     <div>
-      <div class="dashboard-eyebrow">
-        <i class="ti ti-layout-dashboard"></i>
-        GENEL BAKIŞ
-      </div>
-      <h1 class="dashboard-title">Stok Yönetim Paneli</h1>
-      <p class="dashboard-subtitle">Envanter, stok, talepler ve bakım süreçlerini tek ekrandan takip edin.</p>
+      <div class="dashboard-eyebrow"><i class="ti ti-layout-dashboard"></i> GENEL BAKIŞ</div>
+      <h1 class="dashboard-title">Dashboard</h1>
+      <p class="dashboard-subtitle">Stok ve IT varlıklarının genel durumu.</p>
+    </div>
+    <div class="dashboard-actions d-flex flex-wrap gap-2">
+      <a class="btn btn-primary" href="{{ url_for('inventory_tracking') }}"><i class="ti ti-plus me-1"></i> Yeni Varlık</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('talep_takip') }}"><i class="ti ti-clipboard-plus me-1"></i> Talep</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('activity_logs') }}"><i class="ti ti-file-analytics me-1"></i> Kayıtlar</a>
     </div>
   </div>
 
   <section class="dashboard-kpis">
-    <a class="dashboard-kpi kpi-primary" href="{{ url_for('stock_tracking') }}">
+    <a class="dashboard-kpi kpi-primary" href="{{ url_for('inventory_tracking') }}">
+      <div class="kpi-icon"><i class="ti ti-devices"></i></div>
+      <div class="kpi-content"><div class="kpi-label">ENVANTER</div><div class="kpi-value">{{ dashboard.faulty_inventory + dashboard.maintenance_due_count }}</div><div class="kpi-description">{{ dashboard.faulty_inventory }} arızalı · {{ dashboard.maintenance_due_count }} bakım bekliyor</div></div>
+      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
+    </a>
+    <a class="dashboard-kpi kpi-success" href="{{ url_for('stock_tracking') }}">
       <div class="kpi-icon"><i class="ti ti-package"></i></div>
-      <div class="kpi-content">
-        <div class="kpi-label">GÜNCEL STOK</div>
-        <div class="kpi-value">{{ dashboard.available_stock }}</div>
-        <div class="kpi-description">{{ dashboard.total_stock }} toplam stok kalemi</div>
-      </div>
+      <div class="kpi-content"><div class="kpi-label">GÜNCEL STOK</div><div class="kpi-value">{{ dashboard.available_stock }}</div><div class="kpi-description">{{ dashboard.total_stock }} toplam stok miktarı</div></div>
       <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
-
-    <a class="dashboard-kpi kpi-success" href="{{ url_for('talep_takip') }}">
+    <a class="dashboard-kpi kpi-warning" href="{{ url_for('talep_takip') }}">
       <div class="kpi-icon"><i class="ti ti-clipboard-check"></i></div>
-      <div class="kpi-content">
-        <div class="kpi-label">AKTİF TALEPLER</div>
-        <div class="kpi-value">{{ dashboard.open_requests }}</div>
-        <div class="kpi-description">{{ dashboard.total_requests }} toplam talep</div>
-      </div>
+      <div class="kpi-content"><div class="kpi-label">AKTİF TALEPLER</div><div class="kpi-value">{{ dashboard.open_requests }}</div><div class="kpi-description">{{ dashboard.total_requests }} toplam talep</div></div>
       <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
-
-    <a class="dashboard-kpi kpi-warning" href="{{ url_for('inventory_tracking') }}">
-      <div class="kpi-icon"><i class="ti ti-alert-triangle"></i></div>
-      <div class="kpi-content">
-        <div class="kpi-label">KRİTİK UYARILAR</div>
-        <div class="kpi-value">{{ dashboard.critical_alerts }}</div>
-        <div class="kpi-description">{{ dashboard.faulty_inventory }} arızalı envanter</div>
-      </div>
-      <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
-    </a>
-
     <a class="dashboard-kpi kpi-info" href="{{ url_for('maintenance_tracking') }}">
       <div class="kpi-icon"><i class="ti ti-tool"></i></div>
-      <div class="kpi-content">
-        <div class="kpi-label">BAKIM BEKLEYENLER</div>
-        <div class="kpi-value">{{ dashboard.maintenance_due_count }}</div>
-        <div class="kpi-description">{{ dashboard.maintenance_warning_count }} yakında bakım</div>
-      </div>
+      <div class="kpi-content"><div class="kpi-label">BAKIM</div><div class="kpi-value">{{ dashboard.maintenance_due_count }}</div><div class="kpi-description">{{ dashboard.maintenance_warning_count }} yaklaşan · {{ dashboard.maintenance_overdue_count }} geciken</div></div>
       <div class="kpi-arrow"><i class="ti ti-arrow-up-right"></i></div>
     </a>
   </section>
@@ -60,43 +43,20 @@
   <section class="dashboard-content">
     <div class="dashboard-panel dashboard-activity-panel">
       <div class="dashboard-panel-header">
-        <div>
-          <div class="panel-eyebrow"><i class="ti ti-activity"></i> SİSTEM</div>
-          <h2>Son Aktiviteler</h2>
-        </div>
+        <div><div class="panel-eyebrow"><i class="ti ti-activity"></i> SİSTEM</div><h2>Son Aktiviteler</h2></div>
         <a class="dashboard-panel-link" href="{{ url_for('activity_logs') }}">Tümünü Gör <i class="ti ti-arrow-right"></i></a>
       </div>
-
-      {% set area_badges = {
-        'envanter': {'label': 'Envanter', 'variant': 'primary'},
-        'talep': {'label': 'Talep', 'variant': 'success'},
-        'urun': {'label': 'Ürün', 'variant': 'info'},
-        'kullanici': {'label': 'Kullanıcı', 'variant': 'secondary'}
-      } %}
-
+      {% set area_badges = {'envanter': {'label': 'Envanter', 'variant': 'primary'}, 'talep': {'label': 'Talep', 'variant': 'success'}, 'urun': {'label': 'Ürün', 'variant': 'info'}, 'kullanici': {'label': 'Kullanıcı', 'variant': 'secondary'}} %}
       <div class="dashboard-activity-list">
         {% if recent_activity %}
           {% for log in recent_activity %}
             {% set badge = area_badges.get(log.area, {'label': log.area|capitalize, 'variant': 'dark'}) %}
             <div class="dashboard-activity-item">
               <div class="activity-marker marker-{{ badge.variant }}">
-                {% if log.area == 'envanter' %}
-                  <i class="ti ti-device-desktop"></i>
-                {% elif log.area == 'talep' %}
-                  <i class="ti ti-clipboard-check"></i>
-                {% elif log.area == 'urun' %}
-                  <i class="ti ti-package"></i>
-                {% elif log.area == 'kullanici' %}
-                  <i class="ti ti-user"></i>
-                {% else %}
-                  <i class="ti ti-circle"></i>
-                {% endif %}
+                {% if log.area == 'envanter' %}<i class="ti ti-device-desktop"></i>{% elif log.area == 'talep' %}<i class="ti ti-clipboard-check"></i>{% elif log.area == 'urun' %}<i class="ti ti-package"></i>{% elif log.area == 'kullanici' %}<i class="ti ti-user"></i>{% else %}<i class="ti ti-circle"></i>{% endif %}
               </div>
-              <div class="activity-body">
-                <div class="activity-top">
-                  <span class="activity-badge badge-{{ badge.variant }}">{{ badge.label }}</span>
-                  <span class="activity-date">{{ log.created_display }}</span>
-                </div>
+              <div class="activity-body flex-fill">
+                <div class="activity-top"><span class="activity-badge badge-{{ badge.variant }}">{{ badge.label }}</span><span class="activity-date ms-auto">{{ log.created_display }}</span></div>
                 <div class="activity-title">{{ log.action }}</div>
                 {% if log.description %}<div class="activity-description">{{ log.description }}</div>{% endif %}
                 <div class="activity-actor"><i class="ti ti-user-circle"></i> {{ log.actor }}</div>
@@ -104,42 +64,32 @@
             </div>
           {% endfor %}
         {% else %}
-          <div class="dashboard-empty">
-            <div class="empty-icon"><i class="ti ti-activity"></i></div>
-            <strong>Henüz aktivite bulunmuyor</strong>
-            <span>Sistemde gerçekleşen işlemler burada görünecek.</span>
-          </div>
+          <div class="dashboard-empty"><div class="empty-icon"><i class="ti ti-activity"></i></div><strong>Henüz aktivite bulunmuyor</strong><span>Sistemde gerçekleşen işlemler burada görünecek.</span></div>
         {% endif %}
       </div>
     </div>
 
     <div class="dashboard-panel">
       <div class="dashboard-panel-header">
-        <div>
-          <div class="panel-eyebrow"><i class="ti ti-arrows-left-right"></i> STOK</div>
-          <h2>Son Stok Hareketleri</h2>
-        </div>
+        <div><div class="panel-eyebrow"><i class="ti ti-arrows-left-right"></i> STOK</div><h2>Son Stok Hareketleri</h2></div>
         <a class="dashboard-panel-link" href="{{ url_for('stock_tracking') }}">Stok Ekranı <i class="ti ti-arrow-right"></i></a>
       </div>
-
       <div class="dashboard-stock-list">
         {% for movement in dashboard.recent_stock_movements %}
           <div class="stock-movement-item">
             <div class="stock-movement-icon"><i class="ti ti-arrows-left-right"></i></div>
-            <div class="stock-movement-content">
-              <div class="stock-movement-title">{{ movement.title }}</div>
-              <div class="stock-movement-meta">
-                <span>{{ movement.operation }}</span><span class="meta-dot"></span><span>{{ movement.created_display }}</span>
-              </div>
-            </div>
+            <div class="stock-movement-content flex-fill"><div class="stock-movement-title">{{ movement.title }}</div><div class="stock-movement-meta"><span>{{ movement.operation }}</span><span class="meta-dot"></span><span>{{ movement.created_display }}</span></div></div>
           </div>
         {% else %}
-          <div class="dashboard-empty">
-            <div class="empty-icon"><i class="ti ti-package"></i></div>
-            <strong>Henüz stok hareketi yok</strong>
-            <span>Stok giriş ve çıkışları burada görünecek.</span>
-          </div>
+          <div class="dashboard-empty"><div class="empty-icon"><i class="ti ti-package"></i></div><strong>Henüz stok hareketi yok</strong><span>Stok giriş ve çıkışları burada görünecek.</span></div>
         {% endfor %}
+      </div>
+      <div class="dashboard-health">
+        <div class="health-title">SİSTEM DURUMU</div>
+        <div class="health-row"><span><i class="ti ti-circle-check text-success"></i> Normal stok</span><strong>{{ dashboard.available_stock }}</strong></div>
+        <div class="health-row"><span><i class="ti ti-alert-triangle text-warning"></i> Kritik stok</span><strong>{{ dashboard.problem_stock }}</strong></div>
+        <div class="health-row"><span><i class="ti ti-tool text-info"></i> Bakım</span><strong>{{ dashboard.maintenance_due_count }}</strong></div>
+        <div class="health-row"><span><i class="ti ti-alert-circle text-danger"></i> Arızalı</span><strong>{{ dashboard.faulty_inventory }}</strong></div>
       </div>
     </div>
   </section>
