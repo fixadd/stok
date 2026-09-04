@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark">
+    <meta name="color-scheme" content="dark light">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}Stok Yönetim Paneli{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
@@ -13,6 +13,7 @@
     <link href="{{ url_for('static', filename='css/redesign.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/configurable-selects.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/dark-theme.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app-shell.css') }}" rel="stylesheet">
   </head>
   <body class="bg-body-tertiary {{ active_theme_class | default('') }}" data-is-admin="{{ '1' if is_admin_user else '0' }}">
     <div class="page">
@@ -49,6 +50,7 @@
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app-shell.js') }}"></script>
     <script src="{{ url_for('static', filename='js/security.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
     <script src="{{ url_for('static', filename='js/custom-fields.js') }}"></script>
